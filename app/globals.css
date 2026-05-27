@@ -1,26 +1,31 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bloom-canvas: #f7f4ef;
+  --bloom-surface: #ffffff;
+  --bloom-ink: #2a2622;
+  --bloom-muted: #6b6560;
+  --bloom-border: #e8e2d9;
+  --bloom-accent: #7d6b5a;
+  --bloom-accent-hover: #6a5a4b;
+  --bloom-success: #5c7a6b;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-bloom-canvas: var(--bloom-canvas);
+  --color-bloom-surface: var(--bloom-surface);
+  --color-bloom-ink: var(--bloom-ink);
+  --color-bloom-muted: var(--bloom-muted);
+  --color-bloom-border: var(--bloom-border);
+  --color-bloom-accent: var(--bloom-accent);
+  --color-bloom-accent-hover: var(--bloom-accent-hover);
+  --color-bloom-success: var(--bloom-success);
+  --font-sans: var(--font-dm-sans);
+  --font-display: var(--font-cormorant);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bloom-canvas);
+  color: var(--bloom-ink);
+  font-family: var(--font-dm-sans), system-ui, sans-serif;
 }

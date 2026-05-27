@@ -1,0 +1,693 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  LEAD_STATUS_LABELS,
+  LEAD_STATUS_STYLES,
+  type LeadRow,
+  type LeadStatus,
+} from "@/app/data/leads";
+import { formatCurrency, formatShortDate } from "@/lib/format";
+import { insertarCronograma } from "@/lib/cronograma";
+import { supabase } from "@/lib/supabase";
+
+type LeadsBoardProps = {
+  leads: LeadRow[];
+};
+
+type LeadFormState = {
+  nombrePareja: string;
+  fechaTentativa: string;
+  ciudad: string;
+  presupuestoEstimado: string;
+  cantidadInvitados: string;
+  tipoCeremonia: string;
+  paisOrigenNovios: string;
+  ciudadResidenciaActual: string;
+  conceptoBoda: string;
+  prioridades: string;
+  estado: LeadStatus;
+  notas: string;
+};
+
+const emptyLeadForm: LeadFormState = {
+  nombrePareja: "",
+  fechaTentativa: "",
+  ciudad: "",
+  presupuestoEstimado: "",
+  cantidadInvitados: "",
+  tipoCeremonia: "",
+  paisOrigenNovios: "",
+  ciudadResidenciaActual: "",
+  conceptoBoda: "",
+  prioridades: "",
+  estado: "nuevo",
+  notas: "",
+};
+
+const CEREMONY_OPTIONS = [
+  "Civil",
+  "Religiosa",
+  "Simbólica",
+  "Civil y Religiosa",
+] as const;
+
+export function LeadsBoard({ leads }: LeadsBoardProps) {
+  const router = useRouter();
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editingLead, setEditingLead] = useState<LeadRow | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [form, setForm] = useState<LeadFormState>(emptyLeadForm);
+
+  const sortedLeads = useMemo(
+    () =>
+      [...leads].sort(
+        (a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      ),
+    [leads],
+  );
+
+  function openCreateModal() {
+    setError(null);
+    setForm(emptyLeadForm);
+    setCreateOpen(true);
+  }
+
+  function openEditModal(lead: LeadRow) {
+    setError(null);
+    setEditingLead(lead);
+    setForm({
+      nombrePareja: lead.nombre_pareja,
+      fechaTentativa: lead.fecha_tentativa,
+      ciudad: lead.ciudad,
+      presupuestoEstimado:
+        lead.presupuesto_estimado === null ? "" : String(lead.presupuesto_estimado),
+      cantidadInvitados:
+        lead.cantidad_invitados === null ? "" : String(lead.cantidad_invitados),
+      tipoCeremonia: lead.tipo_ceremonia ?? "",
+      paisOrigenNovios: lead.pais_origen_novios ?? "",
+      ciudadResidenciaActual: lead.ciudad_residencia_actual ?? "",
+      conceptoBoda: lead.concepto_boda ?? "",
+      prioridades: lead.prioridades ?? "",
+      estado: lead.estado,
+      notas: lead.notas ?? "",
+    });
+    setEditOpen(true);
+  }
+
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (!supabase) return setError("Supabase no está configurado.");
+
+    const nombrePareja = form.nombrePareja.trim();
+    const fechaTentativa = form.fechaTentativa;
+    const ciudad = form.ciudad.trim();
+    const presupuesto = form.presupuestoEstimado.trim()
+      ? Number(form.presupuestoEstimado)
+      : null;
+    const cantidadInvitados = form.cantidadInvitados.trim()
+      ? Number(form.cantidadInvitados)
+      : null;
+    const tipoCeremonia = form.tipoCeremonia.trim();
+    const paisOrigenNovios = form.paisOrigenNovios.trim();
+    const ciudadResidenciaActual = form.ciudadResidenciaActual.trim();
+    const conceptoBoda = form.conceptoBoda.trim();
+    const prioridades = form.prioridades.trim();
+    const notas = form.notas.trim();
+
+    if (!nombrePareja) return setError("Ingresa el nombre de la pareja.");
+    if (!fechaTentativa) return setError("Ingresa la fecha tentativa.");
+    if (!ciudad) return setError("Ingresa la ciudad.");
+    if (presupuesto !== null && (!Number.isFinite(presupuesto) || presupuesto < 0)) {
+      return setError("Ingresa un presupuesto válido (>= 0).");
+    }
+    if (
+      cantidadInvitados !== null &&
+      (!Number.isFinite(cantidadInvitados) || cantidadInvitados < 0)
+    ) {
+      return setError("Ingresa una cantidad de invitados válida (>= 0).");
+    }
+
+    setSubmitting(true);
+    try {
+      const { error: insertError } = await supabase.from("leads").insert({
+        nombre_pareja: nombrePareja,
+        fecha_tentativa: fechaTentativa,
+        ciudad,
+        presupuesto_estimado: presupuesto,
+        cantidad_invitados: cantidadInvitados,
+        tipo_ceremonia: tipoCeremonia || null,
+        pais_origen_novios: paisOrigenNovios || null,
+        ciudad_residencia_actual: ciudadResidenciaActual || null,
+        concepto_boda: conceptoBoda || null,
+        prioridades: prioridades || null,
+        estado: form.estado,
+        notas: notas || null,
+      });
+      if (insertError) return setError(insertError.message);
+      setCreateOpen(false);
+      router.refresh();
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleEdit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (!supabase || !editingLead) return setError("Supabase no está configurado.");
+
+    setSubmitting(true);
+    try {
+      const { error: updateError } = await supabase
+        .from("leads")
+        .update({
+          estado: form.estado,
+          notas: form.notas.trim() || null,
+        })
+        .eq("id", editingLead.id);
+      if (updateError) return setError(updateError.message);
+      setEditOpen(false);
+      setEditingLead(null);
+      router.refresh();
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleConvert(lead: LeadRow) {
+    setError(null);
+    if (!supabase) return setError("Supabase no está configurado.");
+
+    setSubmitting(true);
+    try {
+      const { data: nuevaBoda, error: insertError } = await supabase
+        .from("bodas")
+        .insert({
+          nombre_pareja: lead.nombre_pareja,
+          fecha_boda: lead.fecha_tentativa,
+          ciudad: lead.ciudad,
+          total_proveedores: 0,
+          proveedores_contratados: 0,
+        })
+        .select("id")
+        .single();
+      if (insertError) return setError(insertError.message);
+
+      const cronogramaResult = await insertarCronograma(
+        supabase,
+        nuevaBoda.id,
+        lead.fecha_tentativa,
+      );
+      if (!cronogramaResult.ok) return setError(cronogramaResult.message);
+
+      const { error: deleteError } = await supabase
+        .from("leads")
+        .delete()
+        .eq("id", lead.id);
+      if (deleteError) return setError(deleteError.message);
+
+      router.refresh();
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <section className="mt-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2 className="font-display text-3xl text-bloom-ink">Leads</h2>
+          <p className="mt-1 text-bloom-muted">
+            {leads.length} {leads.length === 1 ? "lead" : "leads"} en seguimiento
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={openCreateModal}
+          className="inline-flex items-center justify-center gap-2 rounded-full bg-bloom-accent px-6 py-3 text-sm font-medium text-white shadow-sm transition-colors hover:bg-bloom-accent-hover"
+        >
+          Nuevo lead
+        </button>
+      </div>
+
+      {error && (
+        <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+          {error}
+        </p>
+      )}
+
+      {sortedLeads.length === 0 ? (
+        <p className="mt-6 rounded-2xl border border-dashed border-bloom-border bg-bloom-surface px-5 py-10 text-center text-sm text-bloom-muted">
+          No hay leads registrados.
+        </p>
+      ) : (
+        <ul className="mt-6 space-y-3">
+          {sortedLeads.map((lead) => (
+            <li
+              key={lead.id}
+              className="rounded-2xl border border-bloom-border bg-bloom-surface p-5 shadow-sm"
+            >
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="font-medium text-bloom-ink">{lead.nombre_pareja}</h3>
+                    <span
+                      className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${LEAD_STATUS_STYLES[lead.estado]}`}
+                    >
+                      {LEAD_STATUS_LABELS[lead.estado]}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-sm text-bloom-muted">
+                    {lead.ciudad} · {formatShortDate(lead.fecha_tentativa)}
+                  </p>
+                  <p className="mt-1 text-sm text-bloom-ink">
+                    Presupuesto:{" "}
+                    {lead.presupuesto_estimado === null
+                      ? "No definido"
+                      : formatCurrency(lead.presupuesto_estimado)}
+                  </p>
+                  {lead.notas && (
+                    <p className="mt-2 whitespace-pre-wrap text-sm text-bloom-muted">
+                      {lead.notas}
+                    </p>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => openEditModal(lead)}
+                    disabled={submitting}
+                    className="rounded-full border border-bloom-border bg-bloom-canvas px-4 py-2 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-border disabled:opacity-60"
+                  >
+                    Editar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleConvert(lead)}
+                    disabled={submitting}
+                    className="rounded-full bg-bloom-accent px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-bloom-accent-hover disabled:opacity-60"
+                  >
+                    Convertir a boda
+                  </button>
+                </div>
+              </div>
+              {(lead.cantidad_invitados !== null ||
+                lead.tipo_ceremonia ||
+                lead.pais_origen_novios ||
+                lead.ciudad_residencia_actual ||
+                lead.concepto_boda ||
+                lead.prioridades) && (
+                <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+                  {lead.cantidad_invitados !== null && (
+                    <div>
+                      <dt className="text-bloom-muted">Invitados</dt>
+                      <dd className="font-medium text-bloom-ink">
+                        {lead.cantidad_invitados}
+                      </dd>
+                    </div>
+                  )}
+                  {lead.tipo_ceremonia && (
+                    <div>
+                      <dt className="text-bloom-muted">Tipo de ceremonia</dt>
+                      <dd className="font-medium text-bloom-ink">
+                        {lead.tipo_ceremonia}
+                      </dd>
+                    </div>
+                  )}
+                  {lead.pais_origen_novios && (
+                    <div>
+                      <dt className="text-bloom-muted">País de origen</dt>
+                      <dd className="font-medium text-bloom-ink">
+                        {lead.pais_origen_novios}
+                      </dd>
+                    </div>
+                  )}
+                  {lead.ciudad_residencia_actual && (
+                    <div>
+                      <dt className="text-bloom-muted">Ciudad residencia actual</dt>
+                      <dd className="font-medium text-bloom-ink">
+                        {lead.ciudad_residencia_actual}
+                      </dd>
+                    </div>
+                  )}
+                  {lead.concepto_boda && (
+                    <div className="sm:col-span-2">
+                      <dt className="text-bloom-muted">Concepto de la boda</dt>
+                      <dd className="whitespace-pre-wrap text-bloom-ink">
+                        {lead.concepto_boda}
+                      </dd>
+                    </div>
+                  )}
+                  {lead.prioridades && (
+                    <div className="sm:col-span-2">
+                      <dt className="text-bloom-muted">Prioridades</dt>
+                      <dd className="whitespace-pre-wrap text-bloom-ink">
+                        {lead.prioridades}
+                      </dd>
+                    </div>
+                  )}
+                </dl>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {createOpen && (
+        <ModalShell
+          title="Nuevo lead"
+          subtitle="Registra una pareja interesada"
+          onClose={() => setCreateOpen(false)}
+        >
+          <form className="mt-5 space-y-4" onSubmit={handleCreate}>
+            <LeadBaseFields form={form} setForm={setForm} submitting={submitting} />
+            <ActionRow
+              submitting={submitting}
+              onCancel={() => setCreateOpen(false)}
+              submitLabel="Guardar lead"
+            />
+          </form>
+        </ModalShell>
+      )}
+
+      {editOpen && (
+        <ModalShell
+          title="Editar lead"
+          subtitle="Actualiza estado y notas"
+          onClose={() => setEditOpen(false)}
+        >
+          <form className="mt-5 space-y-4" onSubmit={handleEdit}>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-bloom-ink">Estado</label>
+              <select
+                className={inputClass}
+                value={form.estado}
+                onChange={(e) =>
+                  setForm((s) => ({ ...s, estado: e.target.value as LeadStatus }))
+                }
+                disabled={submitting}
+              >
+                <option value="nuevo">Nuevo</option>
+                <option value="en_conversacion">En conversación</option>
+                <option value="perdido">Perdido</option>
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-bloom-ink">Notas</label>
+              <textarea
+                rows={4}
+                className={textareaClass}
+                value={form.notas}
+                onChange={(e) => setForm((s) => ({ ...s, notas: e.target.value }))}
+                disabled={submitting}
+              />
+            </div>
+            <ActionRow
+              submitting={submitting}
+              onCancel={() => setEditOpen(false)}
+              submitLabel="Guardar cambios"
+            />
+          </form>
+        </ModalShell>
+      )}
+    </section>
+  );
+}
+
+function LeadBaseFields({
+  form,
+  setForm,
+  submitting,
+}: {
+  form: LeadFormState;
+  setForm: React.Dispatch<React.SetStateAction<LeadFormState>>;
+  submitting: boolean;
+}) {
+  return (
+    <>
+      <Field label="Nombre de la pareja">
+        <input
+          className={inputClass}
+          value={form.nombrePareja}
+          onChange={(e) => setForm((s) => ({ ...s, nombrePareja: e.target.value }))}
+          required
+          disabled={submitting}
+        />
+      </Field>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field label="Fecha tentativa">
+          <input
+            type="date"
+            className={inputClass}
+            value={form.fechaTentativa}
+            onChange={(e) =>
+              setForm((s) => ({ ...s, fechaTentativa: e.target.value }))
+            }
+            required
+            disabled={submitting}
+          />
+        </Field>
+        <Field label="Ciudad">
+          <input
+            className={inputClass}
+            value={form.ciudad}
+            onChange={(e) => setForm((s) => ({ ...s, ciudad: e.target.value }))}
+            required
+            disabled={submitting}
+          />
+        </Field>
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field label="Presupuesto estimado">
+          <input
+            type="number"
+            min={0}
+            step={1}
+            className={inputClass}
+            value={form.presupuestoEstimado}
+            onChange={(e) =>
+              setForm((s) => ({ ...s, presupuestoEstimado: e.target.value }))
+            }
+            disabled={submitting}
+          />
+        </Field>
+        <Field label="Cantidad de invitados">
+          <input
+            type="number"
+            min={0}
+            step={1}
+            className={inputClass}
+            value={form.cantidadInvitados}
+            onChange={(e) =>
+              setForm((s) => ({ ...s, cantidadInvitados: e.target.value }))
+            }
+            disabled={submitting}
+          />
+        </Field>
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field label="Tipo de ceremonia">
+          <select
+            className={inputClass}
+            value={form.tipoCeremonia}
+            onChange={(e) =>
+              setForm((s) => ({ ...s, tipoCeremonia: e.target.value }))
+            }
+            disabled={submitting}
+          >
+            <option value="">Seleccionar</option>
+            {CEREMONY_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Estado">
+          <select
+            className={inputClass}
+            value={form.estado}
+            onChange={(e) =>
+              setForm((s) => ({ ...s, estado: e.target.value as LeadStatus }))
+            }
+            disabled={submitting}
+          >
+            <option value="nuevo">Nuevo</option>
+            <option value="en_conversacion">En conversación</option>
+            <option value="perdido">Perdido</option>
+          </select>
+        </Field>
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field label="País de origen de los novios">
+          <input
+            className={inputClass}
+            value={form.paisOrigenNovios}
+            onChange={(e) =>
+              setForm((s) => ({ ...s, paisOrigenNovios: e.target.value }))
+            }
+            disabled={submitting}
+          />
+        </Field>
+        <Field label="Ciudad donde viven actualmente">
+          <input
+            className={inputClass}
+            value={form.ciudadResidenciaActual}
+            onChange={(e) =>
+              setForm((s) => ({ ...s, ciudadResidenciaActual: e.target.value }))
+            }
+            disabled={submitting}
+          />
+        </Field>
+      </div>
+      <Field label="Concepto de la boda">
+        <textarea
+          rows={3}
+          className={textareaClass}
+          value={form.conceptoBoda}
+          onChange={(e) =>
+            setForm((s) => ({ ...s, conceptoBoda: e.target.value }))
+          }
+          disabled={submitting}
+        />
+      </Field>
+      <Field label="Prioridades">
+        <textarea
+          rows={3}
+          className={textareaClass}
+          value={form.prioridades}
+          onChange={(e) =>
+            setForm((s) => ({ ...s, prioridades: e.target.value }))
+          }
+          disabled={submitting}
+        />
+      </Field>
+      <Field label="Notas">
+        <textarea
+          rows={4}
+          className={textareaClass}
+          value={form.notas}
+          onChange={(e) => setForm((s) => ({ ...s, notas: e.target.value }))}
+          disabled={submitting}
+        />
+      </Field>
+    </>
+  );
+}
+
+function ModalShell({
+  title,
+  subtitle,
+  onClose,
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      role="dialog"
+      aria-modal="true"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-bloom-border bg-bloom-surface p-6 shadow-lg">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h3 className="font-display text-xl text-bloom-ink">{title}</h3>
+            <p className="mt-1 text-sm text-bloom-muted">{subtitle}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full p-2 text-bloom-muted transition-colors hover:bg-bloom-border hover:text-bloom-ink"
+            aria-label="Cerrar"
+          >
+            <XIcon />
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function ActionRow({
+  submitting,
+  onCancel,
+  submitLabel,
+}: {
+  submitting: boolean;
+  onCancel: () => void;
+  submitLabel: string;
+}) {
+  return (
+    <div className="flex items-center justify-end gap-3 pt-2">
+      <button
+        type="button"
+        className="rounded-full border border-bloom-border bg-bloom-surface px-5 py-2.5 text-sm font-medium text-bloom-ink transition-colors hover:bg-bloom-border disabled:opacity-60"
+        onClick={onCancel}
+        disabled={submitting}
+      >
+        Cancelar
+      </button>
+      <button
+        type="submit"
+        disabled={submitting}
+        className="inline-flex items-center justify-center rounded-full bg-bloom-accent px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-bloom-accent-hover disabled:opacity-60"
+      >
+        {submitting ? "Guardando..." : submitLabel}
+      </button>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <label className="text-sm font-medium text-bloom-ink">{label}</label>
+      {children}
+    </div>
+  );
+}
+
+function XIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      className="h-4 w-4"
+      aria-hidden
+    >
+      <path
+        fillRule="evenodd"
+        d="M4.293 4.293a1 1 0 0 1 1.414 0L10 8.586l4.293-4.293a1 1 0 1 1 1.414 1.414L11.414 10l4.293 4.293a1 1 0 0 1-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 0 1-1.414-1.414L8.586 10 4.293 5.707a1 1 0 0 1 0-1.414z"
+        clipRule="evenodd"
+      />
+    </svg>
+  );
+}
+
+const inputClass =
+  "w-full rounded-xl border border-bloom-border bg-bloom-canvas px-3 py-2 text-sm text-bloom-ink outline-none ring-0 focus:border-bloom-accent focus:ring-2 focus:ring-bloom-accent/30";
+
+const textareaClass =
+  "w-full resize-y rounded-xl border border-bloom-border bg-bloom-canvas px-3 py-2 text-sm text-bloom-ink outline-none ring-0 focus:border-bloom-accent focus:ring-2 focus:ring-bloom-accent/30";
+
