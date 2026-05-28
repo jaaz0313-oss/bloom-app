@@ -40,6 +40,7 @@ export function SendWhatsAppButton({
   const [proveedorId, setProveedorId] = useState("");
   const [manualProveedor, setManualProveedor] = useState("");
   const [plannerName, setPlannerName] = useState("");
+  const [copied, setCopied] = useState(false);
 
   const contratados = useMemo(
     () => providers.filter((p) => p.estado === "contratado"),
@@ -151,6 +152,19 @@ export function SendWhatsAppButton({
   function handleOpenWhatsApp() {
     if (!whatsappUrl) return;
     window.open(whatsappUrl, "_blank", "noopener,noreferrer");
+  }
+
+  async function handleCopyMessage() {
+    const text = previewMessage.trim();
+    if (!text) return;
+
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // No interrumpimos el flujo del modal si clipboard falla.
+    }
   }
 
   return (
@@ -355,6 +369,14 @@ export function SendWhatsAppButton({
                 className="rounded-full border border-bloom-border bg-bloom-surface px-5 py-2.5 text-sm font-medium text-bloom-ink transition-colors hover:bg-bloom-border"
               >
                 Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleCopyMessage}
+                disabled={!previewMessage.trim()}
+                className="inline-flex items-center justify-center rounded-full border border-bloom-border bg-bloom-surface px-5 py-2.5 text-sm font-medium text-bloom-ink transition-colors hover:bg-bloom-border disabled:opacity-60"
+              >
+                {copied ? "¡Copiado!" : "Copiar mensaje"}
               </button>
               <button
                 type="button"
