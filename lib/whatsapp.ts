@@ -1,5 +1,9 @@
 import { formatCurrency, formatShortDate, formatWeddingDate } from "@/lib/format";
 import { loadPlannerSettings } from "@/lib/planner-settings";
+import {
+  buildSolicitudCotizacionMessage,
+  buildSolicitudCotizacionPostReunionMessage,
+} from "@/lib/proveedor-cotizacion";
 import type { ProveedorRow } from "@/app/data/providers";
 import {
   getProviderSaldoPendienteConPagos,
@@ -7,7 +11,7 @@ import {
 } from "@/app/data/providers";
 import type { PagoRow } from "@/app/data/pagos";
 
-export type WhatsAppRecipient = "novia" | "novio" | "grupo";
+export type WhatsAppRecipient = "novia" | "novio" | "grupo" | "proveedor";
 
 export type WhatsAppTemplateId =
   | "bienvenida"
@@ -18,6 +22,8 @@ export type WhatsAppTemplateId =
   | "enviar_link_pago_cliente"
   | "confirmacion_proveedor"
   | "recordatorio_reunion"
+  | "solicitar_cotizacion_primer_contacto"
+  | "solicitar_cotizacion_post_reunion"
   | "personalizado";
 
 export type WhatsAppTemplate = {
@@ -68,6 +74,16 @@ export const WHATSAPP_TEMPLATES: WhatsAppTemplate[] = [
     body: "Hola [nombre], te recuerdo nuestra reunión próxima para revisar los detalles de su boda. Confirmamos horario pronto.",
   },
   {
+    id: "solicitar_cotizacion_primer_contacto",
+    label: "Solicitar cotización (primer contacto)",
+    body: "",
+  },
+  {
+    id: "solicitar_cotizacion_post_reunion",
+    label: "Solicitar cotización (post reunión)",
+    body: "",
+  },
+  {
     id: "personalizado",
     label: "Mensaje personalizado",
     body: "",
@@ -80,6 +96,20 @@ export const WHATSAPP_TEMPLATES_WITH_PROVEEDOR: WhatsAppTemplateId[] = [
   "recordatorio_con_opcion_tarjeta",
   "solicitar_link_pago_proveedor",
   "enviar_link_pago_cliente",
+  "solicitar_cotizacion_primer_contacto",
+  "solicitar_cotizacion_post_reunion",
+];
+
+export const WHATSAPP_TEMPLATES_PROVEEDOR_PHONE: WhatsAppTemplateId[] = [
+  "solicitar_link_pago_proveedor",
+  "solicitar_cotizacion_primer_contacto",
+  "solicitar_cotizacion_post_reunion",
+];
+
+/** Plantillas disponibles cuando el destinatario es un proveedor. */
+export const WHATSAPP_TEMPLATES_FOR_PROVEEDOR_RECIPIENT: WhatsAppTemplateId[] = [
+  "solicitar_cotizacion_primer_contacto",
+  "solicitar_cotizacion_post_reunion",
 ];
 
 export const WHATSAPP_TEMPLATES_CONTRATADOS_ONLY: WhatsAppTemplateId[] = [
@@ -226,6 +256,37 @@ export function buildWhatsAppMessage(
       nombre,
       context.proveedor,
       context.pagosProveedor ?? [],
+    );
+  }
+
+  if (
+    (templateId === "solicitar_cotizacion_primer_contacto" ||
+      templateId === "solicitar_cotizacion_post_reunion") &&
+    context.proveedor
+  ) {
+    const plannerName = context.plannerName?.trim() ?? "";
+    const bodaCotizacion = {
+      nombrePareja: context.nombrePareja?.trim() ?? "",
+      fechaBoda: context.fechaBoda,
+      ciudad: context.ciudad?.trim() ?? "",
+    };
+    const nombreProveedor = context.proveedor.nombre.trim();
+    const categoria = context.proveedor.categoria.trim();
+
+    if (templateId === "solicitar_cotizacion_primer_contacto") {
+      return buildSolicitudCotizacionMessage(
+        nombreProveedor,
+        plannerName,
+        bodaCotizacion,
+        categoria,
+      );
+    }
+
+    return buildSolicitudCotizacionPostReunionMessage(
+      nombreProveedor,
+      plannerName,
+      bodaCotizacion,
+      categoria,
     );
   }
 

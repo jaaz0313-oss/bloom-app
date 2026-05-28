@@ -119,6 +119,7 @@ export default async function BodaDetailPage({ params }: PageProps) {
             bodaId={id}
             boda={bodaRow}
             role={user.rol}
+            plannerName={user.nombre}
             providers={providers}
             pagosByProveedor={pagosByProveedor}
           />
@@ -150,6 +151,12 @@ export default async function BodaDetailPage({ params }: PageProps) {
               <ProviderList
                 providers={providers}
                 bodaId={id}
+                boda={{
+                  nombrePareja: bodaRow.nombre_pareja,
+                  fechaBoda: bodaRow.fecha_boda,
+                  ciudad: bodaRow.ciudad,
+                }}
+                plannerName={user.nombre}
                 pagosByProveedor={pagosByProveedor}
                 role={user.rol}
               />

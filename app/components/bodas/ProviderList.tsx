@@ -1,11 +1,14 @@
 import type { PagoRow } from "@/app/data/pagos";
 import type { ProveedorRow } from "@/app/data/providers";
 import type { UserRole } from "@/lib/auth/roles";
+import type { CotizacionBodaContext } from "@/lib/proveedor-cotizacion";
 import { ProviderCard } from "./ProviderCard";
 
 type ProviderListProps = {
   providers: ProveedorRow[];
   bodaId: string;
+  boda: CotizacionBodaContext;
+  plannerName: string;
   pagosByProveedor: Record<string, PagoRow[]>;
   role: UserRole;
 };
@@ -13,6 +16,8 @@ type ProviderListProps = {
 export function ProviderList({
   providers,
   bodaId,
+  boda,
+  plannerName,
   pagosByProveedor,
   role,
 }: ProviderListProps) {
@@ -31,6 +36,8 @@ export function ProviderList({
           key={provider.id}
           provider={provider}
           bodaId={bodaId}
+          boda={boda}
+          plannerName={plannerName}
           pagos={pagosByProveedor[provider.id] ?? []}
           role={role}
         />

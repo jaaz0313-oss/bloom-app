@@ -23,3 +23,37 @@ export function formatShortDate(isoDate: string): string {
     year: "numeric",
   }).format(date);
 }
+
+const MESSAGE_LOWERCASE_WORDS = new Set([
+  "y",
+  "de",
+  "del",
+  "la",
+  "el",
+  "en",
+  "a",
+]);
+
+/** Convierte texto en MAYÚSCULAS a formato legible para mensajes de WhatsApp. */
+export function formatMessageLabel(text: string): string {
+  const trimmed = text.trim();
+  if (!trimmed) return trimmed;
+
+  const letters = trimmed.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ]/g, "");
+  const isAllCaps =
+    letters.length > 0 &&
+    letters === letters.toUpperCase() &&
+    letters !== letters.toLowerCase();
+
+  if (!isAllCaps) return trimmed;
+
+  return trimmed
+    .toLowerCase()
+    .split(/\s+/)
+    .map((word, index) => {
+      if (index > 0 && MESSAGE_LOWERCASE_WORDS.has(word)) return word;
+      if (!word) return word;
+      return word.charAt(0).toUpperCase() + word.slice(1);
+    })
+    .join(" ");
+}

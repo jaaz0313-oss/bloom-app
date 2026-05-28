@@ -1,0 +1,26 @@
+export const PROVIDER_CATEGORIES = [
+  "Lugar del evento",
+  "Lugar de ceremonia",
+  "Fotografía y video",
+  "DJ / Banda / Entretenimiento",
+  "Decoración",
+  "Producción",
+  "Catering",
+  "Repostería",
+  "Coctelería",
+  "Maquillaje y peinado",
+  "Músicos ceremonia",
+  "Músicos cóctel",
+  "Transporte",
+  "Carro de la novia",
+  "Welcome party",
+  "Licor",
+  "Hora loca",
+  "Foto cabina",
+  "Estación de café",
+  "Oficiante",
+  "Save the date",
+  "Coordinadora",
+] as const;
+
+export type ProviderCategory = (typeof PROVIDER_CATEGORIES)[number];

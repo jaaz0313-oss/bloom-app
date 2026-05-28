@@ -15,6 +15,7 @@ type ClientInfoSectionProps = {
   bodaId: string;
   boda: BodaRow;
   role: UserRole;
+  plannerName?: string;
   providers?: ProveedorRow[];
   pagosByProveedor?: Record<string, PagoRow[]>;
 };
@@ -37,6 +38,7 @@ export function ClientInfoSection({
   bodaId,
   boda,
   role,
+  plannerName,
   providers = [],
   pagosByProveedor = {},
 }: ClientInfoSectionProps) {
@@ -171,6 +173,7 @@ export function ClientInfoSection({
           {hasPermission(role, "whatsapp.send") && (
             <SendWhatsAppButton
               boda={boda}
+              plannerName={plannerName}
               providers={providers}
               pagosByProveedor={pagosByProveedor}
             />

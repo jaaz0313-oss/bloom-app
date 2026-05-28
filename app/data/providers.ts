@@ -1,4 +1,9 @@
-export type ProviderStatus = "pendiente" | "en_negociacion" | "contratado";
+export type ProviderStatus =
+  | "pendiente"
+  | "cotizacion_solicitada"
+  | "en_negociacion"
+  | "contratado"
+  | "descartado";
 
 export type ProveedorRow = {
   id: string;
@@ -20,31 +25,28 @@ export type ProveedorRow = {
   descripcion_servicio: string | null;
   notas: string | null;
   estado: ProviderStatus;
+  cotizacion_solicitada_at: string | null;
+  cotizacion_recibida_at: string | null;
+  monto_cotizado: number | null;
+  notas_cotizacion: string | null;
   created_at: string;
 };
 
 export const PROVIDER_STATUS_LABELS: Record<ProviderStatus, string> = {
   pendiente: "Pendiente",
+  cotizacion_solicitada: "Cotización solicitada",
   en_negociacion: "En negociación",
   contratado: "Contratado",
+  descartado: "Descartado",
 };
-
-export const PROVIDER_STATUS_ORDER: ProviderStatus[] = [
-  "pendiente",
-  "en_negociacion",
-  "contratado",
-];
 
 export const PROVIDER_STATUS_STYLES: Record<ProviderStatus, string> = {
   pendiente: "bg-gray-200 text-gray-700",
+  cotizacion_solicitada: "bg-orange-100 text-orange-800",
   en_negociacion: "bg-yellow-100 text-yellow-800",
   contratado: "bg-green-100 text-green-800",
+  descartado: "bg-red-100 text-red-700",
 };
-
-export function getNextStatus(current: ProviderStatus): ProviderStatus {
-  const index = PROVIDER_STATUS_ORDER.indexOf(current);
-  return PROVIDER_STATUS_ORDER[(index + 1) % PROVIDER_STATUS_ORDER.length];
-}
 
 export function getProviderSaldoPendiente(provider: ProveedorRow): number {
   return provider.valor_total - provider.anticipo;

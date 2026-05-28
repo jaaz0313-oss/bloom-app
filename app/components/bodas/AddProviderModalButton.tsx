@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { hasPermission, type UserRole } from "@/lib/auth/roles";
+import { PROVIDER_CATEGORIES } from "@/lib/provider-categories";
 
 type FormState = {
   nombre: string;
@@ -46,12 +47,63 @@ type AddProviderModalButtonProps = {
   role: UserRole;
 };
 
+type DirectorioProveedorLookup = {
+  id: string;
+  nombre: string;
+  categoria: string;
+  telefono: string | null;
+  email: string | null;
+  direccion: string | null;
+  banco: string | null;
+  tipo_cuenta: string | null;
+  numero_cuenta: string | null;
+  titular: string | null;
+  documento_nit: string | null;
+  notas: string | null;
+};
+
+type EntryMode = "directorio" | "manual";
+
 export function AddProviderModalButton({ bodaId, role }: AddProviderModalButtonProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
+  const [entryMode, setEntryMode] = useState<EntryMode | null>(null);
+  const [directoryQuery, setDirectoryQuery] = useState("");
+  const [directoryResults, setDirectoryResults] = useState<DirectorioProveedorLookup[]>(
+    [],
+  );
+  const [directorySearchedQuery, setDirectorySearchedQuery] = useState<string | null>(
+    null,
+  );
+  const [directoryPickerDismissed, setDirectoryPickerDismissed] = useState(false);
+
+  function resetDirectorySearch() {
+    setDirectoryQuery("");
+    setDirectoryResults([]);
+    setDirectorySearchedQuery(null);
+    setDirectoryPickerDismissed(false);
+  }
+
+  function resetFormKeepingCategory(categoria: string) {
+    setForm({ ...emptyForm, categoria });
+    resetDirectorySearch();
+    setError(null);
+  }
+
+  function handleCategoryChange(categoria: string) {
+    setForm({ ...emptyForm, categoria });
+    setEntryMode(null);
+    resetDirectorySearch();
+    setError(null);
+  }
+
+  function selectEntryMode(mode: EntryMode) {
+    setEntryMode(mode);
+    resetFormKeepingCategory(form.categoria);
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -63,6 +115,74 @@ export function AddProviderModalButton({ bodaId, role }: AddProviderModalButtonP
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [open]);
+
+  useEffect(() => {
+    if (!open || !supabase || entryMode !== "directorio") return;
+    const categoria = form.categoria.trim();
+    const query = directoryQuery.trim();
+    if (!categoria || query.length < 2 || directoryPickerDismissed) {
+      return;
+    }
+
+    let cancelled = false;
+    const timeout = window.setTimeout(async () => {
+      const { data, error: lookupError } = await supabase
+        .from("directorio_proveedores")
+        .select(
+          "id,nombre,categoria,telefono,email,direccion,banco,tipo_cuenta,numero_cuenta,titular,documento_nit,notas",
+        )
+        .eq("activo", true)
+        .eq("categoria", categoria)
+        .ilike("nombre", `%${query}%`)
+        .order("nombre", { ascending: true })
+        .limit(8);
+
+      if (!cancelled) {
+        if (lookupError) {
+          setDirectoryResults([]);
+        } else {
+          setDirectoryResults((data ?? []) as DirectorioProveedorLookup[]);
+        }
+        setDirectorySearchedQuery(query);
+      }
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+    };
+  }, [directoryPickerDismissed, directoryQuery, entryMode, form.categoria, open]);
+
+  function applyDirectoryProvider(provider: DirectorioProveedorLookup) {
+    setForm((current) => ({
+      ...current,
+      nombre: provider.nombre ?? current.nombre,
+      categoria: provider.categoria ?? current.categoria,
+      banco: provider.banco ?? "",
+      tipoCuenta: provider.tipo_cuenta ?? "",
+      numeroCuenta: provider.numero_cuenta ?? "",
+      titular: provider.titular ?? "",
+      documentoNit: provider.documento_nit ?? "",
+      telefono: provider.telefono ?? "",
+      email: provider.email ?? "",
+      direccion: provider.direccion ?? "",
+      notas: provider.notas ?? current.notas,
+    }));
+    setDirectoryQuery(provider.nombre);
+    setDirectoryResults([]);
+    setDirectorySearchedQuery(provider.nombre);
+    setDirectoryPickerDismissed(true);
+  }
+
+  const trimmedDirectoryQuery = directoryQuery.trim();
+  const showDirectoryPicker =
+    trimmedDirectoryQuery.length >= 2 && !directoryPickerDismissed;
+  const directorySearchPending =
+    showDirectoryPicker && directorySearchedQuery !== trimmedDirectoryQuery;
+  const showDirectoryEmptyState =
+    showDirectoryPicker &&
+    !directorySearchPending &&
+    directoryResults.length === 0;
 
   async function onSubmit(e: React.FormEvent) {
     if (!hasPermission(role, "providers.manage")) {
@@ -135,6 +255,8 @@ export function AddProviderModalButton({ bodaId, role }: AddProviderModalButtonP
 
       setOpen(false);
       setForm(emptyForm);
+      setEntryMode(null);
+      resetDirectorySearch();
       router.refresh();
     } finally {
       setSubmitting(false);
@@ -183,6 +305,113 @@ export function AddProviderModalButton({ bodaId, role }: AddProviderModalButtonP
             </div>
 
             <form className="mt-5 space-y-4" onSubmit={onSubmit}>
+              <Field label="Categoría">
+                <select
+                  className={inputClass}
+                  value={form.categoria}
+                  onChange={(e) => handleCategoryChange(e.target.value)}
+                  required
+                >
+                  <option value="">Seleccionar</option>
+                  {PROVIDER_CATEGORIES.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+
+              {form.categoria && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-bloom-ink">
+                    ¿Cómo quieres agregar el proveedor?
+                  </p>
+                  <div
+                    className="inline-flex w-full rounded-full border border-bloom-border bg-bloom-canvas p-1"
+                    role="group"
+                    aria-label="Modo de agregar proveedor"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => selectEntryMode("directorio")}
+                      className={`flex-1 rounded-full px-4 py-2.5 text-sm font-medium transition-colors ${
+                        entryMode === "directorio"
+                          ? "bg-bloom-accent text-white shadow-sm"
+                          : "text-bloom-ink hover:bg-bloom-border"
+                      }`}
+                    >
+                      Buscar en directorio
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => selectEntryMode("manual")}
+                      className={`flex-1 rounded-full px-4 py-2.5 text-sm font-medium transition-colors ${
+                        entryMode === "manual"
+                          ? "bg-bloom-accent text-white shadow-sm"
+                          : "text-bloom-ink hover:bg-bloom-border"
+                      }`}
+                    >
+                      Agregar manualmente
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {entryMode === "directorio" && (
+                <Field label="Buscar en directorio">
+                  <div className="space-y-2">
+                    <p className="text-xs text-bloom-muted">
+                      Proveedores en{" "}
+                      <span className="font-medium text-bloom-ink">
+                        {form.categoria}
+                      </span>
+                    </p>
+                    <input
+                      className={inputClass}
+                      value={directoryQuery}
+                      onChange={(e) => {
+                        setDirectoryQuery(e.target.value);
+                        setDirectoryPickerDismissed(false);
+                        setDirectorySearchedQuery(null);
+                      }}
+                      placeholder="Escribe para buscar por nombre"
+                    />
+                    {showDirectoryPicker && (
+                      <div className="rounded-xl border border-bloom-border bg-bloom-surface">
+                        {directorySearchPending ? (
+                          <p className="px-3 py-2 text-sm text-bloom-muted">
+                            Buscando…
+                          </p>
+                        ) : showDirectoryEmptyState ? (
+                          <p className="px-3 py-2 text-sm text-bloom-muted">
+                            No hay proveedores del directorio para esta búsqueda.
+                          </p>
+                        ) : directoryResults.length > 0 ? (
+                          <ul className="max-h-52 overflow-y-auto py-1">
+                            {directoryResults.map((provider) => (
+                              <li key={provider.id}>
+                                <button
+                                  type="button"
+                                  className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-bloom-ink transition-colors hover:bg-bloom-canvas"
+                                  onClick={() => applyDirectoryProvider(provider)}
+                                >
+                                  <span>{provider.nombre}</span>
+                                  <span className="text-xs text-bloom-muted">
+                                    {provider.categoria}
+                                  </span>
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
+                      </div>
+                    )}
+                  </div>
+                </Field>
+              )}
+
+              {entryMode && (
+                <>
               <Field label="Nombre">
                 <input
                   className={inputClass}
@@ -191,18 +420,6 @@ export function AddProviderModalButton({ bodaId, role }: AddProviderModalButtonP
                     setForm((s) => ({ ...s, nombre: e.target.value }))
                   }
                   placeholder="Ej: Fotografía Luna"
-                  required
-                />
-              </Field>
-
-              <Field label="Categoría">
-                <input
-                  className={inputClass}
-                  value={form.categoria}
-                  onChange={(e) =>
-                    setForm((s) => ({ ...s, categoria: e.target.value }))
-                  }
-                  placeholder="Ej: Fotografía"
                   required
                 />
               </Field>
@@ -376,6 +593,8 @@ export function AddProviderModalButton({ bodaId, role }: AddProviderModalButtonP
                   />
                 </Field>
               </div>
+                </>
+              )}
 
               {error && (
                 <p className="text-sm text-red-700" role="alert">
@@ -383,23 +602,25 @@ export function AddProviderModalButton({ bodaId, role }: AddProviderModalButtonP
                 </p>
               )}
 
-              <div className="flex items-center justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  className="rounded-full border border-bloom-border bg-bloom-surface px-5 py-2.5 text-sm font-medium text-bloom-ink transition-colors hover:bg-bloom-border"
-                  onClick={() => setOpen(false)}
-                  disabled={submitting}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="inline-flex items-center justify-center gap-2 rounded-full bg-bloom-accent px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-bloom-accent-hover disabled:opacity-60"
-                >
-                  {submitting ? "Guardando..." : "Guardar"}
-                </button>
-              </div>
+              {entryMode && (
+                <div className="flex items-center justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    className="rounded-full border border-bloom-border bg-bloom-surface px-5 py-2.5 text-sm font-medium text-bloom-ink transition-colors hover:bg-bloom-border"
+                    onClick={() => setOpen(false)}
+                    disabled={submitting}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="inline-flex items-center justify-center gap-2 rounded-full bg-bloom-accent px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-bloom-accent-hover disabled:opacity-60"
+                  >
+                    {submitting ? "Guardando..." : "Guardar"}
+                  </button>
+                </div>
+              )}
             </form>
           </div>
         </div>
