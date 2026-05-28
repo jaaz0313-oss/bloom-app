@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { BodaRow } from "@/app/data/weddings";
 import type { ProveedorRow } from "@/app/data/providers";
+import type { PagoRow } from "@/app/data/pagos";
 import { SendWhatsAppButton } from "@/app/components/bodas/SendWhatsAppButton";
 import { supabase } from "@/lib/supabase";
 
@@ -13,6 +14,7 @@ type ClientInfoSectionProps = {
   bodaId: string;
   boda: BodaRow;
   providers?: ProveedorRow[];
+  pagosByProveedor?: Record<string, PagoRow[]>;
 };
 
 type ClientInfoForm = {
@@ -33,17 +35,26 @@ export function ClientInfoSection({
   bodaId,
   boda,
   providers = [],
+  pagosByProveedor = {},
 }: ClientInfoSectionProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [grupoLinkOpen, setGrupoLinkOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [grupoLinkSubmitting, setGrupoLinkSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [grupoLinkError, setGrupoLinkError] = useState<string | null>(null);
   const [form, setForm] = useState<ClientInfoForm>(toForm(boda));
+  const [grupoLink, setGrupoLink] = useState(boda.whatsapp_grupo_link ?? "");
 
   useEffect(() => {
     if (!open) return;
     setForm(toForm(boda));
   }, [open, boda]);
+
+  useEffect(() => {
+    setGrupoLink(boda.whatsapp_grupo_link ?? "");
+  }, [boda.whatsapp_grupo_link]);
 
   useEffect(() => {
     if (!open) return;
@@ -53,6 +64,16 @@ export function ClientInfoSection({
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [open]);
+
+  useEffect(() => {
+    if (!grupoLinkOpen) return;
+    setGrupoLink(boda.whatsapp_grupo_link ?? "");
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setGrupoLinkOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [grupoLinkOpen, boda.whatsapp_grupo_link]);
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -94,6 +115,36 @@ export function ClientInfoSection({
     }
   }
 
+  async function handleSaveGrupoLink(e: React.FormEvent) {
+    e.preventDefault();
+    setGrupoLinkError(null);
+
+    if (!supabase) {
+      setGrupoLinkError("Supabase no está configurado.");
+      return;
+    }
+
+    setGrupoLinkSubmitting(true);
+    try {
+      const { error: updateError } = await supabase
+        .from("bodas")
+        .update({
+          whatsapp_grupo_link: grupoLink.trim() || null,
+        })
+        .eq("id", bodaId);
+
+      if (updateError) {
+        setGrupoLinkError(updateError.message);
+        return;
+      }
+
+      setGrupoLinkOpen(false);
+      router.refresh();
+    } finally {
+      setGrupoLinkSubmitting(false);
+    }
+  }
+
   return (
     <section className="rounded-2xl border border-bloom-border bg-bloom-surface p-6 shadow-sm">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -106,7 +157,11 @@ export function ClientInfoSection({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <SendWhatsAppButton boda={boda} providers={providers} />
+          <SendWhatsAppButton
+            boda={boda}
+            providers={providers}
+            pagosByProveedor={pagosByProveedor}
+          />
           <button
             type="button"
             onClick={() => {
@@ -139,6 +194,105 @@ export function ClientInfoSection({
         <InfoItem label="Número de documento novia" value={boda.documento_novia} />
         <InfoItem label="Número de documento novio" value={boda.documento_novio} />
       </dl>
+
+      <div className="mt-4 flex flex-col gap-3 rounded-xl border border-bloom-border bg-bloom-canvas/50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-xs font-medium uppercase tracking-wider text-bloom-muted">
+            Link grupo WhatsApp
+          </p>
+          <p className="mt-1 truncate text-sm font-medium text-bloom-ink">
+            {boda.whatsapp_grupo_link?.trim() || "—"}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setGrupoLinkError(null);
+            setGrupoLinkOpen(true);
+          }}
+          className="inline-flex shrink-0 items-center justify-center rounded-full border border-bloom-border bg-bloom-surface px-4 py-2 text-sm font-medium text-bloom-ink transition-colors hover:bg-bloom-border"
+        >
+          Editar
+        </button>
+      </div>
+
+      {grupoLinkOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Editar link del grupo de WhatsApp"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setGrupoLinkOpen(false);
+          }}
+        >
+          <div className="w-full max-w-md rounded-2xl border border-bloom-border bg-bloom-surface p-6 shadow-lg">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="font-display text-xl text-bloom-ink">
+                  Link grupo WhatsApp
+                </h3>
+                <p className="mt-1 text-sm text-bloom-muted">
+                  Pega el enlace de invitación del grupo de la boda.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setGrupoLinkOpen(false)}
+                className="rounded-full p-2 text-bloom-muted transition-colors hover:bg-bloom-border hover:text-bloom-ink"
+                aria-label="Cerrar"
+                disabled={grupoLinkSubmitting}
+              >
+                <XIcon />
+              </button>
+            </div>
+
+            <form className="mt-5 space-y-4" onSubmit={handleSaveGrupoLink}>
+              <div className="space-y-1.5">
+                <label
+                  htmlFor="whatsapp-grupo-link"
+                  className="text-sm font-medium text-bloom-ink"
+                >
+                  URL del grupo
+                </label>
+                <input
+                  id="whatsapp-grupo-link"
+                  type="url"
+                  className={inputClass}
+                  value={grupoLink}
+                  onChange={(e) => setGrupoLink(e.target.value)}
+                  placeholder="https://chat.whatsapp.com/..."
+                  disabled={grupoLinkSubmitting}
+                />
+              </div>
+
+              {grupoLinkError && (
+                <p className="text-sm text-red-700" role="alert">
+                  {grupoLinkError}
+                </p>
+              )}
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  className="rounded-full border border-bloom-border bg-bloom-surface px-5 py-2.5 text-sm font-medium text-bloom-ink transition-colors hover:bg-bloom-border disabled:opacity-60"
+                  onClick={() => setGrupoLinkOpen(false)}
+                  disabled={grupoLinkSubmitting}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={grupoLinkSubmitting}
+                  className="inline-flex items-center justify-center rounded-full bg-bloom-accent px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-bloom-accent-hover disabled:opacity-60"
+                >
+                  {grupoLinkSubmitting ? "Guardando..." : "Guardar"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {open && (
         <div

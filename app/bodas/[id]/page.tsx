@@ -117,6 +117,7 @@ export default async function BodaDetailPage({ params }: PageProps) {
             bodaId={id}
             boda={bodaRow}
             providers={providers}
+            pagosByProveedor={pagosByProveedor}
           />
 
           <PaymentProjection

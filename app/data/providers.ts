@@ -45,6 +45,35 @@ export function getProviderSaldoPendiente(provider: ProveedorRow): number {
   return provider.valor_total - provider.anticipo;
 }
 
+export function getProviderSaldoPendienteConPagos(
+  provider: ProveedorRow,
+  pagos: { monto: number }[] = [],
+): number {
+  const pagosRegistrados = pagos.reduce(
+    (sum, pago) => sum + Number(pago.monto),
+    0,
+  );
+  return Math.max(
+    0,
+    provider.valor_total - (provider.anticipo + pagosRegistrados),
+  );
+}
+
+/** Monto del pago más reciente registrado, o el anticipo si no hay pagos. */
+export function getUltimoMontoPagoRegistrado(
+  provider: ProveedorRow,
+  pagos: { monto: number; fecha_pago: string }[] = [],
+): number {
+  if (pagos.length > 0) {
+    const sorted = [...pagos].sort((a, b) =>
+      b.fecha_pago.localeCompare(a.fecha_pago),
+    );
+    return Number(sorted[0].monto);
+  }
+  if (provider.anticipo > 0) return provider.anticipo;
+  return 0;
+}
+
 export function computePaymentProjection(
   providers: ProveedorRow[],
   pagosByProveedor: Record<string, { monto: number }[]> = {},

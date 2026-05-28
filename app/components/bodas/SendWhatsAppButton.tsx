@@ -3,9 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 import type { BodaRow } from "@/app/data/weddings";
 import type { ProveedorRow } from "@/app/data/providers";
+import type { PagoRow } from "@/app/data/pagos";
 import { loadPlannerSettings } from "@/lib/planner-settings";
 import {
   WHATSAPP_TEMPLATES,
+  WHATSAPP_TEMPLATES_CONTRATADOS_ONLY,
+  WHATSAPP_TEMPLATES_WITH_PROVEEDOR,
   buildWhatsAppMessage,
   buildWhatsAppUrl,
   type WhatsAppRecipient,
@@ -15,6 +18,7 @@ import {
 type SendWhatsAppButtonProps = {
   boda: BodaRow;
   providers?: ProveedorRow[];
+  pagosByProveedor?: Record<string, PagoRow[]>;
 };
 
 const inputClass =
@@ -26,6 +30,7 @@ const textareaClass =
 export function SendWhatsAppButton({
   boda,
   providers = [],
+  pagosByProveedor = {},
 }: SendWhatsAppButtonProps) {
   const [open, setOpen] = useState(false);
   const [recipient, setRecipient] = useState<WhatsAppRecipient>("novia");
@@ -36,10 +41,32 @@ export function SendWhatsAppButton({
   const [manualProveedor, setManualProveedor] = useState("");
   const [plannerName, setPlannerName] = useState("");
 
+  const contratados = useMemo(
+    () => providers.filter((p) => p.estado === "contratado"),
+    [providers],
+  );
+
   const providerOptions = useMemo(() => {
-    const contratados = providers.filter((p) => p.estado === "contratado");
-    return contratados.length > 0 ? contratados : providers;
-  }, [providers]);
+    if (WHATSAPP_TEMPLATES_CONTRATADOS_ONLY.includes(templateId)) {
+      return contratados;
+    }
+    if (templateId === "confirmacion_proveedor") {
+      return contratados.length > 0 ? contratados : providers;
+    }
+    return [];
+  }, [templateId, contratados, providers]);
+
+  const needsProveedorSelector =
+    WHATSAPP_TEMPLATES_WITH_PROVEEDOR.includes(templateId);
+
+  const selectedProveedor = useMemo(
+    () => providerOptions.find((p) => p.id === proveedorId) ?? null,
+    [providerOptions, proveedorId],
+  );
+
+  const pagosProveedor = selectedProveedor
+    ? (pagosByProveedor[selectedProveedor.id] ?? [])
+    : [];
 
   useEffect(() => {
     if (!open) return;
@@ -53,6 +80,8 @@ export function SendWhatsAppButton({
           ? current
           : providerOptions[0].id,
       );
+    } else {
+      setProveedorId("");
     }
   }, [providerOptions]);
 
@@ -67,15 +96,20 @@ export function SendWhatsAppButton({
 
   const telefonoNovia = boda.telefono_novia?.trim() ?? "";
   const telefonoNovio = boda.telefono_novio?.trim() ?? "";
+  const grupoLink = boda.whatsapp_grupo_link?.trim() ?? "";
+  const hasGrupoLink = grupoLink.length > 0;
 
   const selectedPhone =
-    recipient === "novia" ? telefonoNovia : telefonoNovio;
+    recipient === "novia"
+      ? telefonoNovia
+      : recipient === "novio"
+        ? telefonoNovio
+        : "";
 
   const proveedorNombre = useMemo(() => {
     if (manualProveedor.trim()) return manualProveedor.trim();
-    const p = providerOptions.find((row) => row.id === proveedorId);
-    return p?.nombre ?? "";
-  }, [providerOptions, proveedorId, manualProveedor]);
+    return selectedProveedor?.nombre ?? "";
+  }, [selectedProveedor, manualProveedor]);
 
   const previewMessage = useMemo(
     () =>
@@ -83,8 +117,11 @@ export function SendWhatsAppButton({
         recipient,
         nombreNovia: boda.nombre_novia,
         nombreNovio: boda.nombre_novio,
+        nombrePareja: boda.nombre_pareja,
         fechaBoda: boda.fecha_boda,
         ciudad: boda.ciudad,
+        proveedor: selectedProveedor,
+        pagosProveedor,
         proveedorNombre,
         customMessage,
         plannerName,
@@ -93,13 +130,23 @@ export function SendWhatsAppButton({
       templateId,
       recipient,
       boda,
+      selectedProveedor,
+      pagosProveedor,
       proveedorNombre,
       customMessage,
       plannerName,
     ],
   );
 
-  const whatsappUrl = buildWhatsAppUrl(selectedPhone, previewMessage);
+  const whatsappUrl =
+    recipient === "grupo"
+      ? grupoLink || null
+      : buildWhatsAppUrl(selectedPhone, previewMessage);
+
+  const missingProveedorForTemplate =
+    needsProveedorSelector &&
+    WHATSAPP_TEMPLATES_CONTRATADOS_ONLY.includes(templateId) &&
+    contratados.length === 0;
 
   function handleOpenWhatsApp() {
     if (!whatsappUrl) return;
@@ -159,17 +206,31 @@ export function SendWhatsAppButton({
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   <RecipientOption
                     label="Novia"
-                    phone={telefonoNovia}
+                    subtitle={telefonoNovia || "Sin teléfono registrado"}
                     selected={recipient === "novia"}
                     onSelect={() => setRecipient("novia")}
                   />
                   <RecipientOption
                     label="Novio"
-                    phone={telefonoNovio}
+                    subtitle={telefonoNovio || "Sin teléfono registrado"}
                     selected={recipient === "novio"}
                     onSelect={() => setRecipient("novio")}
                   />
+                  {hasGrupoLink && (
+                    <RecipientOption
+                      label="Grupo de la boda"
+                      subtitle="Enviar al grupo de WhatsApp"
+                      selected={recipient === "grupo"}
+                      onSelect={() => setRecipient("grupo")}
+                      className="sm:col-span-2"
+                    />
+                  )}
                 </div>
+                {!hasGrupoLink && (
+                  <p className="text-xs text-bloom-muted">
+                    Agrega el link del grupo para habilitar esta opción
+                  </p>
+                )}
               </div>
 
               <div className="space-y-1.5">
@@ -195,15 +256,26 @@ export function SendWhatsAppButton({
                 </select>
               </div>
 
-              {templateId === "confirmacion_proveedor" && (
+              {needsProveedorSelector && (
                 <div className="space-y-1.5">
                   <label
                     htmlFor="whatsapp-proveedor"
                     className="text-sm font-medium text-bloom-ink"
                   >
                     Proveedor
+                    {WHATSAPP_TEMPLATES_CONTRATADOS_ONLY.includes(
+                      templateId,
+                    ) && (
+                      <span className="ml-1 font-normal text-bloom-muted">
+                        (contratados)
+                      </span>
+                    )}
                   </label>
-                  {providerOptions.length > 0 ? (
+                  {missingProveedorForTemplate ? (
+                    <p className="text-sm text-amber-800">
+                      No hay proveedores contratados en esta boda.
+                    </p>
+                  ) : providerOptions.length > 0 ? (
                     <select
                       id="whatsapp-proveedor"
                       className={inputClass}
@@ -213,6 +285,7 @@ export function SendWhatsAppButton({
                       {providerOptions.map((p) => (
                         <option key={p.id} value={p.id}>
                           {p.nombre}
+                          {p.categoria ? ` · ${p.categoria}` : ""}
                         </option>
                       ))}
                     </select>
@@ -252,7 +325,14 @@ export function SendWhatsAppButton({
                   Vista previa
                 </p>
                 <div className="rounded-xl border border-bloom-border bg-bloom-canvas px-4 py-3 text-sm whitespace-pre-wrap text-bloom-ink">
-                  {previewMessage.trim() || (
+                  {missingProveedorForTemplate ? (
+                    <span className="text-bloom-muted">
+                      Selecciona un proveedor contratado para generar el
+                      mensaje.
+                    </span>
+                  ) : previewMessage.trim() ? (
+                    previewMessage
+                  ) : (
                     <span className="text-bloom-muted">
                       El mensaje aparecerá aquí…
                     </span>
@@ -260,7 +340,7 @@ export function SendWhatsAppButton({
                 </div>
               </div>
 
-              {!selectedPhone && (
+              {recipient !== "grupo" && !selectedPhone && (
                 <p className="text-sm text-red-700" role="alert">
                   Agrega el teléfono del destinatario en la información de
                   clientes para poder enviar el mensaje.
@@ -279,7 +359,13 @@ export function SendWhatsAppButton({
               <button
                 type="button"
                 onClick={handleOpenWhatsApp}
-                disabled={!whatsappUrl}
+                disabled={
+                  !whatsappUrl ||
+                  missingProveedorForTemplate ||
+                  (needsProveedorSelector &&
+                    WHATSAPP_TEMPLATES_CONTRATADOS_ONLY.includes(templateId) &&
+                    !selectedProveedor)
+                }
                 className="inline-flex items-center justify-center gap-2 rounded-full bg-[#25D366] px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-[#20bd5a] disabled:opacity-60"
               >
                 <WhatsAppIcon className="text-white" />
@@ -295,14 +381,16 @@ export function SendWhatsAppButton({
 
 function RecipientOption({
   label,
-  phone,
+  subtitle,
   selected,
   onSelect,
+  className = "",
 }: {
   label: string;
-  phone: string;
+  subtitle: string;
   selected: boolean;
   onSelect: () => void;
+  className?: string;
 }) {
   return (
     <button
@@ -312,12 +400,10 @@ function RecipientOption({
         selected
           ? "border-bloom-accent bg-bloom-accent/10 text-bloom-ink"
           : "border-bloom-border bg-bloom-canvas text-bloom-ink hover:bg-bloom-border/50"
-      }`}
+      } ${className}`}
     >
       <span className="font-medium">{label}</span>
-      <span className="mt-0.5 block text-xs text-bloom-muted">
-        {phone || "Sin teléfono registrado"}
-      </span>
+      <span className="mt-0.5 block text-xs text-bloom-muted">{subtitle}</span>
     </button>
   );
 }

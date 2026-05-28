@@ -26,6 +26,7 @@ export type BodaRow = {
   tipo_documento_novio: string | null;
   documento_novia: string | null;
   documento_novio: string | null;
+  whatsapp_grupo_link: string | null;
   created_at: string;
 };
 

@@ -1,11 +1,19 @@
-import { formatWeddingDate } from "@/lib/format";
+import { formatCurrency, formatShortDate, formatWeddingDate } from "@/lib/format";
 import { loadPlannerSettings } from "@/lib/planner-settings";
+import type { ProveedorRow } from "@/app/data/providers";
+import {
+  getProviderSaldoPendienteConPagos,
+  getUltimoMontoPagoRegistrado,
+} from "@/app/data/providers";
+import type { PagoRow } from "@/app/data/pagos";
 
-export type WhatsAppRecipient = "novia" | "novio";
+export type WhatsAppRecipient = "novia" | "novio" | "grupo";
 
 export type WhatsAppTemplateId =
   | "bienvenida"
   | "recordatorio_pago"
+  | "recordatorio_pago_proveedor"
+  | "confirmacion_pago_realizado"
   | "confirmacion_proveedor"
   | "recordatorio_reunion"
   | "personalizado";
@@ -28,6 +36,16 @@ export const WHATSAPP_TEMPLATES: WhatsAppTemplate[] = [
     body: "Hola [nombre], te recuerdo que tienes un pago pendiente próximo a vencer. Quedamos atentos para coordinar.",
   },
   {
+    id: "recordatorio_pago_proveedor",
+    label: "Recordatorio de pago a proveedor",
+    body: "",
+  },
+  {
+    id: "confirmacion_pago_realizado",
+    label: "Confirmación de pago realizado",
+    body: "",
+  },
+  {
     id: "confirmacion_proveedor",
     label: "Confirmación de proveedor",
     body: "Hola [nombre], queremos confirmarte que [proveedor] ya está contratado para su boda. Todo va marchando perfecto.",
@@ -44,12 +62,26 @@ export const WHATSAPP_TEMPLATES: WhatsAppTemplate[] = [
   },
 ];
 
+export const WHATSAPP_TEMPLATES_WITH_PROVEEDOR: WhatsAppTemplateId[] = [
+  "confirmacion_proveedor",
+  "recordatorio_pago_proveedor",
+  "confirmacion_pago_realizado",
+];
+
+export const WHATSAPP_TEMPLATES_CONTRATADOS_ONLY: WhatsAppTemplateId[] = [
+  "recordatorio_pago_proveedor",
+  "confirmacion_pago_realizado",
+];
+
 export type WhatsAppMessageContext = {
   recipient: WhatsAppRecipient;
   nombreNovia: string | null;
   nombreNovio: string | null;
+  nombrePareja?: string | null;
   fechaBoda: string;
   ciudad: string;
+  proveedor?: ProveedorRow | null;
+  pagosProveedor?: PagoRow[];
   proveedorNombre?: string;
   customMessage?: string;
   plannerName?: string;
@@ -59,13 +91,55 @@ export function getRecipientDisplayName(
   recipient: WhatsAppRecipient,
   nombreNovia: string | null,
   nombreNovio: string | null,
+  nombrePareja?: string | null,
 ): string {
+  if (recipient === "grupo") {
+    return nombrePareja?.trim() || "equipo";
+  }
+
   const raw =
     recipient === "novia"
       ? nombreNovia?.trim()
       : nombreNovio?.trim();
   if (!raw) return recipient === "novia" ? "Novia" : "Novio";
   return raw.split(/\s+/)[0] ?? raw;
+}
+
+function formatDatoProveedor(value: string | null | undefined): string {
+  const trimmed = value?.trim();
+  return trimmed || "No registrado";
+}
+
+function buildRecordatorioPagoProveedorMessage(
+  nombre: string,
+  proveedor: ProveedorRow,
+  pagos: PagoRow[],
+): string {
+  const saldo = getProviderSaldoPendienteConPagos(proveedor, pagos);
+  const fechaLimite = proveedor.fecha_saldo
+    ? formatShortDate(proveedor.fecha_saldo)
+    : "No registrada";
+
+  return `Hola ${nombre}, te recordamos que tienes un pago pendiente con ${proveedor.nombre}:
+💰 Valor: ${formatCurrency(saldo)}
+📅 Fecha límite: ${fechaLimite}
+🏦 Banco: ${formatDatoProveedor(proveedor.banco)}
+📋 Cuenta: ${formatDatoProveedor(proveedor.numero_cuenta)}
+👤 Titular: ${formatDatoProveedor(proveedor.titular_cuenta)}
+Quedamos atentos para confirmar el pago.`;
+}
+
+function buildConfirmacionPagoRealizadoMessage(
+  nombre: string,
+  proveedor: ProveedorRow,
+  pagos: PagoRow[],
+  fechaBoda: string,
+): string {
+  const monto = getUltimoMontoPagoRegistrado(proveedor, pagos);
+  const montoTexto =
+    monto > 0 ? formatCurrency(monto) : "el monto acordado";
+
+  return `Hola ${nombre}, confirmamos que el pago a ${proveedor.nombre} por ${montoTexto} fue realizado exitosamente. ¡Todo va marchando perfecto para su boda el ${formatWeddingDate(fechaBoda)}! 🌸`;
 }
 
 export function buildWhatsAppMessage(
@@ -76,6 +150,30 @@ export function buildWhatsAppMessage(
     return context.customMessage?.trim() ?? "";
   }
 
+  const nombre = getRecipientDisplayName(
+    context.recipient,
+    context.nombreNovia,
+    context.nombreNovio,
+    context.nombrePareja,
+  );
+
+  if (templateId === "recordatorio_pago_proveedor" && context.proveedor) {
+    return buildRecordatorioPagoProveedorMessage(
+      nombre,
+      context.proveedor,
+      context.pagosProveedor ?? [],
+    );
+  }
+
+  if (templateId === "confirmacion_pago_realizado" && context.proveedor) {
+    return buildConfirmacionPagoRealizadoMessage(
+      nombre,
+      context.proveedor,
+      context.pagosProveedor ?? [],
+      context.fechaBoda,
+    );
+  }
+
   const template = WHATSAPP_TEMPLATES.find((t) => t.id === templateId);
   if (!template) return "";
 
@@ -83,13 +181,11 @@ export function buildWhatsAppMessage(
     context.plannerName?.trim() ||
     loadPlannerSettings().name ||
     "tu wedding planner";
-  const nombre = getRecipientDisplayName(
-    context.recipient,
-    context.nombreNovia,
-    context.nombreNovio,
-  );
   const fecha = formatWeddingDate(context.fechaBoda);
-  const proveedor = context.proveedorNombre?.trim() || "el proveedor";
+  const proveedor =
+    context.proveedor?.nombre?.trim() ||
+    context.proveedorNombre?.trim() ||
+    "el proveedor";
 
   return template.body
     .replace(/\[nombre\]/g, nombre)
@@ -114,4 +210,22 @@ export function buildWhatsAppUrl(phone: string, message: string): string | null 
   const normalized = formatPhoneForWhatsApp(phone);
   if (!normalized || !message.trim()) return null;
   return `https://wa.me/${normalized}?text=${encodeURIComponent(message)}`;
+}
+
+/** Abre el link del grupo con el mensaje prellenado (?text=). */
+export function buildGrupoWhatsAppUrl(
+  groupLink: string,
+  message: string,
+): string | null {
+  const link = groupLink.trim();
+  if (!link || !message.trim()) return null;
+
+  try {
+    const url = new URL(link.startsWith("http") ? link : `https://${link}`);
+    url.searchParams.set("text", message);
+    return url.toString();
+  } catch {
+    const separator = link.includes("?") ? "&" : "?";
+    return `${link}${separator}text=${encodeURIComponent(message)}`;
+  }
 }
