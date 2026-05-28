@@ -12,6 +12,8 @@ export type ProveedorRow = {
   numero_cuenta: string | null;
   tipo_cuenta: string | null;
   titular_cuenta: string | null;
+  link_pago: string | null;
+  telefono?: string | null;
   descripcion_servicio: string | null;
   notas: string | null;
   estado: ProviderStatus;

@@ -38,6 +38,7 @@ export function ProviderCard({ provider, bodaId, pagos }: ProviderCardProps) {
     numeroCuenta: string;
     tipoCuenta: string;
     titularCuenta: string;
+    linkPago: string;
     notas: string;
   };
 
@@ -55,6 +56,7 @@ export function ProviderCard({ provider, bodaId, pagos }: ProviderCardProps) {
     numeroCuenta: provider.numero_cuenta ?? "",
     tipoCuenta: provider.tipo_cuenta ?? "",
     titularCuenta: provider.titular_cuenta ?? "",
+    linkPago: provider.link_pago ?? "",
     notas: provider.notas ?? "",
   });
 
@@ -73,6 +75,7 @@ export function ProviderCard({ provider, bodaId, pagos }: ProviderCardProps) {
       numeroCuenta: provider.numero_cuenta ?? "",
       tipoCuenta: provider.tipo_cuenta ?? "",
       titularCuenta: provider.titular_cuenta ?? "",
+      linkPago: provider.link_pago ?? "",
       notas: provider.notas ?? "",
     });
   }, [editOpen, provider]);
@@ -99,6 +102,7 @@ export function ProviderCard({ provider, bodaId, pagos }: ProviderCardProps) {
     const numeroCuenta = editForm.numeroCuenta.trim() || null;
     const tipoCuenta = editForm.tipoCuenta.trim() || null;
     const titularCuenta = editForm.titularCuenta.trim() || null;
+    const linkPago = editForm.linkPago.trim() || null;
 
     if (!nombre) return setEditError("Ingresa el nombre del proveedor.");
     if (!categoria) return setEditError("Ingresa la categoría.");
@@ -129,6 +133,7 @@ export function ProviderCard({ provider, bodaId, pagos }: ProviderCardProps) {
           numero_cuenta: numeroCuenta,
           tipo_cuenta: tipoCuenta,
           titular_cuenta: titularCuenta,
+          link_pago: linkPago,
           notas: notas || null,
         })
         .eq("id", provider.id);
@@ -215,6 +220,26 @@ export function ProviderCard({ provider, bodaId, pagos }: ProviderCardProps) {
                 .join(" · ")}
             </p>
           )}
+
+          <div className="mt-3 rounded-lg border border-bloom-border bg-bloom-canvas/60 px-3 py-2">
+            <p className="text-xs font-medium uppercase tracking-wider text-bloom-muted">
+              Link de pago
+            </p>
+            <p className="mt-1 truncate text-sm text-bloom-ink">
+              {provider.link_pago || "No registrado"}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setEditError(null);
+                setEditOpen(true);
+              }}
+              disabled={updating || editSubmitting}
+              className="mt-2 rounded-full border border-bloom-border bg-bloom-surface px-3 py-1 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-border disabled:opacity-60"
+            >
+              Editar
+            </button>
+          </div>
 
           <div className="mt-4 flex flex-wrap gap-2">
             <button
@@ -474,6 +499,22 @@ export function ProviderCard({ provider, bodaId, pagos }: ProviderCardProps) {
                   />
                 </Field>
               </div>
+
+              <Field label="Link de pago">
+                <input
+                  type="url"
+                  className={inputClass}
+                  value={editForm.linkPago}
+                  onChange={(e) =>
+                    setEditForm((s) => ({
+                      ...s,
+                      linkPago: e.target.value,
+                    }))
+                  }
+                  placeholder="https://..."
+                  disabled={editSubmitting}
+                />
+              </Field>
 
               <Field label="Notas">
                 <textarea

@@ -12,8 +12,10 @@ export type WhatsAppRecipient = "novia" | "novio" | "grupo";
 export type WhatsAppTemplateId =
   | "bienvenida"
   | "recordatorio_pago"
-  | "recordatorio_pago_proveedor"
   | "confirmacion_pago_realizado"
+  | "recordatorio_con_opcion_tarjeta"
+  | "solicitar_link_pago_proveedor"
+  | "enviar_link_pago_cliente"
   | "confirmacion_proveedor"
   | "recordatorio_reunion"
   | "personalizado";
@@ -36,13 +38,23 @@ export const WHATSAPP_TEMPLATES: WhatsAppTemplate[] = [
     body: "Hola [nombre], te recuerdo que tienes un pago pendiente próximo a vencer. Quedamos atentos para coordinar.",
   },
   {
-    id: "recordatorio_pago_proveedor",
-    label: "Recordatorio de pago a proveedor",
+    id: "recordatorio_con_opcion_tarjeta",
+    label: "Recordatorio con opción tarjeta",
     body: "",
   },
   {
     id: "confirmacion_pago_realizado",
     label: "Confirmación de pago realizado",
+    body: "",
+  },
+  {
+    id: "solicitar_link_pago_proveedor",
+    label: "Solicitar link de pago al proveedor",
+    body: "",
+  },
+  {
+    id: "enviar_link_pago_cliente",
+    label: "Enviar link de pago al cliente",
     body: "",
   },
   {
@@ -64,13 +76,17 @@ export const WHATSAPP_TEMPLATES: WhatsAppTemplate[] = [
 
 export const WHATSAPP_TEMPLATES_WITH_PROVEEDOR: WhatsAppTemplateId[] = [
   "confirmacion_proveedor",
-  "recordatorio_pago_proveedor",
   "confirmacion_pago_realizado",
+  "recordatorio_con_opcion_tarjeta",
+  "solicitar_link_pago_proveedor",
+  "enviar_link_pago_cliente",
 ];
 
 export const WHATSAPP_TEMPLATES_CONTRATADOS_ONLY: WhatsAppTemplateId[] = [
-  "recordatorio_pago_proveedor",
   "confirmacion_pago_realizado",
+  "recordatorio_con_opcion_tarjeta",
+  "solicitar_link_pago_proveedor",
+  "enviar_link_pago_cliente",
 ];
 
 export type WhatsAppMessageContext = {
@@ -110,7 +126,7 @@ function formatDatoProveedor(value: string | null | undefined): string {
   return trimmed || "No registrado";
 }
 
-function buildRecordatorioPagoProveedorMessage(
+function buildRecordatorioConTarjetaMessage(
   nombre: string,
   proveedor: ProveedorRow,
   pagos: PagoRow[],
@@ -126,7 +142,8 @@ function buildRecordatorioPagoProveedorMessage(
 🏦 Banco: ${formatDatoProveedor(proveedor.banco)}
 📋 Cuenta: ${formatDatoProveedor(proveedor.numero_cuenta)}
 👤 Titular: ${formatDatoProveedor(proveedor.titular_cuenta)}
-Quedamos atentos para confirmar el pago.`;
+
+Si prefieres pagar con tarjeta de crédito, confírmanos y te enviamos el link de pago. 💳`;
 }
 
 function buildConfirmacionPagoRealizadoMessage(
@@ -140,6 +157,27 @@ function buildConfirmacionPagoRealizadoMessage(
     monto > 0 ? formatCurrency(monto) : "el monto acordado";
 
   return `Hola ${nombre}, confirmamos que el pago a ${proveedor.nombre} por ${montoTexto} fue realizado exitosamente. ¡Todo va marchando perfecto para su boda el ${formatWeddingDate(fechaBoda)}! 🌸`;
+}
+
+function buildSolicitarLinkPagoProveedorMessage(
+  proveedor: ProveedorRow,
+  nombreBoda: string,
+  pagos: PagoRow[],
+): string {
+  const saldo = getProviderSaldoPendienteConPagos(proveedor, pagos);
+  return `Hola ${proveedor.nombre}, los novios ${nombreBoda} desean realizar el pago de ${formatCurrency(saldo)} con tarjeta de crédito. ¿Nos puedes compartir el link de pago? Gracias 🙏`;
+}
+
+function buildEnviarLinkPagoClienteMessage(
+  nombre: string,
+  proveedor: ProveedorRow,
+  pagos: PagoRow[],
+): string {
+  const saldo = getProviderSaldoPendienteConPagos(proveedor, pagos);
+  const linkPago = proveedor.link_pago?.trim() || "";
+  return `Hola ${nombre}, aquí está el link para realizar el pago a ${proveedor.nombre} por ${formatCurrency(saldo)}:
+🔗 ${linkPago}
+Cualquier duda estamos atentos. 🌸`;
 }
 
 export function buildWhatsAppMessage(
@@ -157,8 +195,8 @@ export function buildWhatsAppMessage(
     context.nombrePareja,
   );
 
-  if (templateId === "recordatorio_pago_proveedor" && context.proveedor) {
-    return buildRecordatorioPagoProveedorMessage(
+  if (templateId === "recordatorio_con_opcion_tarjeta" && context.proveedor) {
+    return buildRecordatorioConTarjetaMessage(
       nombre,
       context.proveedor,
       context.pagosProveedor ?? [],
@@ -171,6 +209,22 @@ export function buildWhatsAppMessage(
       context.proveedor,
       context.pagosProveedor ?? [],
       context.fechaBoda,
+    );
+  }
+
+  if (templateId === "solicitar_link_pago_proveedor" && context.proveedor) {
+    return buildSolicitarLinkPagoProveedorMessage(
+      context.proveedor,
+      context.nombrePareja?.trim() || "la boda",
+      context.pagosProveedor ?? [],
+    );
+  }
+
+  if (templateId === "enviar_link_pago_cliente" && context.proveedor) {
+    return buildEnviarLinkPagoClienteMessage(
+      nombre,
+      context.proveedor,
+      context.pagosProveedor ?? [],
     );
   }
 

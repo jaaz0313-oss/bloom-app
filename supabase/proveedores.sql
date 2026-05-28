@@ -12,6 +12,7 @@ create table if not exists public.proveedores (
   numero_cuenta text,
   tipo_cuenta text,
   titular_cuenta text,
+  link_pago text,
   descripcion_servicio text,
   notas text,
   estado text not null default 'pendiente'

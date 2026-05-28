@@ -60,6 +60,9 @@ export function SendWhatsAppButton({
   const needsProveedorSelector =
     WHATSAPP_TEMPLATES_WITH_PROVEEDOR.includes(templateId);
 
+  const isProveedorPhoneTemplate = templateId === "solicitar_link_pago_proveedor";
+  const requiresProviderLinkTemplate = templateId === "enviar_link_pago_cliente";
+
   const selectedProveedor = useMemo(
     () => providerOptions.find((p) => p.id === proveedorId) ?? null,
     [providerOptions, proveedorId],
@@ -99,9 +102,14 @@ export function SendWhatsAppButton({
   const telefonoNovio = boda.telefono_novio?.trim() ?? "";
   const grupoLink = boda.whatsapp_grupo_link?.trim() ?? "";
   const hasGrupoLink = grupoLink.length > 0;
+  const telefonoProveedor =
+    ((selectedProveedor as ProveedorRow & { telefono?: string | null } | null)
+      ?.telefono
+      ?.trim() ?? "");
 
-  const selectedPhone =
-    recipient === "novia"
+  const selectedPhone = isProveedorPhoneTemplate
+    ? telefonoProveedor
+    : recipient === "novia"
       ? telefonoNovia
       : recipient === "novio"
         ? telefonoNovio
@@ -139,8 +147,9 @@ export function SendWhatsAppButton({
     ],
   );
 
-  const whatsappUrl =
-    recipient === "grupo"
+  const whatsappUrl = isProveedorPhoneTemplate
+    ? buildWhatsAppUrl(selectedPhone, previewMessage)
+    : recipient === "grupo"
       ? grupoLink || null
       : buildWhatsAppUrl(selectedPhone, previewMessage);
 
@@ -148,6 +157,13 @@ export function SendWhatsAppButton({
     needsProveedorSelector &&
     WHATSAPP_TEMPLATES_CONTRATADOS_ONLY.includes(templateId) &&
     contratados.length === 0;
+
+  const missingProveedorPhone =
+    isProveedorPhoneTemplate && !!selectedProveedor && !telefonoProveedor;
+  const missingProviderLink =
+    requiresProviderLinkTemplate &&
+    !!selectedProveedor &&
+    !(selectedProveedor.link_pago?.trim());
 
   function handleOpenWhatsApp() {
     if (!whatsappUrl) return;
@@ -218,29 +234,46 @@ export function SendWhatsAppButton({
                   Destinatario
                 </label>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <RecipientOption
-                    label="Novia"
-                    subtitle={telefonoNovia || "Sin teléfono registrado"}
-                    selected={recipient === "novia"}
-                    onSelect={() => setRecipient("novia")}
-                  />
-                  <RecipientOption
-                    label="Novio"
-                    subtitle={telefonoNovio || "Sin teléfono registrado"}
-                    selected={recipient === "novio"}
-                    onSelect={() => setRecipient("novio")}
-                  />
-                  {hasGrupoLink && (
+                  {!isProveedorPhoneTemplate && (
+                    <>
+                      <RecipientOption
+                        label="Novia"
+                        subtitle={telefonoNovia || "Sin teléfono registrado"}
+                        selected={recipient === "novia"}
+                        onSelect={() => setRecipient("novia")}
+                      />
+                      <RecipientOption
+                        label="Novio"
+                        subtitle={telefonoNovio || "Sin teléfono registrado"}
+                        selected={recipient === "novio"}
+                        onSelect={() => setRecipient("novio")}
+                      />
+                      {hasGrupoLink && (
+                        <RecipientOption
+                          label="Grupo de la boda"
+                          subtitle="Enviar al grupo de WhatsApp"
+                          selected={recipient === "grupo"}
+                          onSelect={() => setRecipient("grupo")}
+                          className="sm:col-span-2"
+                        />
+                      )}
+                    </>
+                  )}
+                  {isProveedorPhoneTemplate && (
                     <RecipientOption
-                      label="Grupo de la boda"
-                      subtitle="Enviar al grupo de WhatsApp"
-                      selected={recipient === "grupo"}
-                      onSelect={() => setRecipient("grupo")}
+                      label="Proveedor"
+                      subtitle={
+                        selectedProveedor
+                          ? telefonoProveedor || "Sin teléfono registrado"
+                          : "Selecciona un proveedor"
+                      }
+                      selected
+                      onSelect={() => undefined}
                       className="sm:col-span-2"
                     />
                   )}
                 </div>
-                {!hasGrupoLink && (
+                {!isProveedorPhoneTemplate && !hasGrupoLink && (
                   <p className="text-xs text-bloom-muted">
                     Agrega el link del grupo para habilitar esta opción
                   </p>
@@ -356,8 +389,15 @@ export function SendWhatsAppButton({
 
               {recipient !== "grupo" && !selectedPhone && (
                 <p className="text-sm text-red-700" role="alert">
-                  Agrega el teléfono del destinatario en la información de
-                  clientes para poder enviar el mensaje.
+                  {isProveedorPhoneTemplate
+                    ? "Este proveedor no tiene teléfono registrado"
+                    : "Agrega el teléfono del destinatario en la información de clientes para poder enviar el mensaje."}
+                </p>
+              )}
+
+              {missingProviderLink && (
+                <p className="text-sm text-amber-800" role="alert">
+                  Guarda primero el link de pago en la tarjeta del proveedor
                 </p>
               )}
             </div>
@@ -383,6 +423,8 @@ export function SendWhatsAppButton({
                 onClick={handleOpenWhatsApp}
                 disabled={
                   !whatsappUrl ||
+                  missingProveedorPhone ||
+                  missingProviderLink ||
                   missingProveedorForTemplate ||
                   (needsProveedorSelector &&
                     WHATSAPP_TEMPLATES_CONTRATADOS_ONLY.includes(templateId) &&
