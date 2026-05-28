@@ -103,9 +103,7 @@ export function SendWhatsAppButton({
   const grupoLink = boda.whatsapp_grupo_link?.trim() ?? "";
   const hasGrupoLink = grupoLink.length > 0;
   const telefonoProveedor =
-    ((selectedProveedor as ProveedorRow & { telefono?: string | null } | null)
-      ?.telefono
-      ?.trim() ?? "");
+    selectedProveedor?.telefono?.trim() ?? "";
 
   const selectedPhone = isProveedorPhoneTemplate
     ? telefonoProveedor

@@ -11,8 +11,13 @@ type FormState = {
   anticipo: string;
   fechaSaldo: string;
   banco: string;
+  tipoCuenta: string;
   numeroCuenta: string;
   titular: string;
+  documentoNit: string;
+  telefono: string;
+  email: string;
+  direccion: string;
   descripcionServicio: string;
   notas: string;
 };
@@ -24,8 +29,13 @@ const emptyForm: FormState = {
   anticipo: "",
   fechaSaldo: "",
   banco: "",
+  tipoCuenta: "",
   numeroCuenta: "",
   titular: "",
+  documentoNit: "",
+  telefono: "",
+  email: "",
+  direccion: "",
   descripcionServicio: "",
   notas: "",
 };
@@ -70,6 +80,11 @@ export function AddProviderModalButton({ bodaId }: AddProviderModalButtonProps) 
     const banco = form.banco.trim();
     const numeroCuenta = form.numeroCuenta.trim();
     const titular = form.titular.trim();
+    const tipoCuenta = form.tipoCuenta.trim();
+    const documentoNit = form.documentoNit.trim();
+    const telefono = form.telefono.trim();
+    const email = form.email.trim();
+    const direccion = form.direccion.trim();
     const descripcionServicio = form.descripcionServicio.trim();
     const notas = form.notas.trim();
 
@@ -95,8 +110,13 @@ export function AddProviderModalButton({ bodaId }: AddProviderModalButtonProps) 
         anticipo,
         fecha_saldo: form.fechaSaldo || null,
         banco: banco || null,
+        tipo_cuenta: tipoCuenta || null,
         numero_cuenta: numeroCuenta || null,
         titular_cuenta: titular || null,
+        documento_nit: documentoNit || null,
+        telefono: telefono || null,
+        email: email || null,
+        direccion: direccion || null,
         descripcion_servicio: descripcionServicio || null,
         notas: notas || null,
         estado: "pendiente",
@@ -262,6 +282,22 @@ export function AddProviderModalButton({ bodaId }: AddProviderModalButtonProps) 
                   />
                 </Field>
 
+                <Field label="Tipo de cuenta">
+                  <select
+                    className={inputClass}
+                    value={form.tipoCuenta}
+                    onChange={(e) =>
+                      setForm((s) => ({ ...s, tipoCuenta: e.target.value }))
+                    }
+                  >
+                    <option value="">Seleccionar</option>
+                    <option value="Ahorros">Ahorros</option>
+                    <option value="Corriente">Corriente</option>
+                  </select>
+                </Field>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field label="Número de cuenta">
                   <input
                     className={inputClass}
@@ -272,18 +308,68 @@ export function AddProviderModalButton({ bodaId }: AddProviderModalButtonProps) 
                     placeholder="Ej: 12345678901"
                   />
                 </Field>
+
+                <Field label="Titular">
+                  <input
+                    className={inputClass}
+                    value={form.titular}
+                    onChange={(e) =>
+                      setForm((s) => ({ ...s, titular: e.target.value }))
+                    }
+                    placeholder="Ej: Juan Pérez"
+                  />
+                </Field>
               </div>
 
-              <Field label="Titular de la cuenta">
+              <Field label="Documento / NIT">
                 <input
                   className={inputClass}
-                  value={form.titular}
+                  value={form.documentoNit}
                   onChange={(e) =>
-                    setForm((s) => ({ ...s, titular: e.target.value }))
+                    setForm((s) => ({ ...s, documentoNit: e.target.value }))
                   }
-                  placeholder="Ej: Juan Pérez"
+                  placeholder="Ej: 900123456-7"
                 />
               </Field>
+
+              <div className="space-y-3 rounded-xl border border-bloom-border bg-bloom-canvas/50 p-4">
+                <p className="text-xs font-medium uppercase tracking-wider text-bloom-muted">
+                  Contacto del proveedor
+                </p>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field label="Teléfono">
+                    <input
+                      className={inputClass}
+                      value={form.telefono}
+                      onChange={(e) =>
+                        setForm((s) => ({ ...s, telefono: e.target.value }))
+                      }
+                      placeholder="Ej: 3001234567"
+                    />
+                  </Field>
+                  <Field label="Email">
+                    <input
+                      type="email"
+                      className={inputClass}
+                      value={form.email}
+                      onChange={(e) =>
+                        setForm((s) => ({ ...s, email: e.target.value }))
+                      }
+                      placeholder="correo@proveedor.com"
+                    />
+                  </Field>
+                </div>
+                <Field label="Dirección / Residencia">
+                  <input
+                    className={inputClass}
+                    value={form.direccion}
+                    onChange={(e) =>
+                      setForm((s) => ({ ...s, direccion: e.target.value }))
+                    }
+                    placeholder="Ej: Calle 10 #20-30, Medellín"
+                  />
+                </Field>
+              </div>
 
               {error && (
                 <p className="text-sm text-red-700" role="alert">

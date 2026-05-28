@@ -38,6 +38,10 @@ export function ProviderCard({ provider, bodaId, pagos }: ProviderCardProps) {
     numeroCuenta: string;
     tipoCuenta: string;
     titularCuenta: string;
+    documentoNit: string;
+    telefono: string;
+    email: string;
+    direccion: string;
     linkPago: string;
     notas: string;
   };
@@ -56,6 +60,10 @@ export function ProviderCard({ provider, bodaId, pagos }: ProviderCardProps) {
     numeroCuenta: provider.numero_cuenta ?? "",
     tipoCuenta: provider.tipo_cuenta ?? "",
     titularCuenta: provider.titular_cuenta ?? "",
+    documentoNit: provider.documento_nit ?? "",
+    telefono: provider.telefono ?? "",
+    email: provider.email ?? "",
+    direccion: provider.direccion ?? "",
     linkPago: provider.link_pago ?? "",
     notas: provider.notas ?? "",
   });
@@ -75,6 +83,10 @@ export function ProviderCard({ provider, bodaId, pagos }: ProviderCardProps) {
       numeroCuenta: provider.numero_cuenta ?? "",
       tipoCuenta: provider.tipo_cuenta ?? "",
       titularCuenta: provider.titular_cuenta ?? "",
+      documentoNit: provider.documento_nit ?? "",
+      telefono: provider.telefono ?? "",
+      email: provider.email ?? "",
+      direccion: provider.direccion ?? "",
       linkPago: provider.link_pago ?? "",
       notas: provider.notas ?? "",
     });
@@ -102,6 +114,10 @@ export function ProviderCard({ provider, bodaId, pagos }: ProviderCardProps) {
     const numeroCuenta = editForm.numeroCuenta.trim() || null;
     const tipoCuenta = editForm.tipoCuenta.trim() || null;
     const titularCuenta = editForm.titularCuenta.trim() || null;
+    const documentoNit = editForm.documentoNit.trim() || null;
+    const telefono = editForm.telefono.trim() || null;
+    const email = editForm.email.trim() || null;
+    const direccion = editForm.direccion.trim() || null;
     const linkPago = editForm.linkPago.trim() || null;
 
     if (!nombre) return setEditError("Ingresa el nombre del proveedor.");
@@ -133,6 +149,10 @@ export function ProviderCard({ provider, bodaId, pagos }: ProviderCardProps) {
           numero_cuenta: numeroCuenta,
           tipo_cuenta: tipoCuenta,
           titular_cuenta: titularCuenta,
+          documento_nit: documentoNit,
+          telefono,
+          email,
+          direccion,
           link_pago: linkPago,
           notas: notas || null,
         })
@@ -213,12 +233,76 @@ export function ProviderCard({ provider, bodaId, pagos }: ProviderCardProps) {
             </div>
           )}
 
-          {(provider.banco || provider.numero_cuenta) && (
-            <p className="mt-2 text-xs text-bloom-muted">
-              {[provider.banco, provider.numero_cuenta]
-                .filter(Boolean)
-                .join(" · ")}
-            </p>
+          {(provider.banco ||
+            provider.tipo_cuenta ||
+            provider.numero_cuenta ||
+            provider.titular_cuenta ||
+            provider.documento_nit) && (
+            <div className="mt-3 rounded-lg border border-bloom-border bg-bloom-canvas/60 px-3 py-2">
+              <p className="text-xs font-medium uppercase tracking-wider text-bloom-muted">
+                Datos bancarios
+              </p>
+              <dl className="mt-1 grid grid-cols-1 gap-1 text-xs text-bloom-ink sm:grid-cols-2">
+                {provider.banco && (
+                  <div>
+                    <dt className="text-bloom-muted">Banco</dt>
+                    <dd>{provider.banco}</dd>
+                  </div>
+                )}
+                {provider.tipo_cuenta && (
+                  <div>
+                    <dt className="text-bloom-muted">Tipo de cuenta</dt>
+                    <dd>{provider.tipo_cuenta}</dd>
+                  </div>
+                )}
+                {provider.numero_cuenta && (
+                  <div>
+                    <dt className="text-bloom-muted">Número de cuenta</dt>
+                    <dd>{provider.numero_cuenta}</dd>
+                  </div>
+                )}
+                {provider.titular_cuenta && (
+                  <div>
+                    <dt className="text-bloom-muted">Titular</dt>
+                    <dd>{provider.titular_cuenta}</dd>
+                  </div>
+                )}
+                {provider.documento_nit && (
+                  <div className="sm:col-span-2">
+                    <dt className="text-bloom-muted">Documento / NIT</dt>
+                    <dd>{provider.documento_nit}</dd>
+                  </div>
+                )}
+              </dl>
+            </div>
+          )}
+
+          {(provider.telefono || provider.email || provider.direccion) && (
+            <div className="mt-3 rounded-lg border border-bloom-border bg-bloom-canvas/60 px-3 py-2">
+              <p className="text-xs font-medium uppercase tracking-wider text-bloom-muted">
+                Contacto del proveedor
+              </p>
+              <dl className="mt-1 grid grid-cols-1 gap-1 text-xs text-bloom-ink sm:grid-cols-2">
+                {provider.telefono && (
+                  <div>
+                    <dt className="text-bloom-muted">Teléfono</dt>
+                    <dd>{provider.telefono}</dd>
+                  </div>
+                )}
+                {provider.email && (
+                  <div>
+                    <dt className="text-bloom-muted">Email</dt>
+                    <dd>{provider.email}</dd>
+                  </div>
+                )}
+                {provider.direccion && (
+                  <div className="sm:col-span-2">
+                    <dt className="text-bloom-muted">Dirección / Residencia</dt>
+                    <dd>{provider.direccion}</dd>
+                  </div>
+                )}
+              </dl>
+            </div>
           )}
 
           <div className="mt-3 rounded-lg border border-bloom-border bg-bloom-canvas/60 px-3 py-2">
@@ -453,6 +537,26 @@ export function ProviderCard({ provider, bodaId, pagos }: ProviderCardProps) {
                     disabled={editSubmitting}
                   />
                 </Field>
+                <Field label="Tipo de cuenta">
+                  <select
+                    className={inputClass}
+                    value={editForm.tipoCuenta}
+                    onChange={(e) =>
+                      setEditForm((s) => ({
+                        ...s,
+                        tipoCuenta: e.target.value,
+                      }))
+                    }
+                    disabled={editSubmitting}
+                  >
+                    <option value="">Seleccionar</option>
+                    <option value="Ahorros">Ahorros</option>
+                    <option value="Corriente">Corriente</option>
+                  </select>
+                </Field>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field label="Número de cuenta">
                   <input
                     className={inputClass}
@@ -470,21 +574,7 @@ export function ProviderCard({ provider, bodaId, pagos }: ProviderCardProps) {
               </div>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="Tipo de cuenta">
-                  <input
-                    className={inputClass}
-                    value={editForm.tipoCuenta}
-                    onChange={(e) =>
-                      setEditForm((s) => ({
-                        ...s,
-                        tipoCuenta: e.target.value,
-                      }))
-                    }
-                    placeholder="Ej: Ahorros"
-                    disabled={editSubmitting}
-                  />
-                </Field>
-                <Field label="Titular de cuenta">
+                <Field label="Titular">
                   <input
                     className={inputClass}
                     value={editForm.titularCuenta}
@@ -495,6 +585,71 @@ export function ProviderCard({ provider, bodaId, pagos }: ProviderCardProps) {
                       }))
                     }
                     placeholder="Ej: Juan Pérez"
+                    disabled={editSubmitting}
+                  />
+                </Field>
+                <Field label="Documento / NIT">
+                  <input
+                    className={inputClass}
+                    value={editForm.documentoNit}
+                    onChange={(e) =>
+                      setEditForm((s) => ({
+                        ...s,
+                        documentoNit: e.target.value,
+                      }))
+                    }
+                    placeholder="Ej: 900123456-7"
+                    disabled={editSubmitting}
+                  />
+                </Field>
+              </div>
+
+              <div className="space-y-3 rounded-xl border border-bloom-border bg-bloom-canvas/50 p-4">
+                <p className="text-xs font-medium uppercase tracking-wider text-bloom-muted">
+                  Contacto del proveedor
+                </p>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field label="Teléfono">
+                    <input
+                      className={inputClass}
+                      value={editForm.telefono}
+                      onChange={(e) =>
+                        setEditForm((s) => ({
+                          ...s,
+                          telefono: e.target.value,
+                        }))
+                      }
+                      placeholder="Ej: 3001234567"
+                      disabled={editSubmitting}
+                    />
+                  </Field>
+                  <Field label="Email">
+                    <input
+                      type="email"
+                      className={inputClass}
+                      value={editForm.email}
+                      onChange={(e) =>
+                        setEditForm((s) => ({
+                          ...s,
+                          email: e.target.value,
+                        }))
+                      }
+                      placeholder="correo@proveedor.com"
+                      disabled={editSubmitting}
+                    />
+                  </Field>
+                </div>
+                <Field label="Dirección / Residencia">
+                  <input
+                    className={inputClass}
+                    value={editForm.direccion}
+                    onChange={(e) =>
+                      setEditForm((s) => ({
+                        ...s,
+                        direccion: e.target.value,
+                      }))
+                    }
+                    placeholder="Ej: Calle 10 #20-30, Medellín"
                     disabled={editSubmitting}
                   />
                 </Field>

@@ -140,6 +140,7 @@ function buildRecordatorioConTarjetaMessage(
 💰 Valor: ${formatCurrency(saldo)}
 📅 Fecha límite: ${fechaLimite}
 🏦 Banco: ${formatDatoProveedor(proveedor.banco)}
+🏷️ Tipo de cuenta: ${formatDatoProveedor(proveedor.tipo_cuenta)}
 📋 Cuenta: ${formatDatoProveedor(proveedor.numero_cuenta)}
 👤 Titular: ${formatDatoProveedor(proveedor.titular_cuenta)}
 
