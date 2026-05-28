@@ -17,11 +17,13 @@ import { supabase } from "@/lib/supabase";
 type CronogramaContratacionProps = {
   bodaId: string;
   fechaBoda: string;
+  canManage: boolean;
 };
 
 export function CronogramaContratacion({
   bodaId,
   fechaBoda,
+  canManage,
 }: CronogramaContratacionProps) {
   const router = useRouter();
   const [items, setItems] = useState<CronogramaItemRow[]>([]);
@@ -59,6 +61,7 @@ export function CronogramaContratacion({
   }, [loadItems]);
 
   async function handleToggle(item: CronogramaItemRow) {
+    if (!canManage) return;
     if (!supabase || togglingId) return;
     if (!item.completado && isCronogramaItemLocked(item, items)) return;
 
@@ -93,6 +96,7 @@ export function CronogramaContratacion({
   }
 
   async function handleGenerarCronograma() {
+    if (!canManage) return;
     if (!supabase || generating) return;
 
     setGenerating(true);
@@ -112,6 +116,7 @@ export function CronogramaContratacion({
   }
 
   async function handleRegenerarCronograma() {
+    if (!canManage) return;
     if (!supabase || regenerating) return;
 
     const confirmed = window.confirm(
@@ -170,14 +175,16 @@ export function CronogramaContratacion({
           </p>
         )}
 
-        <button
-          type="button"
-          onClick={handleGenerarCronograma}
-          disabled={generating || !supabase}
-          className="mt-5 inline-flex items-center justify-center rounded-full bg-bloom-accent px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-bloom-accent-hover disabled:opacity-60"
-        >
-          {generating ? "Generando…" : "Generar cronograma"}
-        </button>
+        {canManage && (
+          <button
+            type="button"
+            onClick={handleGenerarCronograma}
+            disabled={generating || !supabase}
+            className="mt-5 inline-flex items-center justify-center rounded-full bg-bloom-accent px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-bloom-accent-hover disabled:opacity-60"
+          >
+            {generating ? "Generando…" : "Generar cronograma"}
+          </button>
+        )}
       </section>
     );
   }
@@ -197,14 +204,16 @@ export function CronogramaContratacion({
           <p className="text-sm font-medium text-bloom-ink">
             {completados} de {total} completados
           </p>
-          <button
-            type="button"
-            onClick={handleRegenerarCronograma}
-            disabled={regenerating || !supabase}
-            className="rounded-full border border-amber-300 bg-amber-50 px-4 py-2 text-xs font-medium text-amber-900 transition-colors hover:bg-amber-100 disabled:opacity-60"
-          >
-            {regenerating ? "Regenerando…" : "Regenerar cronograma"}
-          </button>
+          {canManage && (
+            <button
+              type="button"
+              onClick={handleRegenerarCronograma}
+              disabled={regenerating || !supabase}
+              className="rounded-full border border-amber-300 bg-amber-50 px-4 py-2 text-xs font-medium text-amber-900 transition-colors hover:bg-amber-100 disabled:opacity-60"
+            >
+              {regenerating ? "Regenerando…" : "Regenerar cronograma"}
+            </button>
+          )}
         </div>
       </div>
 
@@ -296,6 +305,18 @@ export function CronogramaContratacion({
                 <div
                   title="Completa los pasos anteriores primero"
                   className="flex w-full cursor-not-allowed items-start gap-3 rounded-xl border border-gray-200 bg-gray-100 px-4 py-3 text-left opacity-90"
+                >
+                  {rowContent}
+                </div>
+              </li>
+            );
+          }
+
+          if (!canManage) {
+            return (
+              <li key={item.id}>
+                <div
+                  className={`flex w-full items-start gap-3 rounded-xl border px-4 py-3 text-left ${CRONOGRAMA_STATUS_STYLES[status]}`}
                 >
                   {rowContent}
                 </div>

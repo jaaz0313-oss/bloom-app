@@ -1,17 +1,20 @@
 import type { PagoRow } from "@/app/data/pagos";
 import type { ProveedorRow } from "@/app/data/providers";
+import type { UserRole } from "@/lib/auth/roles";
 import { ProviderCard } from "./ProviderCard";
 
 type ProviderListProps = {
   providers: ProveedorRow[];
   bodaId: string;
   pagosByProveedor: Record<string, PagoRow[]>;
+  role: UserRole;
 };
 
 export function ProviderList({
   providers,
   bodaId,
   pagosByProveedor,
+  role,
 }: ProviderListProps) {
   if (providers.length === 0) {
     return (
@@ -29,6 +32,7 @@ export function ProviderList({
           provider={provider}
           bodaId={bodaId}
           pagos={pagosByProveedor[provider.id] ?? []}
+          role={role}
         />
       ))}
     </ul>

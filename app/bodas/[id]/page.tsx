@@ -15,7 +15,9 @@ import {
   type ProveedorRow,
 } from "@/app/data/providers";
 import { formatWeddingDate } from "@/lib/format";
-import { supabase } from "@/lib/supabase";
+import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { requireAuthUser } from "@/lib/auth/user-profiles";
+import { hasPermission } from "@/lib/auth/roles";
 
 export const dynamic = "force-dynamic";
 
@@ -24,11 +26,9 @@ type PageProps = {
 };
 
 export default async function BodaDetailPage({ params }: PageProps) {
+  const user = await requireAuthUser();
+  const supabase = await createServerSupabaseClient();
   const { id } = await params;
-
-  if (!supabase) {
-    notFound();
-  }
 
   const { data: boda, error: bodaError } = await supabase
     .from("bodas")
@@ -80,7 +80,7 @@ export default async function BodaDetailPage({ params }: PageProps) {
 
   return (
     <div className="min-h-full bg-bloom-canvas font-sans">
-      <DashboardHeader />
+      <DashboardHeader user={user} />
 
       <main className="mx-auto max-w-5xl px-6 py-10 sm:px-8">
         <Link
@@ -108,7 +108,9 @@ export default async function BodaDetailPage({ params }: PageProps) {
             </div>
           </dl>
           <div className="mt-4">
-            <ShareWithClientButton bodaId={id} />
+            {hasPermission(user.rol, "whatsapp.send") && (
+              <ShareWithClientButton bodaId={id} />
+            )}
           </div>
         </header>
 
@@ -116,6 +118,7 @@ export default async function BodaDetailPage({ params }: PageProps) {
           <ClientInfoSection
             bodaId={id}
             boda={bodaRow}
+            role={user.rol}
             providers={providers}
             pagosByProveedor={pagosByProveedor}
           />
@@ -138,7 +141,9 @@ export default async function BodaDetailPage({ params }: PageProps) {
                   registrados
                 </p>
               </div>
-              <AddProviderModalButton bodaId={id} />
+              {hasPermission(user.rol, "providers.manage") && (
+                <AddProviderModalButton bodaId={id} role={user.rol} />
+              )}
             </div>
 
             <div className="mt-5">
@@ -146,6 +151,7 @@ export default async function BodaDetailPage({ params }: PageProps) {
                 providers={providers}
                 bodaId={id}
                 pagosByProveedor={pagosByProveedor}
+                role={user.rol}
               />
             </div>
           </section>
@@ -153,12 +159,15 @@ export default async function BodaDetailPage({ params }: PageProps) {
           <CronogramaContratacion
             bodaId={id}
             fechaBoda={bodaRow.fecha_boda}
+            canManage={hasPermission(user.rol, "cronograma.manage")}
           />
         </div>
 
-        <div className="mt-12 border-t border-bloom-border pt-8">
-          <DeleteWeddingButton bodaId={id} />
-        </div>
+        {hasPermission(user.rol, "weddings.delete") && (
+          <div className="mt-12 border-t border-bloom-border pt-8">
+            <DeleteWeddingButton bodaId={id} />
+          </div>
+        )}
       </main>
     </div>
   );

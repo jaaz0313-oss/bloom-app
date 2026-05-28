@@ -7,7 +7,7 @@ import {
   type ProveedorRow,
 } from "@/app/data/providers";
 import { formatCurrency, formatShortDate, formatWeddingDate } from "@/lib/format";
-import { supabase } from "@/lib/supabase";
+import { createServerSupabaseClient } from "@/lib/supabase-server";
 
 export const dynamic = "force-dynamic";
 
@@ -17,10 +17,7 @@ type PageProps = {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
-
-  if (!supabase) {
-    return { title: "Resumen de boda — Bloom" };
-  }
+  const supabase = await createServerSupabaseClient();
 
   const { data } = await supabase
     .from("bodas")
@@ -38,10 +35,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function ClienteBodaPage({ params }: PageProps) {
   const { id } = await params;
-
-  if (!supabase) {
-    notFound();
-  }
+  const supabase = await createServerSupabaseClient();
 
   const { data: boda, error: bodaError } = await supabase
     .from("bodas")

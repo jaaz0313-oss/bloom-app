@@ -11,9 +11,11 @@ import {
 import { formatCurrency, formatShortDate } from "@/lib/format";
 import { insertarCronograma } from "@/lib/cronograma";
 import { supabase } from "@/lib/supabase";
+import { hasPermission, type UserRole } from "@/lib/auth/roles";
 
 type LeadsBoardProps = {
   leads: LeadRow[];
+  role: UserRole;
 };
 
 type LeadFormState = {
@@ -53,7 +55,7 @@ const CEREMONY_OPTIONS = [
   "Civil y Religiosa",
 ] as const;
 
-export function LeadsBoard({ leads }: LeadsBoardProps) {
+export function LeadsBoard({ leads, role }: LeadsBoardProps) {
   const router = useRouter();
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -100,6 +102,10 @@ export function LeadsBoard({ leads }: LeadsBoardProps) {
   }
 
   async function handleCreate(e: React.FormEvent) {
+    if (!hasPermission(role, "leads.create")) {
+      setError("No tienes permisos para crear leads.");
+      return;
+    }
     e.preventDefault();
     setError(null);
     if (!supabase) return setError("Supabase no está configurado.");
@@ -182,6 +188,10 @@ export function LeadsBoard({ leads }: LeadsBoardProps) {
 
   async function handleConvert(lead: LeadRow) {
     setError(null);
+    if (!hasPermission(role, "weddings.create")) {
+      setError("No tienes permisos para crear bodas.");
+      return;
+    }
     if (!supabase) return setError("Supabase no está configurado.");
 
     setSubmitting(true);
@@ -227,13 +237,15 @@ export function LeadsBoard({ leads }: LeadsBoardProps) {
             {leads.length} {leads.length === 1 ? "lead" : "leads"} en seguimiento
           </p>
         </div>
-        <button
-          type="button"
-          onClick={openCreateModal}
-          className="inline-flex items-center justify-center gap-2 rounded-full bg-bloom-accent px-6 py-3 text-sm font-medium text-white shadow-sm transition-colors hover:bg-bloom-accent-hover"
-        >
-          Nuevo lead
-        </button>
+        {hasPermission(role, "leads.create") && (
+          <button
+            type="button"
+            onClick={openCreateModal}
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-bloom-accent px-6 py-3 text-sm font-medium text-white shadow-sm transition-colors hover:bg-bloom-accent-hover"
+          >
+            Nuevo lead
+          </button>
+        )}
       </div>
 
       {error && (
@@ -287,14 +299,16 @@ export function LeadsBoard({ leads }: LeadsBoardProps) {
                   >
                     Editar
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => handleConvert(lead)}
-                    disabled={submitting}
-                    className="rounded-full bg-bloom-accent px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-bloom-accent-hover disabled:opacity-60"
-                  >
-                    Convertir a boda
-                  </button>
+                  {hasPermission(role, "weddings.create") && (
+                    <button
+                      type="button"
+                      onClick={() => handleConvert(lead)}
+                      disabled={submitting}
+                      className="rounded-full bg-bloom-accent px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-bloom-accent-hover disabled:opacity-60"
+                    >
+                      Convertir a boda
+                    </button>
+                  )}
                 </div>
               </div>
               {(lead.cantidad_invitados !== null ||

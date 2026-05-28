@@ -7,12 +7,14 @@ import type { ProveedorRow } from "@/app/data/providers";
 import type { PagoRow } from "@/app/data/pagos";
 import { SendWhatsAppButton } from "@/app/components/bodas/SendWhatsAppButton";
 import { supabase } from "@/lib/supabase";
+import { hasPermission, type UserRole } from "@/lib/auth/roles";
 
 const DOCUMENT_TYPES = ["Cédula", "Pasaporte", "ID extranjero"] as const;
 
 type ClientInfoSectionProps = {
   bodaId: string;
   boda: BodaRow;
+  role: UserRole;
   providers?: ProveedorRow[];
   pagosByProveedor?: Record<string, PagoRow[]>;
 };
@@ -34,6 +36,7 @@ type ClientInfoForm = {
 export function ClientInfoSection({
   bodaId,
   boda,
+  role,
   providers = [],
   pagosByProveedor = {},
 }: ClientInfoSectionProps) {
@@ -78,6 +81,10 @@ export function ClientInfoSection({
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    if (!hasPermission(role, "providers.manage")) {
+      setError("No tienes permisos para editar esta información.");
+      return;
+    }
 
     if (!supabase) {
       setError("Supabase no está configurado.");
@@ -118,6 +125,10 @@ export function ClientInfoSection({
   async function handleSaveGrupoLink(e: React.FormEvent) {
     e.preventDefault();
     setGrupoLinkError(null);
+    if (!hasPermission(role, "whatsapp.send")) {
+      setGrupoLinkError("No tienes permisos para esta acción.");
+      return;
+    }
 
     if (!supabase) {
       setGrupoLinkError("Supabase no está configurado.");
@@ -157,21 +168,25 @@ export function ClientInfoSection({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <SendWhatsAppButton
-            boda={boda}
-            providers={providers}
-            pagosByProveedor={pagosByProveedor}
-          />
-          <button
-            type="button"
-            onClick={() => {
-              setError(null);
-              setOpen(true);
-            }}
-            className="inline-flex items-center justify-center rounded-full bg-bloom-accent px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-bloom-accent-hover"
-          >
-            Editar información
-          </button>
+          {hasPermission(role, "whatsapp.send") && (
+            <SendWhatsAppButton
+              boda={boda}
+              providers={providers}
+              pagosByProveedor={pagosByProveedor}
+            />
+          )}
+          {hasPermission(role, "providers.manage") && (
+            <button
+              type="button"
+              onClick={() => {
+                setError(null);
+                setOpen(true);
+              }}
+              className="inline-flex items-center justify-center rounded-full bg-bloom-accent px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-bloom-accent-hover"
+            >
+              Editar información
+            </button>
+          )}
         </div>
       </div>
 
@@ -204,16 +219,18 @@ export function ClientInfoSection({
             {boda.whatsapp_grupo_link?.trim() || "—"}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            setGrupoLinkError(null);
-            setGrupoLinkOpen(true);
-          }}
-          className="inline-flex shrink-0 items-center justify-center rounded-full border border-bloom-border bg-bloom-surface px-4 py-2 text-sm font-medium text-bloom-ink transition-colors hover:bg-bloom-border"
-        >
-          Editar
-        </button>
+        {hasPermission(role, "whatsapp.send") && (
+          <button
+            type="button"
+            onClick={() => {
+              setGrupoLinkError(null);
+              setGrupoLinkOpen(true);
+            }}
+            className="inline-flex shrink-0 items-center justify-center rounded-full border border-bloom-border bg-bloom-surface px-4 py-2 text-sm font-medium text-bloom-ink transition-colors hover:bg-bloom-border"
+          >
+            Editar
+          </button>
+        )}
       </div>
 
       {grupoLinkOpen && (

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { hasPermission, type UserRole } from "@/lib/auth/roles";
 
 type FormState = {
   nombre: string;
@@ -42,9 +43,10 @@ const emptyForm: FormState = {
 
 type AddProviderModalButtonProps = {
   bodaId: string;
+  role: UserRole;
 };
 
-export function AddProviderModalButton({ bodaId }: AddProviderModalButtonProps) {
+export function AddProviderModalButton({ bodaId, role }: AddProviderModalButtonProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -63,6 +65,10 @@ export function AddProviderModalButton({ bodaId }: AddProviderModalButtonProps) 
   }, [open]);
 
   async function onSubmit(e: React.FormEvent) {
+    if (!hasPermission(role, "providers.manage")) {
+      setError("No tienes permisos para agregar proveedores.");
+      return;
+    }
     e.preventDefault();
     setError(null);
 

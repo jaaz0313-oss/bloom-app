@@ -12,15 +12,17 @@ import { formatCurrency } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
 import { syncBodaProveedoresContratados } from "@/lib/sync-boda";
 import type { PagoRow } from "@/app/data/pagos";
+import { hasPermission, type UserRole } from "@/lib/auth/roles";
 import { ProviderPayments } from "./ProviderPayments";
 
 type ProviderCardProps = {
   provider: ProveedorRow;
   bodaId: string;
   pagos: PagoRow[];
+  role: UserRole;
 };
 
-export function ProviderCard({ provider, bodaId, pagos }: ProviderCardProps) {
+export function ProviderCard({ provider, bodaId, pagos, role }: ProviderCardProps) {
   const router = useRouter();
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -93,6 +95,10 @@ export function ProviderCard({ provider, bodaId, pagos }: ProviderCardProps) {
   }, [editOpen, provider]);
 
   async function handleEditSave(e: React.FormEvent) {
+    if (!hasPermission(role, "providers.manage")) {
+      setEditError("No tienes permisos para editar proveedores.");
+      return;
+    }
     e.preventDefault();
     setEditError(null);
 
@@ -172,6 +178,10 @@ export function ProviderCard({ provider, bodaId, pagos }: ProviderCardProps) {
 
   async function handleStatusChange() {
     setError(null);
+    if (!hasPermission(role, "providers.manage")) {
+      setError("No tienes permisos para esta acción.");
+      return;
+    }
 
     if (!supabase) {
       setError("Supabase no está configurado.");
@@ -312,42 +322,48 @@ export function ProviderCard({ provider, bodaId, pagos }: ProviderCardProps) {
             <p className="mt-1 truncate text-sm text-bloom-ink">
               {provider.link_pago || "No registrado"}
             </p>
-            <button
-              type="button"
-              onClick={() => {
-                setEditError(null);
-                setEditOpen(true);
-              }}
-              disabled={updating || editSubmitting}
-              className="mt-2 rounded-full border border-bloom-border bg-bloom-surface px-3 py-1 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-border disabled:opacity-60"
-            >
-              Editar
-            </button>
+            {hasPermission(role, "providers.manage") && (
+              <button
+                type="button"
+                onClick={() => {
+                  setEditError(null);
+                  setEditOpen(true);
+                }}
+                disabled={updating || editSubmitting}
+                className="mt-2 rounded-full border border-bloom-border bg-bloom-surface px-3 py-1 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-border disabled:opacity-60"
+              >
+                Editar
+              </button>
+            )}
           </div>
 
           <div className="mt-4 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={handleStatusChange}
-              disabled={updating || editSubmitting}
-              className="rounded-full border border-bloom-border bg-bloom-canvas px-4 py-2 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-border disabled:opacity-60"
-            >
-              {updating
-                ? "Actualizando..."
-                : `Cambiar a ${PROVIDER_STATUS_LABELS[nextStatus]}`}
-            </button>
+            {hasPermission(role, "providers.manage") && (
+              <>
+                <button
+                  type="button"
+                  onClick={handleStatusChange}
+                  disabled={updating || editSubmitting}
+                  className="rounded-full border border-bloom-border bg-bloom-canvas px-4 py-2 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-border disabled:opacity-60"
+                >
+                  {updating
+                    ? "Actualizando..."
+                    : `Cambiar a ${PROVIDER_STATUS_LABELS[nextStatus]}`}
+                </button>
 
-            <button
-              type="button"
-              onClick={() => {
-                setEditError(null);
-                setEditOpen(true);
-              }}
-              disabled={updating || editSubmitting}
-              className="rounded-full border-2 border-bloom-accent bg-bloom-surface px-4 py-2 text-xs font-semibold text-bloom-accent transition-colors hover:bg-bloom-accent hover:text-white disabled:opacity-60"
-            >
-              Editar
-            </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditError(null);
+                    setEditOpen(true);
+                  }}
+                  disabled={updating || editSubmitting}
+                  className="rounded-full border-2 border-bloom-accent bg-bloom-surface px-4 py-2 text-xs font-semibold text-bloom-accent transition-colors hover:bg-bloom-accent hover:text-white disabled:opacity-60"
+                >
+                  Editar
+                </button>
+              </>
+            )}
           </div>
 
           {error && (
@@ -386,6 +402,7 @@ export function ProviderCard({ provider, bodaId, pagos }: ProviderCardProps) {
         pagos={pagos}
         anticipo={provider.anticipo}
         valorTotal={provider.valor_total}
+        role={role}
       />
 
       {editOpen && (

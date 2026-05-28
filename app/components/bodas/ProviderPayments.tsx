@@ -6,12 +6,14 @@ import type { PagoRow } from "@/app/data/pagos";
 import { computeTotalPagado } from "@/app/data/pagos";
 import { formatCurrency, formatShortDate } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
+import { hasPermission, type UserRole } from "@/lib/auth/roles";
 
 type ProviderPaymentsProps = {
   proveedorId: string;
   pagos: PagoRow[];
   anticipo: number;
   valorTotal: number;
+  role: UserRole;
 };
 
 type PaymentFormState = {
@@ -33,6 +35,7 @@ export function ProviderPayments({
   pagos,
   anticipo,
   valorTotal,
+  role,
 }: ProviderPaymentsProps) {
   const router = useRouter();
   const [openCreate, setOpenCreate] = useState(false);
@@ -66,6 +69,10 @@ export function ProviderPayments({
   }, [openCreate, openEdit]);
 
   async function handleCreateSubmit(e: React.FormEvent) {
+    if (!hasPermission(role, "payments.manage")) {
+      setError("No tienes permisos para registrar pagos.");
+      return;
+    }
     e.preventDefault();
     setError(null);
 
@@ -110,6 +117,10 @@ export function ProviderPayments({
   }
 
   async function handleEditSubmit(e: React.FormEvent) {
+    if (!hasPermission(role, "payments.manage")) {
+      setError("No tienes permisos para editar pagos.");
+      return;
+    }
     e.preventDefault();
     setError(null);
 
@@ -157,6 +168,10 @@ export function ProviderPayments({
   }
 
   async function handleDelete(pago: PagoRow) {
+    if (!hasPermission(role, "payments.manage")) {
+      setError("No tienes permisos para eliminar pagos.");
+      return;
+    }
     if (!supabase) {
       setError("Supabase no está configurado.");
       return;
@@ -216,16 +231,18 @@ export function ProviderPayments({
             </span>
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            setError(null);
-            setOpenCreate(true);
-          }}
-          className="inline-flex shrink-0 items-center justify-center rounded-full bg-bloom-accent px-4 py-2 text-xs font-medium text-white shadow-sm transition-colors hover:bg-bloom-accent-hover"
-        >
-          Registrar pago
-        </button>
+        {hasPermission(role, "payments.manage") && (
+          <button
+            type="button"
+            onClick={() => {
+              setError(null);
+              setOpenCreate(true);
+            }}
+            className="inline-flex shrink-0 items-center justify-center rounded-full bg-bloom-accent px-4 py-2 text-xs font-medium text-white shadow-sm transition-colors hover:bg-bloom-accent-hover"
+          >
+            Registrar pago
+          </button>
+        )}
       </div>
 
       {sortedPagos.length === 0 ? (
@@ -258,22 +275,26 @@ export function ProviderPayments({
                     Ver comprobante
                   </a>
                 )}
-                <button
-                  type="button"
-                  onClick={() => openEditModal(pago)}
-                  disabled={submitting || deletingPagoId === pago.id}
-                  className="rounded-full border border-bloom-border bg-bloom-surface px-3 py-1 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-border disabled:opacity-60"
-                >
-                  Editar
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleDelete(pago)}
-                  disabled={submitting || deletingPagoId === pago.id}
-                  className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-medium text-red-700 transition-colors hover:bg-red-100 disabled:opacity-60"
-                >
-                  {deletingPagoId === pago.id ? "Eliminando..." : "Eliminar"}
-                </button>
+                {hasPermission(role, "payments.manage") && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => openEditModal(pago)}
+                      disabled={submitting || deletingPagoId === pago.id}
+                      className="rounded-full border border-bloom-border bg-bloom-surface px-3 py-1 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-border disabled:opacity-60"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(pago)}
+                      disabled={submitting || deletingPagoId === pago.id}
+                      className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-medium text-red-700 transition-colors hover:bg-red-100 disabled:opacity-60"
+                    >
+                      {deletingPagoId === pago.id ? "Eliminando..." : "Eliminar"}
+                    </button>
+                  </>
+                )}
               </div>
             </li>
           ))}

@@ -1,4 +1,3 @@
-import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import { CronogramaAlertsSection } from "./components/CronogramaAlertsSection";
 import { LeadsBoard } from "./components/LeadsBoard";
@@ -11,6 +10,9 @@ import { buildPaymentAlerts } from "./data/payment-alerts";
 import type { LeadRow } from "./data/leads";
 import type { ProveedorRow } from "./data/providers";
 import { mapBodaToWedding, type BodaRow } from "./data/weddings";
+import { requireAuthUser } from "@/lib/auth/user-profiles";
+import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { hasPermission } from "@/lib/auth/roles";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +21,8 @@ type HomeProps = {
 };
 
 export default async function Home({ searchParams }: HomeProps) {
+  const user = await requireAuthUser();
+  const supabase = await createServerSupabaseClient();
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const tab = resolvedSearchParams?.tab === "leads" ? "leads" : "bodas";
 
@@ -27,79 +31,76 @@ export default async function Home({ searchParams }: HomeProps) {
   let paymentAlerts: ReturnType<typeof buildPaymentAlerts> = [];
   let cronogramaAlerts: ReturnType<typeof buildCronogramaAlerts> = [];
 
-  if (supabase) {
-    const { data: bodasData, error: bodasError } = await supabase
-      .from("bodas")
-      .select("*")
-      .order("fecha_boda", { ascending: true });
+  const { data: bodasData, error: bodasError } = await supabase
+    .from("bodas")
+    .select("*")
+    .order("fecha_boda", { ascending: true });
 
-    if (bodasError) {
-      console.error(bodasError);
-      // En producción no rompemos el build por un fallo puntual de Supabase.
-    } else if (bodasData) {
-      activeWeddings = (bodasData as BodaRow[]).map(mapBodaToWedding);
-    }
+  if (bodasError) {
+    console.error(bodasError);
+  } else if (bodasData) {
+    activeWeddings = (bodasData as BodaRow[]).map(mapBodaToWedding);
+  }
 
-    const { data: leadsData, error: leadsError } = await supabase
-      .from("leads")
-      .select("*")
-      .order("created_at", { ascending: false });
+  const { data: leadsData, error: leadsError } = await supabase
+    .from("leads")
+    .select("*")
+    .order("created_at", { ascending: false });
 
-    if (leadsError) {
-      console.error(leadsError);
-    } else if (leadsData) {
-      leads = leadsData as LeadRow[];
-    }
+  if (leadsError) {
+    console.error(leadsError);
+  } else if (leadsData) {
+    leads = leadsData as LeadRow[];
+  }
 
-    const today = new Date().toISOString().slice(0, 10);
-    const in30Days = new Date();
-    in30Days.setDate(in30Days.getDate() + 30);
-    const maxDate = in30Days.toISOString().slice(0, 10);
+  const today = new Date().toISOString().slice(0, 10);
+  const in30Days = new Date();
+  in30Days.setDate(in30Days.getDate() + 30);
+  const maxDate = in30Days.toISOString().slice(0, 10);
 
-    const { data: proveedoresData, error: proveedoresError } = await supabase
-      .from("proveedores")
-      .select("*, bodas(nombre_pareja)")
-      .not("fecha_saldo", "is", null)
-      .gte("fecha_saldo", today)
-      .lte("fecha_saldo", maxDate);
+  const { data: proveedoresData, error: proveedoresError } = await supabase
+    .from("proveedores")
+    .select("*, bodas(nombre_pareja)")
+    .not("fecha_saldo", "is", null)
+    .gte("fecha_saldo", today)
+    .lte("fecha_saldo", maxDate);
 
-    if (proveedoresError) {
-      console.error(proveedoresError);
-    } else if (proveedoresData) {
-      paymentAlerts = buildPaymentAlerts(
-        proveedoresData as (ProveedorRow & {
-          bodas: { nombre_pareja: string } | null;
-        })[],
-      );
-    }
+  if (proveedoresError) {
+    console.error(proveedoresError);
+  } else if (proveedoresData) {
+    paymentAlerts = buildPaymentAlerts(
+      proveedoresData as (ProveedorRow & {
+        bodas: { nombre_pareja: string } | null;
+      })[],
+    );
+  }
 
-    const { data: cronogramaItemsData, error: cronogramaItemsError } =
-      await supabase
-        .from("cronograma_items")
-        .select("id, boda_id, descripcion, fecha_limite, completado, bodas(nombre_pareja)")
-        .eq("completado", false)
-        .or(`fecha_limite.lt.${today},and(fecha_limite.gte.${today},fecha_limite.lte.${maxDate})`)
-        .order("fecha_limite", { ascending: true });
+  const { data: cronogramaItemsData, error: cronogramaItemsError } =
+    await supabase
+      .from("cronograma_items")
+      .select("id, boda_id, descripcion, fecha_limite, completado, bodas(nombre_pareja)")
+      .eq("completado", false)
+      .or(`fecha_limite.lt.${today},and(fecha_limite.gte.${today},fecha_limite.lte.${maxDate})`)
+      .order("fecha_limite", { ascending: true });
 
-    if (cronogramaItemsError) {
-      console.error(cronogramaItemsError);
-    } else if (cronogramaItemsData) {
-      cronogramaAlerts = buildCronogramaAlerts(
-        cronogramaItemsData as {
-          id: string;
-          boda_id: string;
-          descripcion: string;
-          fecha_limite: string;
-          completado: boolean;
-          bodas: { nombre_pareja: string } | { nombre_pareja: string }[] | null;
-        }[],
-      );
-    }
+  if (cronogramaItemsError) {
+    console.error(cronogramaItemsError);
+  } else if (cronogramaItemsData) {
+    cronogramaAlerts = buildCronogramaAlerts(
+      cronogramaItemsData as {
+        id: string;
+        boda_id: string;
+        descripcion: string;
+        fecha_limite: string;
+        completado: boolean;
+        bodas: { nombre_pareja: string } | { nombre_pareja: string }[] | null;
+      }[],
+    );
   }
 
   return (
     <div className="min-h-full bg-bloom-canvas font-sans">
-      <DashboardHeader />
+      <DashboardHeader user={user} />
 
       <main className="mx-auto max-w-5xl px-6 py-10 sm:px-8">
         <PaymentAlertsSection alerts={paymentAlerts} />
@@ -141,7 +142,7 @@ export default async function Home({ searchParams }: HomeProps) {
                 </p>
               </div>
 
-              <NewWeddingModalButton />
+              {hasPermission(user.rol, "weddings.create") && <NewWeddingModalButton />}
             </div>
 
             <ul className="mt-8 space-y-4">
@@ -153,7 +154,7 @@ export default async function Home({ searchParams }: HomeProps) {
             </ul>
           </>
         ) : (
-          <LeadsBoard leads={leads} />
+          <LeadsBoard leads={leads} role={user.rol} />
         )}
       </main>
     </div>
