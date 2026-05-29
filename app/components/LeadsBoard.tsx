@@ -9,7 +9,8 @@ import {
   type LeadStatus,
 } from "@/app/data/leads";
 import Link from "next/link";
-import { formatCurrency, formatShortDate } from "@/lib/format";
+import { formatCurrency, formatShortDateStable } from "@/lib/format";
+import { importarCotizacionLeadABoda } from "@/lib/import-cotizacion-to-boda";
 import { insertarCronograma } from "@/lib/cronograma";
 import { createCotizacionForLead } from "@/lib/create-lead-cotizacion";
 import { supabase } from "@/lib/supabase";
@@ -245,6 +246,13 @@ export function LeadsBoard({ leads, role }: LeadsBoardProps) {
       );
       if (!cronogramaResult.ok) return setError(cronogramaResult.message);
 
+      const importResult = await importarCotizacionLeadABoda(
+        supabase,
+        lead.id,
+        nuevaBoda.id,
+      );
+      if (!importResult.ok) return setError(importResult.message);
+
       const { error: deleteError } = await supabase
         .from("leads")
         .delete()
@@ -310,7 +318,7 @@ export function LeadsBoard({ leads, role }: LeadsBoardProps) {
                     </span>
                   </div>
                   <p className="mt-1 text-sm text-bloom-muted">
-                    {lead.ciudad} · {formatShortDate(lead.fecha_tentativa)}
+                    {lead.ciudad} · {formatShortDateStable(lead.fecha_tentativa)}
                   </p>
                   <p className="mt-1 text-sm text-bloom-ink">
                     Presupuesto:{" "}
