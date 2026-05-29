@@ -7,7 +7,9 @@ import { DeleteWeddingButton } from "@/app/components/bodas/DeleteWeddingButton"
 import { ShareWithClientButton } from "@/app/components/bodas/ShareWithClientButton";
 import { PaymentProjection } from "@/app/components/bodas/PaymentProjection";
 import { CronogramaContratacion } from "@/app/components/CronogramaContratacion";
+import { NotasInternas } from "@/app/components/bodas/NotasInternas";
 import { ProviderList } from "@/app/components/bodas/ProviderList";
+import type { NotaBodaRow } from "@/app/data/notas-boda";
 import type { BodaRow } from "@/app/data/weddings";
 import { groupPagosByProveedor, type PagoRow } from "@/app/data/pagos";
 import {
@@ -78,6 +80,18 @@ export default async function BodaDetailPage({ params }: PageProps) {
 
   const projection = computePaymentProjection(providers, pagosByProveedor);
 
+  const { data: notasData, error: notasError } = await supabase
+    .from("notas_boda")
+    .select("*")
+    .eq("boda_id", id)
+    .order("created_at", { ascending: false });
+
+  if (notasError) {
+    console.error(notasError);
+  }
+
+  const notas = (notasData ?? []) as NotaBodaRow[];
+
   return (
     <div className="min-h-full bg-bloom-canvas font-sans">
       <DashboardHeader user={user} />
@@ -122,6 +136,14 @@ export default async function BodaDetailPage({ params }: PageProps) {
             plannerName={user.nombre}
             providers={providers}
             pagosByProveedor={pagosByProveedor}
+          />
+
+          <NotasInternas
+            bodaId={id}
+            initialNotas={notas}
+            currentUserId={user.id}
+            currentUserNombre={user.nombre}
+            role={user.rol}
           />
 
           <PaymentProjection

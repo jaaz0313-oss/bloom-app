@@ -45,6 +45,19 @@ export function formatShortDateStable(isoDate: string): string {
   return `${day} de ${monthLabel} de ${year}`;
 }
 
+/** Fecha y hora con formato fijo (evita hydration mismatch). */
+export function formatDateTimeStable(isoDateTime: string): string {
+  const normalized = isoDateTime.includes("T")
+    ? isoDateTime
+    : `${isoDateTime}T00:00:00`;
+  const [datePart, timePartRaw] = normalized.split("T");
+  const timeMatch = timePartRaw?.match(/^(\d{2}):(\d{2})/);
+  const hours = timeMatch?.[1] ?? "00";
+  const minutes = timeMatch?.[2] ?? "00";
+  const dateLabel = formatShortDateStable(datePart ?? normalized.slice(0, 10));
+  return `${dateLabel} · ${hours}:${minutes}`;
+}
+
 const MESSAGE_LOWERCASE_WORDS = new Set([
   "y",
   "de",
