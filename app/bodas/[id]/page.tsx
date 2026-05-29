@@ -159,6 +159,7 @@ export default async function BodaDetailPage({ params }: PageProps) {
                 plannerName={user.nombre}
                 pagosByProveedor={pagosByProveedor}
                 role={user.rol}
+                whatsappGrupoLink={bodaRow.whatsapp_grupo_link}
               />
             </div>
           </section>

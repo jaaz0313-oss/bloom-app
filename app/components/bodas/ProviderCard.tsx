@@ -87,6 +87,9 @@ export function ProviderCard({
   const [montoCotizado, setMontoCotizado] = useState(
     provider.monto_cotizado != null ? String(provider.monto_cotizado) : "",
   );
+  const [descripcionCotizacion, setDescripcionCotizacion] = useState(
+    provider.descripcion_servicio ?? "",
+  );
   const [notasCotizacion, setNotasCotizacion] = useState(
     provider.notas_cotizacion ?? "",
   );
@@ -370,6 +373,7 @@ export function ProviderCard({
         .update({
           estado: "en_negociacion",
           monto_cotizado: Math.round(monto),
+          descripcion_servicio: descripcionCotizacion.trim() || null,
           notas_cotizacion: notasCotizacion.trim() || null,
           cotizacion_recibida_at: new Date().toISOString(),
           valor_total: Math.round(monto),
@@ -423,7 +427,7 @@ export function ProviderCard({
   }
 
   return (
-    <li className="rounded-2xl border border-bloom-border bg-bloom-surface p-5 shadow-sm">
+    <div className="rounded-2xl border border-bloom-border bg-bloom-surface p-5 shadow-sm">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -523,7 +527,9 @@ export function ProviderCard({
             </div>
           )}
 
-          {(provider.monto_cotizado != null || provider.notas_cotizacion) && (
+          {(provider.monto_cotizado != null ||
+            provider.descripcion_servicio ||
+            provider.notas_cotizacion) && (
             <div className="mt-3 rounded-lg border border-bloom-border bg-bloom-canvas/60 px-3 py-2">
               <p className="text-xs font-medium uppercase tracking-wider text-bloom-muted">
                 Cotización recibida
@@ -533,6 +539,11 @@ export function ProviderCard({
                   Monto: {formatCurrency(provider.monto_cotizado)}
                 </p>
               )}
+              {provider.descripcion_servicio && (
+                <p className="mt-1 whitespace-pre-wrap text-sm text-bloom-ink">
+                  {provider.descripcion_servicio}
+                </p>
+              )}
               {provider.cotizacion_recibida_at && (
                 <p className="text-xs text-bloom-muted">
                   Registrada el{" "}
@@ -540,7 +551,7 @@ export function ProviderCard({
                 </p>
               )}
               {provider.notas_cotizacion && (
-                <p className="mt-1 whitespace-pre-wrap text-sm text-bloom-ink">
+                <p className="mt-1 whitespace-pre-wrap text-sm text-bloom-muted">
                   {provider.notas_cotizacion}
                 </p>
               )}
@@ -650,7 +661,7 @@ export function ProviderCard({
                   disabled={updating || editSubmitting}
                   className="rounded-full bg-bloom-accent px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-bloom-accent-hover disabled:opacity-60"
                 >
-                  {updating ? "Actualizando..." : "Marcar contratado"}
+                  {updating ? "Actualizando..." : "Contratar"}
                 </button>
                 <button
                   type="button"
@@ -778,13 +789,23 @@ export function ProviderCard({
                   disabled={cotizacionSubmitting}
                 />
               </Field>
-              <Field label="Notas de cotización">
+              <Field label="Descripción del servicio / plan">
+                <textarea
+                  className={textareaClass}
+                  value={descripcionCotizacion}
+                  onChange={(e) => setDescripcionCotizacion(e.target.value)}
+                  placeholder="Plan, paquete o alcance del servicio cotizado"
+                  rows={3}
+                  disabled={cotizacionSubmitting}
+                />
+              </Field>
+              <Field label="Notas">
                 <textarea
                   className={textareaClass}
                   value={notasCotizacion}
                   onChange={(e) => setNotasCotizacion(e.target.value)}
-                  placeholder="Detalles del servicio, condiciones, vigencia..."
-                  rows={4}
+                  placeholder="Condiciones, vigencia u observaciones internas"
+                  rows={3}
                   disabled={cotizacionSubmitting}
                 />
               </Field>
@@ -809,7 +830,7 @@ export function ProviderCard({
                   disabled={cotizacionSubmitting}
                   className="inline-flex items-center justify-center rounded-full bg-bloom-accent px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-bloom-accent-hover disabled:opacity-60"
                 >
-                  {cotizacionSubmitting ? "Guardando..." : "Guardar cotización"}
+                  {cotizacionSubmitting ? "Guardando..." : "Guardar"}
                 </button>
               </div>
             </form>
@@ -1192,7 +1213,7 @@ export function ProviderCard({
           </div>
         </div>
       )}
-    </li>
+    </div>
   );
 }
 
