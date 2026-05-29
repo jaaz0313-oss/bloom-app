@@ -8,8 +8,10 @@ import {
   type LeadRow,
   type LeadStatus,
 } from "@/app/data/leads";
+import Link from "next/link";
 import { formatCurrency, formatShortDate } from "@/lib/format";
 import { insertarCronograma } from "@/lib/cronograma";
+import { createCotizacionForLead } from "@/lib/create-lead-cotizacion";
 import { supabase } from "@/lib/supabase";
 import { hasPermission, type UserRole } from "@/lib/auth/roles";
 
@@ -186,6 +188,33 @@ export function LeadsBoard({ leads, role }: LeadsBoardProps) {
     }
   }
 
+  async function handleCreateCotizacion(lead: LeadRow) {
+    setError(null);
+    if (!supabase) return setError("Supabase no está configurado.");
+
+    setSubmitting(true);
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      const result = await createCotizacionForLead(
+        supabase,
+        lead,
+        user?.id ?? null,
+      );
+
+      if ("error" in result) {
+        setError(result.error);
+        return;
+      }
+
+      router.push(`/cotizaciones/${result.id}`);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   async function handleConvert(lead: LeadRow) {
     setError(null);
     if (!hasPermission(role, "weddings.create")) {
@@ -268,7 +297,12 @@ export function LeadsBoard({ leads, role }: LeadsBoardProps) {
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="font-medium text-bloom-ink">{lead.nombre_pareja}</h3>
+                    <Link
+                      href={`/leads/${lead.id}`}
+                      className="font-medium text-bloom-ink transition-colors hover:text-bloom-accent"
+                    >
+                      {lead.nombre_pareja}
+                    </Link>
                     <span
                       className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${LEAD_STATUS_STYLES[lead.estado]}`}
                     >
@@ -290,7 +324,21 @@ export function LeadsBoard({ leads, role }: LeadsBoardProps) {
                     </p>
                   )}
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap justify-end gap-2">
+                  <Link
+                    href={`/leads/${lead.id}`}
+                    className="rounded-full border border-bloom-border bg-bloom-canvas px-4 py-2 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-border"
+                  >
+                    Ver cotizaciones
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => handleCreateCotizacion(lead)}
+                    disabled={submitting}
+                    className="rounded-full border border-green-500 bg-green-50 px-4 py-2 text-xs font-medium text-green-800 transition-colors hover:bg-green-100 disabled:opacity-60"
+                  >
+                    Crear cotización
+                  </button>
                   <button
                     type="button"
                     onClick={() => openEditModal(lead)}

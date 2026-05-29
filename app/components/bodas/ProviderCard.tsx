@@ -29,8 +29,11 @@ type ProviderCardProps = {
   role: UserRole;
 };
 
-const cotizacionWhatsAppButtonClass =
-  "inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2 text-xs font-medium transition-colors disabled:opacity-60";
+const cotizacionPrimerContactoButtonClass =
+  "inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-green-500 text-white hover:bg-green-600 transition-colors disabled:opacity-60";
+
+const cotizacionPostReunionButtonClass =
+  "inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-green-500 text-green-700 hover:bg-green-50 transition-colors disabled:opacity-60";
 
 function CotizacionWhatsAppButtons({
   markPrimerAsRequested,
@@ -47,7 +50,7 @@ function CotizacionWhatsAppButtons({
         type="button"
         onClick={() => onSolicitar("primer_contacto", markPrimerAsRequested)}
         disabled={disabled}
-        className={`${cotizacionWhatsAppButtonClass} bg-[#25D366] text-white hover:bg-[#20bd5a]`}
+        className={cotizacionPrimerContactoButtonClass}
       >
         Solicitar cotización
       </button>
@@ -55,7 +58,7 @@ function CotizacionWhatsAppButtons({
         type="button"
         onClick={() => onSolicitar("post_reunion", false)}
         disabled={disabled}
-        className={`${cotizacionWhatsAppButtonClass} border border-[#25D366] bg-[#25D366]/10 text-[#128C7E] hover:bg-[#25D366]/20`}
+        className={cotizacionPostReunionButtonClass}
       >
         Solicitar cotización (post reunión)
       </button>
@@ -246,19 +249,6 @@ export function ProviderCard({
     } finally {
       setEditSubmitting(false);
     }
-  }
-
-  function buildCotizacionMessage() {
-    return buildSolicitudCotizacionMessage(
-      provider.nombre,
-      plannerName.trim(),
-      {
-        nombrePareja: boda.nombrePareja,
-        fechaBoda: boda.fechaBoda,
-        ciudad: boda.ciudad,
-      },
-      provider.categoria,
-    );
   }
 
   async function handleConfirmDelete() {
@@ -463,7 +453,7 @@ export function ProviderCard({
                   handleSolicitarCotizacion("primer_contacto", true)
                 }
                 disabled={updating || editSubmitting || deleting}
-                className={`${cotizacionWhatsAppButtonClass} bg-[#25D366] text-white hover:bg-[#20bd5a]`}
+                className={cotizacionPrimerContactoButtonClass}
               >
                 Solicitar cotización
               </button>
@@ -473,7 +463,7 @@ export function ProviderCard({
                   handleSolicitarCotizacion("post_reunion", false)
                 }
                 disabled={updating || editSubmitting || deleting}
-                className={`${cotizacionWhatsAppButtonClass} border border-[#25D366] bg-[#25D366]/10 text-[#128C7E] hover:bg-[#25D366]/20`}
+                className={cotizacionPostReunionButtonClass}
               >
                 Solicitar cotización (post reunión)
               </button>
