@@ -10,6 +10,7 @@ import {
   getValorComisionProveedor,
 } from "@/lib/comisiones";
 import { formatCurrency, formatShortDateStable } from "@/lib/format";
+import { AUDITORIA_ACCIONES, logAuditoria } from "@/lib/auditoria";
 import { supabase } from "@/lib/supabase";
 
 export type BodaComisionOption = {
@@ -89,6 +90,17 @@ export function ComisionesAdminClient({
         setError(updateError.message);
         return;
       }
+
+      const proveedor = proveedores.find((p) => p.id === proveedorId);
+      await logAuditoria({
+        accion: AUDITORIA_ACCIONES.COMISION_RECIBIDA,
+        entidad: "comision",
+        entidadId: proveedorId,
+        bodaNombre: proveedor?.bodas?.nombre_pareja ?? null,
+        detalle: proveedor
+          ? `${proveedor.nombre} · ${proveedor.categoria}`
+          : null,
+      });
 
       router.refresh();
     } finally {

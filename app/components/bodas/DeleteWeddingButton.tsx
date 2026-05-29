@@ -2,14 +2,19 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { AUDITORIA_ACCIONES, logAuditoria } from "@/lib/auditoria";
 import { eliminarBoda } from "@/lib/delete-boda";
 import { supabase } from "@/lib/supabase";
 
 type DeleteWeddingButtonProps = {
   bodaId: string;
+  bodaNombre: string;
 };
 
-export function DeleteWeddingButton({ bodaId }: DeleteWeddingButtonProps) {
+export function DeleteWeddingButton({
+  bodaId,
+  bodaNombre,
+}: DeleteWeddingButtonProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -39,6 +44,13 @@ export function DeleteWeddingButton({ bodaId }: DeleteWeddingButtonProps) {
       setDeleting(false);
       return;
     }
+
+    await logAuditoria({
+      accion: AUDITORIA_ACCIONES.BODA_ELIMINADA,
+      entidad: "boda",
+      entidadId: bodaId,
+      bodaNombre,
+    });
 
     setOpen(false);
     router.push("/");

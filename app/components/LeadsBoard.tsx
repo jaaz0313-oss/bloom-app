@@ -13,6 +13,7 @@ import { formatCurrency, formatShortDateStable } from "@/lib/format";
 import { importarCotizacionLeadABoda } from "@/lib/import-cotizacion-to-boda";
 import { insertarCronograma } from "@/lib/cronograma";
 import { createCotizacionForLead } from "@/lib/create-lead-cotizacion";
+import { AUDITORIA_ACCIONES, logAuditoria } from "@/lib/auditoria";
 import { supabase } from "@/lib/supabase";
 import { hasPermission, type UserRole } from "@/lib/auth/roles";
 
@@ -144,21 +145,33 @@ export function LeadsBoard({ leads, role }: LeadsBoardProps) {
 
     setSubmitting(true);
     try {
-      const { error: insertError } = await supabase.from("leads").insert({
-        nombre_pareja: nombrePareja,
-        fecha_tentativa: fechaTentativa,
-        ciudad,
-        presupuesto_estimado: presupuesto,
-        cantidad_invitados: cantidadInvitados,
-        tipo_ceremonia: tipoCeremonia || null,
-        pais_origen_novios: paisOrigenNovios || null,
-        ciudad_residencia_actual: ciudadResidenciaActual || null,
-        concepto_boda: conceptoBoda || null,
-        prioridades: prioridades || null,
-        estado: form.estado,
-        notas: notas || null,
-      });
+      const { data: nuevoLead, error: insertError } = await supabase
+        .from("leads")
+        .insert({
+          nombre_pareja: nombrePareja,
+          fecha_tentativa: fechaTentativa,
+          ciudad,
+          presupuesto_estimado: presupuesto,
+          cantidad_invitados: cantidadInvitados,
+          tipo_ceremonia: tipoCeremonia || null,
+          pais_origen_novios: paisOrigenNovios || null,
+          ciudad_residencia_actual: ciudadResidenciaActual || null,
+          concepto_boda: conceptoBoda || null,
+          prioridades: prioridades || null,
+          estado: form.estado,
+          notas: notas || null,
+        })
+        .select("id")
+        .single();
       if (insertError) return setError(insertError.message);
+
+      await logAuditoria({
+        accion: AUDITORIA_ACCIONES.LEAD_CREADO,
+        entidad: "lead",
+        entidadId: nuevoLead.id,
+        detalle: `${nombrePareja} · ${ciudad}`,
+      });
+
       setCreateOpen(false);
       router.refresh();
     } finally {
@@ -258,6 +271,14 @@ export function LeadsBoard({ leads, role }: LeadsBoardProps) {
         .delete()
         .eq("id", lead.id);
       if (deleteError) return setError(deleteError.message);
+
+      await logAuditoria({
+        accion: AUDITORIA_ACCIONES.LEAD_CONVERTIDO,
+        entidad: "lead",
+        entidadId: lead.id,
+        bodaNombre: lead.nombre_pareja,
+        detalle: `Nueva boda: ${lead.nombre_pareja}`,
+      });
 
       router.refresh();
     } finally {

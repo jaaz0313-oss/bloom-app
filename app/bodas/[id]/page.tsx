@@ -165,7 +165,11 @@ export default async function BodaDetailPage({ params }: PageProps) {
                 </p>
               </div>
               {hasPermission(user.rol, "providers.manage") && (
-                <AddProviderModalButton bodaId={id} role={user.rol} />
+                <AddProviderModalButton
+                  bodaId={id}
+                  bodaNombre={bodaRow.nombre_pareja}
+                  role={user.rol}
+                />
               )}
             </div>
 
@@ -195,7 +199,10 @@ export default async function BodaDetailPage({ params }: PageProps) {
 
         {hasPermission(user.rol, "weddings.delete") && (
           <div className="mt-12 border-t border-bloom-border pt-8">
-            <DeleteWeddingButton bodaId={id} />
+            <DeleteWeddingButton
+              bodaId={id}
+              bodaNombre={bodaRow.nombre_pareja}
+            />
           </div>
         )}
       </main>

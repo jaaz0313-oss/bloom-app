@@ -5,11 +5,14 @@ import { useRouter } from "next/navigation";
 import type { PagoRow } from "@/app/data/pagos";
 import { computeTotalPagado } from "@/app/data/pagos";
 import { formatCurrency, formatShortDate } from "@/lib/format";
+import { AUDITORIA_ACCIONES, logAuditoria } from "@/lib/auditoria";
 import { supabase } from "@/lib/supabase";
 import { hasPermission, type UserRole } from "@/lib/auth/roles";
 
 type ProviderPaymentsProps = {
   proveedorId: string;
+  proveedorNombre: string;
+  bodaNombre: string;
   pagos: PagoRow[];
   anticipo: number;
   valorTotal: number;
@@ -32,6 +35,8 @@ const emptyPaymentForm: PaymentFormState = {
 
 export function ProviderPayments({
   proveedorId,
+  proveedorNombre,
+  bodaNombre,
   pagos,
   anticipo,
   valorTotal,
@@ -95,18 +100,30 @@ export function ProviderPayments({
 
     setSubmitting(true);
     try {
-      const { error: insertError } = await supabase.from("pagos").insert({
-        proveedor_id: proveedorId,
-        monto,
-        fecha_pago: fechaPago,
-        concepto: concepto || null,
-        comprobante_url: comprobanteUrl || null,
-      });
+      const { data: nuevoPago, error: insertError } = await supabase
+        .from("pagos")
+        .insert({
+          proveedor_id: proveedorId,
+          monto,
+          fecha_pago: fechaPago,
+          concepto: concepto || null,
+          comprobante_url: comprobanteUrl || null,
+        })
+        .select("id")
+        .single();
 
       if (insertError) {
         setError(insertError.message);
         return;
       }
+
+      await logAuditoria({
+        accion: AUDITORIA_ACCIONES.PAGO_REGISTRADO,
+        entidad: "pago",
+        entidadId: nuevoPago.id,
+        bodaNombre,
+        detalle: `${proveedorNombre}: ${formatCurrency(monto)}`,
+      });
 
       setOpenCreate(false);
       setForm(emptyPaymentForm);
@@ -192,6 +209,14 @@ export function ProviderPayments({
         setError(deleteError.message);
         return;
       }
+
+      await logAuditoria({
+        accion: AUDITORIA_ACCIONES.PAGO_ELIMINADO,
+        entidad: "pago",
+        entidadId: pago.id,
+        bodaNombre,
+        detalle: `${proveedorNombre}: ${formatCurrency(Number(pago.monto))}`,
+      });
 
       router.refresh();
     } finally {

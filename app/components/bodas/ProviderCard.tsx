@@ -20,6 +20,7 @@ import {
 } from "@/lib/proveedor-cotizacion";
 import { ProviderPayments } from "./ProviderPayments";
 import { ProviderComisionFields } from "./ProviderComisionFields";
+import { AUDITORIA_ACCIONES, logAuditoria } from "@/lib/auditoria";
 import { getPorcentajeComisionProveedor } from "@/lib/comisiones";
 
 type ProviderCardProps = {
@@ -305,6 +306,14 @@ export function ProviderCard({
         return;
       }
 
+      await logAuditoria({
+        accion: AUDITORIA_ACCIONES.COMISION_RECIBIDA,
+        entidad: "comision",
+        entidadId: provider.id,
+        bodaNombre: boda.nombrePareja,
+        detalle: `${provider.nombre} · ${getPorcentajeComisionProveedor(provider)}%`,
+      });
+
       router.refresh();
     } finally {
       setComisionUpdating(false);
@@ -327,6 +336,14 @@ export function ProviderCard({
         setError(deleteError.message);
         return;
       }
+
+      await logAuditoria({
+        accion: AUDITORIA_ACCIONES.PROVEEDOR_ELIMINADO,
+        entidad: "proveedor",
+        entidadId: provider.id,
+        bodaNombre: boda.nombrePareja,
+        detalle: `${provider.nombre} · ${provider.categoria}`,
+      });
 
       setDeleteOpen(false);
       router.refresh();
@@ -395,6 +412,14 @@ export function ProviderCard({
         return;
       }
 
+      await logAuditoria({
+        accion: AUDITORIA_ACCIONES.ESTADO_PROVEEDOR,
+        entidad: "proveedor",
+        entidadId: provider.id,
+        bodaNombre: boda.nombrePareja,
+        detalle: `${provider.nombre}: cotización solicitada`,
+      });
+
       router.refresh();
     } finally {
       setUpdating(false);
@@ -438,6 +463,14 @@ export function ProviderCard({
         return;
       }
 
+      await logAuditoria({
+        accion: AUDITORIA_ACCIONES.COTIZACION_REGISTRADA,
+        entidad: "proveedor",
+        entidadId: provider.id,
+        bodaNombre: boda.nombrePareja,
+        detalle: `${provider.nombre}: ${formatCurrency(Math.round(monto))}`,
+      });
+
       setCotizacionOpen(false);
       router.refresh();
     } finally {
@@ -473,6 +506,15 @@ export function ProviderCard({
       if (nuevoEstado === "contratado") {
         await syncBodaProveedoresContratados(bodaId);
       }
+
+      await logAuditoria({
+        accion: AUDITORIA_ACCIONES.ESTADO_PROVEEDOR,
+        entidad: "proveedor",
+        entidadId: provider.id,
+        bodaNombre: boda.nombrePareja,
+        detalle: `${provider.nombre}: ${nuevoEstado}`,
+      });
+
       router.refresh();
     } finally {
       setUpdating(false);
@@ -834,6 +876,8 @@ export function ProviderCard({
       {showPayments && (
         <ProviderPayments
           proveedorId={provider.id}
+          proveedorNombre={provider.nombre}
+          bodaNombre={boda.nombrePareja}
           pagos={pagos}
           anticipo={provider.anticipo}
           valorTotal={provider.valor_total}

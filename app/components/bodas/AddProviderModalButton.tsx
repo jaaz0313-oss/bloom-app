@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { hasPermission, type UserRole } from "@/lib/auth/roles";
+import { AUDITORIA_ACCIONES, logAuditoria } from "@/lib/auditoria";
 import { PROVIDER_CATEGORIES } from "@/lib/provider-categories";
 import { ProviderComisionFields } from "./ProviderComisionFields";
 
@@ -49,6 +50,7 @@ const emptyForm: FormState = {
 
 type AddProviderModalButtonProps = {
   bodaId: string;
+  bodaNombre: string;
   role: UserRole;
 };
 
@@ -69,7 +71,11 @@ type DirectorioProveedorLookup = {
 
 type EntryMode = "directorio" | "manual";
 
-export function AddProviderModalButton({ bodaId, role }: AddProviderModalButtonProps) {
+export function AddProviderModalButton({
+  bodaId,
+  bodaNombre,
+  role,
+}: AddProviderModalButtonProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -243,32 +249,44 @@ export function AddProviderModalButton({ bodaId, role }: AddProviderModalButtonP
 
     setSubmitting(true);
     try {
-      const { error: insertError } = await supabase.from("proveedores").insert({
-        boda_id: bodaId,
-        nombre,
-        categoria,
-        valor_total: valorTotal,
-        anticipo,
-        fecha_saldo: form.fechaSaldo || null,
-        banco: banco || null,
-        tipo_cuenta: tipoCuenta || null,
-        numero_cuenta: numeroCuenta || null,
-        titular_cuenta: titular || null,
-        documento_nit: documentoNit || null,
-        telefono: telefono || null,
-        email: email || null,
-        direccion: direccion || null,
-        descripcion_servicio: descripcionServicio || null,
-        notas: notas || null,
-        da_comision: daComision,
-        porcentaje_comision: daComision ? porcentajeComision : 10,
-        estado: "pendiente",
-      });
+      const { data: nuevoProveedor, error: insertError } = await supabase
+        .from("proveedores")
+        .insert({
+          boda_id: bodaId,
+          nombre,
+          categoria,
+          valor_total: valorTotal,
+          anticipo,
+          fecha_saldo: form.fechaSaldo || null,
+          banco: banco || null,
+          tipo_cuenta: tipoCuenta || null,
+          numero_cuenta: numeroCuenta || null,
+          titular_cuenta: titular || null,
+          documento_nit: documentoNit || null,
+          telefono: telefono || null,
+          email: email || null,
+          direccion: direccion || null,
+          descripcion_servicio: descripcionServicio || null,
+          notas: notas || null,
+          da_comision: daComision,
+          porcentaje_comision: daComision ? porcentajeComision : 10,
+          estado: "pendiente",
+        })
+        .select("id")
+        .single();
 
       if (insertError) {
         setError(insertError.message);
         return;
       }
+
+      await logAuditoria({
+        accion: AUDITORIA_ACCIONES.PROVEEDOR_AGREGADO,
+        entidad: "proveedor",
+        entidadId: nuevoProveedor.id,
+        bodaNombre,
+        detalle: `${nombre} · ${categoria}`,
+      });
 
       setOpen(false);
       setForm(emptyForm);

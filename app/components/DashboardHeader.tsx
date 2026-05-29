@@ -55,6 +55,12 @@ export function DashboardHeader({ user }: DashboardHeaderProps) {
                     Comisiones
                   </Link>
                   <Link
+                    href="/admin/auditoria"
+                    className="rounded-full border border-bloom-border px-3 py-1 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-canvas"
+                  >
+                    Auditoría
+                  </Link>
+                  <Link
                     href="/admin/usuarios"
                     className="rounded-full border border-bloom-border px-3 py-1 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-canvas"
                   >

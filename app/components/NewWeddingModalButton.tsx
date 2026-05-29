@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { AUDITORIA_ACCIONES, logAuditoria } from "@/lib/auditoria";
 import { insertarCronograma } from "@/lib/cronograma";
 import { supabase } from "@/lib/supabase";
 
@@ -91,6 +92,14 @@ export function NewWeddingModalButton() {
         setError(cronogramaResult.message);
         return;
       }
+
+      await logAuditoria({
+        accion: AUDITORIA_ACCIONES.BODA_CREADA,
+        entidad: "boda",
+        entidadId: nuevaBoda.id,
+        bodaNombre: nombrePareja,
+        detalle: `${ciudad} · ${fechaBoda}`,
+      });
 
       setOpen(false);
       setForm({
