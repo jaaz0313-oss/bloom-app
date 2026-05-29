@@ -11,6 +11,8 @@ export type DirectorioProveedorRow = {
   titular: string | null;
   documento_nit: string | null;
   notas: string | null;
+  da_comision: boolean;
+  porcentaje_comision: number | null;
   activo: boolean;
   created_at: string;
 };

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { hasPermission, type UserRole } from "@/lib/auth/roles";
 import { PROVIDER_CATEGORIES } from "@/lib/provider-categories";
+import { ProviderComisionFields } from "./ProviderComisionFields";
 
 type FormState = {
   nombre: string;
@@ -22,6 +23,8 @@ type FormState = {
   direccion: string;
   descripcionServicio: string;
   notas: string;
+  daComision: boolean;
+  porcentajeComision: string;
 };
 
 const emptyForm: FormState = {
@@ -40,6 +43,8 @@ const emptyForm: FormState = {
   direccion: "",
   descripcionServicio: "",
   notas: "",
+  daComision: false,
+  porcentajeComision: "10",
 };
 
 type AddProviderModalButtonProps = {
@@ -226,6 +231,16 @@ export function AddProviderModalButton({ bodaId, role }: AddProviderModalButtonP
       return setError("El anticipo no puede ser mayor que el valor total.");
     }
 
+    const daComision = form.daComision;
+    let porcentajeComision = 10;
+    if (daComision) {
+      const pct = Number(form.porcentajeComision);
+      if (!Number.isFinite(pct) || pct <= 0 || pct > 100) {
+        return setError("Ingresa un porcentaje de comisión válido (0–100).");
+      }
+      porcentajeComision = pct;
+    }
+
     setSubmitting(true);
     try {
       const { error: insertError } = await supabase.from("proveedores").insert({
@@ -245,6 +260,8 @@ export function AddProviderModalButton({ bodaId, role }: AddProviderModalButtonP
         direccion: direccion || null,
         descripcion_servicio: descripcionServicio || null,
         notas: notas || null,
+        da_comision: daComision,
+        porcentaje_comision: daComision ? porcentajeComision : 10,
         estado: "pendiente",
       });
 
@@ -438,6 +455,19 @@ export function AddProviderModalButton({ bodaId, role }: AddProviderModalButtonP
                   rows={3}
                 />
               </Field>
+
+              <ProviderComisionFields
+                daComision={form.daComision}
+                porcentajeComision={form.porcentajeComision}
+                onDaComisionChange={(daComision) =>
+                  setForm((s) => ({ ...s, daComision }))
+                }
+                onPorcentajeChange={(porcentajeComision) =>
+                  setForm((s) => ({ ...s, porcentajeComision }))
+                }
+                disabled={submitting}
+                inputClass={inputClass}
+              />
 
               <Field label="Notas">
                 <textarea

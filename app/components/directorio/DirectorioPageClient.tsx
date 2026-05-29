@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { DirectorioProveedorRow } from "@/app/data/directorio";
+import { ProviderComisionFields } from "@/app/components/bodas/ProviderComisionFields";
 import { PROVIDER_CATEGORIES } from "@/lib/provider-categories";
 import { supabase } from "@/lib/supabase";
 
@@ -22,6 +23,8 @@ type FormState = {
   titular: string;
   documentoNit: string;
   notas: string;
+  daComision: boolean;
+  porcentajeComision: string;
 };
 
 const emptyForm: FormState = {
@@ -36,6 +39,8 @@ const emptyForm: FormState = {
   titular: "",
   documentoNit: "",
   notas: "",
+  daComision: false,
+  porcentajeComision: "10",
 };
 
 export function DirectorioPageClient({ initialRows }: Props) {
@@ -86,6 +91,10 @@ export function DirectorioPageClient({ initialRows }: Props) {
       titular: row.titular ?? "",
       documentoNit: row.documento_nit ?? "",
       notas: row.notas ?? "",
+      daComision: row.da_comision ?? false,
+      porcentajeComision: String(
+        row.porcentaje_comision != null ? row.porcentaje_comision : 10,
+      ),
     });
     setError(null);
     setOpen(true);
@@ -122,12 +131,30 @@ export function DirectorioPageClient({ initialRows }: Props) {
       return;
     }
 
+    const daComision = form.daComision;
+    let porcentajeComision = 10;
+    if (daComision) {
+      const pct = Number(form.porcentajeComision);
+      if (!Number.isFinite(pct) || pct <= 0 || pct > 100) {
+        setError("Ingresa un porcentaje de comisión válido (0–100).");
+        return;
+      }
+      porcentajeComision = pct;
+    }
+
+    const comisionPayload = {
+      da_comision: daComision,
+      porcentaje_comision: daComision
+        ? porcentajeComision
+        : (editing?.porcentaje_comision ?? 10),
+    };
+
     setSubmitting(true);
     try {
       if (editing) {
         const { data, error: updateError } = await supabase
           .from("directorio_proveedores")
-          .update(payload)
+          .update({ ...payload, ...comisionPayload })
           .eq("id", editing.id)
           .select("*")
           .single();
@@ -143,7 +170,7 @@ export function DirectorioPageClient({ initialRows }: Props) {
       } else {
         const { data, error: insertError } = await supabase
           .from("directorio_proveedores")
-          .insert(payload)
+          .insert({ ...payload, ...comisionPayload })
           .select("*")
           .single();
         if (insertError) {
@@ -409,6 +436,19 @@ export function DirectorioPageClient({ initialRows }: Props) {
                   }
                 />
               </Field>
+              <ProviderComisionFields
+                daComision={form.daComision}
+                porcentajeComision={form.porcentajeComision}
+                onDaComisionChange={(daComision) =>
+                  setForm((s) => ({ ...s, daComision }))
+                }
+                onPorcentajeChange={(porcentajeComision) =>
+                  setForm((s) => ({ ...s, porcentajeComision }))
+                }
+                disabled={submitting}
+                inputClass={inputClass}
+              />
+
               <Field label="Notas">
                 <textarea
                   className={textareaClass}

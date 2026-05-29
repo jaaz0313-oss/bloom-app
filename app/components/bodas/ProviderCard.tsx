@@ -7,11 +7,7 @@ import {
   PROVIDER_STATUS_STYLES,
   type ProveedorRow,
 } from "@/app/data/providers";
-import {
-  formatCurrency,
-  formatShortDate,
-  formatShortDateStable,
-} from "@/lib/format";
+import { formatCurrency, formatShortDateStable } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
 import { syncBodaProveedoresContratados } from "@/lib/sync-boda";
 import type { PagoRow } from "@/app/data/pagos";
@@ -23,6 +19,8 @@ import {
   type CotizacionMensajeTipo,
 } from "@/lib/proveedor-cotizacion";
 import { ProviderPayments } from "./ProviderPayments";
+import { ProviderComisionFields } from "./ProviderComisionFields";
+import { getPorcentajeComisionProveedor } from "@/lib/comisiones";
 
 type ProviderCardProps = {
   provider: ProveedorRow;
@@ -95,6 +93,8 @@ export function ProviderCard({
   );
 
   const canManage = hasPermission(role, "providers.manage");
+  const isAdmin = role === "admin";
+  const [comisionUpdating, setComisionUpdating] = useState(false);
   const showPayments =
     provider.estado === "contratado" || provider.estado === "en_negociacion";
 
@@ -115,6 +115,8 @@ export function ProviderCard({
     direccion: string;
     linkPago: string;
     notas: string;
+    daComision: boolean;
+    porcentajeComision: string;
   };
 
   const [editOpen, setEditOpen] = useState(false);
@@ -139,6 +141,10 @@ export function ProviderCard({
     direccion: provider.direccion ?? "",
     linkPago: provider.link_pago ?? "",
     notas: provider.notas ?? "",
+    daComision: provider.da_comision ?? false,
+    porcentajeComision: String(
+      provider.porcentaje_comision != null ? provider.porcentaje_comision : 10,
+    ),
   });
 
   useEffect(() => {
@@ -162,6 +168,10 @@ export function ProviderCard({
       direccion: provider.direccion ?? "",
       linkPago: provider.link_pago ?? "",
       notas: provider.notas ?? "",
+      daComision: provider.da_comision ?? false,
+      porcentajeComision: String(
+        provider.porcentaje_comision != null ? provider.porcentaje_comision : 10,
+      ),
     });
   }, [editOpen, provider]);
 
@@ -222,6 +232,18 @@ export function ProviderCard({
       );
     }
 
+    const daComision = editForm.daComision;
+    let porcentajeComision = 10;
+    if (daComision) {
+      const pct = Number(editForm.porcentajeComision);
+      if (!Number.isFinite(pct) || pct <= 0 || pct > 100) {
+        return setEditError(
+          "Ingresa un porcentaje de comisión válido (0–100).",
+        );
+      }
+      porcentajeComision = pct;
+    }
+
     setEditSubmitting(true);
     try {
       const { error: updateError } = await supabase
@@ -243,6 +265,10 @@ export function ProviderCard({
           direccion,
           link_pago: linkPago,
           notas: notas || null,
+          da_comision: daComision,
+          porcentaje_comision: daComision
+            ? porcentajeComision
+            : (provider.porcentaje_comision ?? 10),
         })
         .eq("id", provider.id);
 
@@ -255,6 +281,33 @@ export function ProviderCard({
       router.refresh();
     } finally {
       setEditSubmitting(false);
+    }
+  }
+
+  async function handleMarcarComisionRecibida() {
+    if (!isAdmin || !supabase || comisionUpdating || provider.comision_recibida) {
+      return;
+    }
+
+    setComisionUpdating(true);
+    setError(null);
+    try {
+      const { error: updateError } = await supabase
+        .from("proveedores")
+        .update({
+          comision_recibida: true,
+          comision_recibida_at: new Date().toISOString(),
+        })
+        .eq("id", provider.id);
+
+      if (updateError) {
+        setError(updateError.message);
+        return;
+      }
+
+      router.refresh();
+    } finally {
+      setComisionUpdating(false);
     }
   }
 
@@ -437,7 +490,7 @@ export function ProviderCard({
                 <span>Cotización solicitada</span>
                 {provider.cotizacion_solicitada_at && (
                   <span className="font-normal opacity-90">
-                    {formatShortDate(
+                    {formatShortDateStable(
                       provider.cotizacion_solicitada_at.slice(0, 10),
                     )}
                   </span>
@@ -450,8 +503,50 @@ export function ProviderCard({
                 {PROVIDER_STATUS_LABELS[provider.estado]}
               </span>
             )}
+            {isAdmin && provider.da_comision && (
+              <span className="inline-flex rounded-full bg-violet-100 px-2.5 py-0.5 text-xs font-medium text-violet-800">
+                Comisión {getPorcentajeComisionProveedor(provider)}%
+              </span>
+            )}
           </div>
           <p className="mt-1 text-sm text-bloom-muted">{provider.categoria}</p>
+
+          {isAdmin && provider.da_comision && (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {provider.comision_recibida ? (
+                <span className="inline-flex rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
+                  Comisión recibida
+                  {provider.comision_recibida_at && (
+                    <span className="ml-1 font-normal opacity-90">
+                      ·{" "}
+                      {formatShortDateStable(
+                        provider.comision_recibida_at.slice(0, 10),
+                      )}
+                    </span>
+                  )}
+                </span>
+              ) : (
+                <>
+                  <span className="inline-flex rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-900">
+                    Comisión pendiente
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleMarcarComisionRecibida}
+                    disabled={
+                      comisionUpdating ||
+                      updating ||
+                      editSubmitting ||
+                      deleting
+                    }
+                    className="rounded-full border border-bloom-border bg-bloom-surface px-3 py-1 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-canvas disabled:opacity-60"
+                  >
+                    {comisionUpdating ? "Guardando..." : "Marcar como recibida"}
+                  </button>
+                </>
+              )}
+            </div>
+          )}
 
           {provider.estado === "pendiente" && (
             <div className="mt-3 flex flex-wrap gap-2">
@@ -547,7 +642,9 @@ export function ProviderCard({
               {provider.cotizacion_recibida_at && (
                 <p className="text-xs text-bloom-muted">
                   Registrada el{" "}
-                  {formatShortDate(provider.cotizacion_recibida_at.slice(0, 10))}
+                  {formatShortDateStable(
+                    provider.cotizacion_recibida_at.slice(0, 10),
+                  )}
                 </p>
               )}
               {provider.notas_cotizacion && (
@@ -1120,6 +1217,19 @@ export function ProviderCard({
                   disabled={editSubmitting}
                 />
               </Field>
+
+              <ProviderComisionFields
+                daComision={editForm.daComision}
+                porcentajeComision={editForm.porcentajeComision}
+                onDaComisionChange={(daComision) =>
+                  setEditForm((s) => ({ ...s, daComision }))
+                }
+                onPorcentajeChange={(porcentajeComision) =>
+                  setEditForm((s) => ({ ...s, porcentajeComision }))
+                }
+                disabled={editSubmitting}
+                inputClass={inputClass}
+              />
 
               <Field label="Notas">
                 <textarea

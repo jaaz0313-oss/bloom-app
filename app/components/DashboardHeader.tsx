@@ -47,12 +47,20 @@ export function DashboardHeader({ user }: DashboardHeaderProps) {
             <p className="font-medium text-bloom-ink">{user.nombre}</p>
             <div className="mt-2 flex items-center justify-end gap-2">
               {user.rol === "admin" && (
-                <Link
-                  href="/admin/usuarios"
-                  className="rounded-full border border-bloom-border px-3 py-1 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-canvas"
-                >
-                  Usuarios
-                </Link>
+                <>
+                  <Link
+                    href="/admin/comisiones"
+                    className="rounded-full border border-bloom-border px-3 py-1 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-canvas"
+                  >
+                    Comisiones
+                  </Link>
+                  <Link
+                    href="/admin/usuarios"
+                    className="rounded-full border border-bloom-border px-3 py-1 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-canvas"
+                  >
+                    Usuarios
+                  </Link>
+                </>
               )}
               <button
                 type="button"
