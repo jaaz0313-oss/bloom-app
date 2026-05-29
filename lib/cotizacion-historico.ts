@@ -7,10 +7,7 @@ type ProveedorHistoricoRow = {
 
 type CotizacionItemHistoricoRow = {
   categoria: string;
-  precio_min: number | null;
-  precio_max: number | null;
-  precio_fijo: number | null;
-  es_precio_fijo: boolean;
+  precio_estimado: number | null;
   incluido: boolean;
   cotizaciones:
     | { numero_invitados: number | null }
@@ -36,17 +33,7 @@ export function buildHistoricoPrecios(
 
   for (const item of cotizacionItems) {
     if (!item.incluido) continue;
-
-    let min = 0;
-    let max = 0;
-    if (item.es_precio_fijo && item.precio_fijo != null && item.precio_fijo > 0) {
-      min = item.precio_fijo;
-      max = item.precio_fijo;
-    } else {
-      min = item.precio_min ?? 0;
-      max = item.precio_max ?? 0;
-    }
-    if (min <= 0 && max <= 0) continue;
+    if (item.precio_estimado == null || item.precio_estimado <= 0) continue;
 
     const invitados = Array.isArray(item.cotizaciones)
       ? (item.cotizaciones[0]?.numero_invitados ?? null)
@@ -54,7 +41,7 @@ export function buildHistoricoPrecios(
 
     historico.push({
       categoria: item.categoria,
-      valor: (min + max) / 2,
+      valor: item.precio_estimado,
       numero_invitados: invitados,
     });
   }

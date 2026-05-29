@@ -11,15 +11,19 @@ import { COTIZACION_ESTADO_LABELS } from "@/app/data/cotizaciones";
 import type { DirectorioProveedorRow } from "@/app/data/directorio";
 import type { LeadRow } from "@/app/data/leads";
 import { PROVIDER_CATEGORIES } from "@/lib/provider-categories";
-import { formatCurrency, formatShortDate, formatWeddingDate } from "@/lib/format";
+import {
+  formatCurrency,
+  formatShortDateStable,
+  formatWeddingDate,
+} from "@/lib/format";
 import {
   buildCotizacionLeadEmail,
   buildCotizacionLeadWhatsAppMessage,
-  computeCotizacionTotals,
+  computeCotizacionTotal,
   openCotizacionLeadEmail,
   openCotizacionLeadWhatsApp,
   parsePrecioFromNotas,
-  suggestPriceRangeFromHistory,
+  suggestPrecioFromHistory,
   type HistoricoPrecioCategoria,
 } from "@/lib/cotizacion-lead";
 import { supabase } from "@/lib/supabase";
@@ -35,6 +39,9 @@ type CotizacionEditorProps = {
 const inputClass =
   "w-full rounded-xl border border-bloom-border bg-bloom-canvas px-3 py-2 text-sm text-bloom-ink outline-none ring-0 focus:border-bloom-accent focus:ring-2 focus:ring-bloom-accent/30";
 
+const textareaClass =
+  "w-full resize-y rounded-xl border border-bloom-border bg-bloom-canvas px-3 py-2 text-sm text-bloom-ink outline-none ring-0 focus:border-bloom-accent focus:ring-2 focus:ring-bloom-accent/30";
+
 function buildDefaultItems(
   cotizacionId: string,
   initialItems: CotizacionItemRow[],
@@ -47,11 +54,9 @@ function buildDefaultItems(
         cotizacion_id: cotizacionId,
         categoria,
         descripcion: null,
-        precio_min: null,
-        precio_max: null,
-        precio_fijo: null,
-        es_precio_fijo: false,
-        proveedor_sugerido: null,
+        precio_estimado: null,
+        proveedor_sugerido_id: null,
+        notas_internas: null,
         incluido: true,
       },
   );
@@ -101,18 +106,7 @@ export function CotizacionEditor({
     return map;
   }, [directorio]);
 
-  const itemsByCategoria = useMemo(() => {
-    const map = new Map<string, CotizacionItemRow>();
-    for (const item of items) {
-      map.set(item.categoria, item);
-    }
-    return map;
-  }, [items]);
-
-  const { totalMin, totalMax } = useMemo(
-    () => computeCotizacionTotals(items),
-    [items],
-  );
+  const totalEstimado = useMemo(() => computeCotizacionTotal(items), [items]);
 
   const whatsappMessage = useMemo(
     () =>
@@ -178,11 +172,9 @@ export function CotizacionEditor({
           cotizacion_id: cotizacion.id,
           categoria,
           descripcion: item.descripcion,
-          precio_min: item.precio_min,
-          precio_max: item.precio_max,
-          precio_fijo: item.precio_fijo,
-          es_precio_fijo: item.es_precio_fijo,
-          proveedor_sugerido: item.proveedor_sugerido,
+          precio_estimado: item.precio_estimado,
+          proveedor_sugerido_id: item.proveedor_sugerido_id,
+          notas_internas: item.notas_internas?.trim() || null,
           incluido: item.incluido,
         };
 
@@ -254,18 +246,9 @@ export function CotizacionEditor({
 
   function applySugerencia(categoria: string) {
     const invitados = numeroInvitados.trim() ? Number(numeroInvitados) : null;
-    const sugerencia = suggestPriceRangeFromHistory(
-      categoria,
-      invitados,
-      historico,
-    );
+    const sugerencia = suggestPrecioFromHistory(categoria, invitados, historico);
     if (!sugerencia) return;
-    updateItem(categoria, {
-      precio_min: sugerencia.min,
-      precio_max: sugerencia.max,
-      es_precio_fijo: false,
-      precio_fijo: null,
-    });
+    updateItem(categoria, { precio_estimado: sugerencia.precio });
   }
 
   return (
@@ -384,7 +367,7 @@ export function CotizacionEditor({
           const invitados = numeroInvitados.trim()
             ? Number(numeroInvitados)
             : null;
-          const sugerencia = suggestPriceRangeFromHistory(
+          const sugerencia = suggestPrecioFromHistory(
             categoria,
             invitados,
             historico,
@@ -407,26 +390,16 @@ export function CotizacionEditor({
 
       <section className="mt-8 rounded-2xl border border-bloom-border bg-bloom-surface p-5 shadow-sm">
         <h2 className="font-display text-xl text-bloom-ink">Resumen</h2>
-        <dl className="mt-4 grid gap-3 sm:grid-cols-2">
-          <div>
-            <dt className="text-sm text-bloom-muted">Total mínimo estimado</dt>
-            <dd className="text-2xl font-semibold text-bloom-ink">
-              {formatCurrency(totalMin)}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-sm text-bloom-muted">Total máximo estimado</dt>
-            <dd className="text-2xl font-semibold text-bloom-ink">
-              {formatCurrency(totalMax)}
-            </dd>
-          </div>
-        </dl>
+        <p className="mt-4 text-sm text-bloom-muted">Total estimado</p>
+        <p className="text-3xl font-semibold text-bloom-ink">
+          {formatCurrency(totalEstimado)}
+        </p>
         <p className="mt-3 text-xs text-bloom-muted">
           Fecha mostrada al cliente:{" "}
           {fechaEstimada
             ? formatWeddingDate(fechaEstimada)
             : "Sin definir"}{" "}
-          · {formatShortDate(fechaEstimada || lead.fecha_tentativa)}
+          · {formatShortDateStable(fechaEstimada || lead.fecha_tentativa)}
         </p>
       </section>
 
@@ -454,44 +427,28 @@ function CategoriaItemCard({
   categoria: string;
   item: CotizacionItemRow;
   proveedoresDir: DirectorioProveedorRow[];
-  sugerencia: ReturnType<typeof suggestPriceRangeFromHistory>;
+  sugerencia: ReturnType<typeof suggestPrecioFromHistory>;
   saving: boolean;
   onUpdate: (patch: Partial<CotizacionItemRow>) => void;
   onApplySugerencia: () => void;
 }) {
-  const tieneDirectorio = proveedoresDir.length > 0;
-  const proveedorSeleccionado = item.proveedor_sugerido ?? "";
+  const proveedorInterno = item.proveedor_sugerido_id
+    ? proveedoresDir.find((p) => p.id === item.proveedor_sugerido_id)
+    : null;
 
-  function handleProveedorChange(nombre: string) {
-    if (!nombre) {
-      onUpdate({
-        proveedor_sugerido: null,
-        es_precio_fijo: false,
-        precio_fijo: null,
-      });
+  function handleProveedorInternoChange(proveedorId: string) {
+    if (!proveedorId) {
+      onUpdate({ proveedor_sugerido_id: null });
       return;
     }
 
-    const prov = proveedoresDir.find((p) => p.nombre === nombre);
+    const prov = proveedoresDir.find((p) => p.id === proveedorId);
     const precioNotas = prov ? parsePrecioFromNotas(prov.notas) : null;
 
-    if (precioNotas != null) {
-      onUpdate({
-        proveedor_sugerido: nombre,
-        es_precio_fijo: true,
-        precio_fijo: precioNotas,
-        precio_min: null,
-        precio_max: null,
-      });
-    } else {
-      onUpdate({
-        proveedor_sugerido: nombre,
-        es_precio_fijo: true,
-        precio_fijo: item.precio_fijo,
-        precio_min: null,
-        precio_max: null,
-      });
-    }
+    onUpdate({
+      proveedor_sugerido_id: proveedorId,
+      precio_estimado: precioNotas ?? item.precio_estimado,
+    });
   }
 
   return (
@@ -523,8 +480,7 @@ function CategoriaItemCard({
               <span>
                 Sugerencia ({sugerencia.muestras}{" "}
                 {sugerencia.muestras === 1 ? "boda similar" : "bodas similares"}
-                ): {formatCurrency(sugerencia.min)} –{" "}
-                {formatCurrency(sugerencia.max)}
+                ): {formatCurrency(sugerencia.precio)}
               </span>
               <button
                 type="button"
@@ -537,90 +493,25 @@ function CategoriaItemCard({
             </div>
           )}
 
-          {tieneDirectorio ? (
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-bloom-ink">
-                Proveedor del directorio
-              </label>
-              <select
-                className={inputClass}
-                value={proveedorSeleccionado}
-                onChange={(e) => handleProveedorChange(e.target.value)}
-                disabled={saving}
-              >
-                <option value="">Rango manual (sin proveedor fijo)</option>
-                {proveedoresDir.map((p) => (
-                  <option key={p.id} value={p.nombre}>
-                    {p.nombre}
-                    {parsePrecioFromNotas(p.notas) != null
-                      ? ` · ${formatCurrency(parsePrecioFromNotas(p.notas)!)}`
-                      : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : null}
-
-          {item.es_precio_fijo && item.proveedor_sugerido ? (
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-bloom-ink">
-                Precio fijo (COP)
-              </label>
-              <input
-                type="number"
-                min={0}
-                className={inputClass}
-                value={item.precio_fijo ?? ""}
-                onChange={(e) =>
-                  onUpdate({
-                    precio_fijo: e.target.value
-                      ? Number(e.target.value)
-                      : null,
-                  })
-                }
-                disabled={saving}
-              />
-            </div>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-bloom-ink">
-                  Precio mínimo (COP)
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  className={inputClass}
-                  value={item.precio_min ?? ""}
-                  onChange={(e) =>
-                    onUpdate({
-                      precio_min: e.target.value ? Number(e.target.value) : null,
-                      es_precio_fijo: false,
-                    })
-                  }
-                  disabled={saving}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-bloom-ink">
-                  Precio máximo (COP)
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  className={inputClass}
-                  value={item.precio_max ?? ""}
-                  onChange={(e) =>
-                    onUpdate({
-                      precio_max: e.target.value ? Number(e.target.value) : null,
-                      es_precio_fijo: false,
-                    })
-                  }
-                  disabled={saving}
-                />
-              </div>
-            </div>
-          )}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-bloom-ink">
+              Precio estimado (COP)
+            </label>
+            <input
+              type="number"
+              min={0}
+              className={inputClass}
+              value={item.precio_estimado ?? ""}
+              onChange={(e) =>
+                onUpdate({
+                  precio_estimado: e.target.value
+                    ? Number(e.target.value)
+                    : null,
+                })
+              }
+              disabled={saving}
+            />
+          </div>
 
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-bloom-ink">
@@ -635,6 +526,69 @@ function CategoriaItemCard({
               disabled={saving}
               placeholder="Detalle del servicio"
             />
+          </div>
+
+          <div className="mt-4 space-y-3 rounded-xl border border-dashed border-bloom-border bg-bloom-canvas/80 p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-xs font-medium uppercase tracking-wider text-bloom-muted">
+                Uso interno del equipo
+              </p>
+              <span className="inline-flex rounded-full bg-bloom-border/80 px-2 py-0.5 text-[10px] font-medium text-bloom-muted">
+                Solo visible para el equipo
+              </span>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-bloom-ink">
+                Proveedor sugerido
+              </label>
+              {proveedoresDir.length > 0 ? (
+                <select
+                  className={inputClass}
+                  value={item.proveedor_sugerido_id ?? ""}
+                  onChange={(e) => handleProveedorInternoChange(e.target.value)}
+                  disabled={saving}
+                >
+                  <option value="">Sin proveedor sugerido</option>
+                  {proveedoresDir.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.nombre}
+                      {parsePrecioFromNotas(p.notas) != null
+                        ? ` · ref. ${formatCurrency(parsePrecioFromNotas(p.notas)!)}`
+                        : ""}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <p className="text-xs text-bloom-muted">
+                  No hay proveedores en el directorio para esta categoría.
+                </p>
+              )}
+              {proveedorInterno && (
+                <p className="text-sm text-bloom-ink">
+                  <span className="font-medium">{proveedorInterno.nombre}</span>
+                  <span className="ml-2 inline-flex rounded-full bg-bloom-border/80 px-2 py-0.5 text-[10px] font-medium text-bloom-muted">
+                    Solo visible para el equipo
+                  </span>
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-bloom-ink">
+                Notas internas
+              </label>
+              <textarea
+                rows={2}
+                className={textareaClass}
+                value={item.notas_internas ?? ""}
+                onChange={(e) =>
+                  onUpdate({ notas_internas: e.target.value || null })
+                }
+                disabled={saving}
+                placeholder="Notas para el equipo (no se envían al cliente)"
+              />
+            </div>
           </div>
         </div>
       )}

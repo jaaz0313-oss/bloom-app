@@ -18,11 +18,9 @@ create table if not exists public.cotizacion_items (
   cotizacion_id uuid not null references public.cotizaciones(id) on delete cascade,
   categoria text not null,
   descripcion text,
-  precio_min numeric(12, 2),
-  precio_max numeric(12, 2),
-  precio_fijo numeric(12, 2),
-  es_precio_fijo boolean not null default false,
-  proveedor_sugerido text,
+  precio_estimado numeric(12, 2),
+  proveedor_sugerido_id uuid references public.directorio_proveedores(id),
+  notas_internas text,
   incluido boolean not null default true
 );
 

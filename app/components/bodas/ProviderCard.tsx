@@ -7,7 +7,11 @@ import {
   PROVIDER_STATUS_STYLES,
   type ProveedorRow,
 } from "@/app/data/providers";
-import { formatCurrency, formatShortDate } from "@/lib/format";
+import {
+  formatCurrency,
+  formatShortDate,
+  formatShortDateStable,
+} from "@/lib/format";
 import { supabase } from "@/lib/supabase";
 import { syncBodaProveedoresContratados } from "@/lib/sync-boda";
 import type { PagoRow } from "@/app/data/pagos";
@@ -1231,22 +1235,3 @@ function XIcon() {
   );
 }
 
-function formatShortDateStable(isoDate: string): string {
-  const [year, month, day] = isoDate.split("-").map(Number);
-  const monthLabels = [
-    "ene.",
-    "feb.",
-    "mar.",
-    "abr.",
-    "may.",
-    "jun.",
-    "jul.",
-    "ago.",
-    "sep.",
-    "oct.",
-    "nov.",
-    "dic.",
-  ];
-  const monthLabel = monthLabels[(month ?? 1) - 1] ?? "";
-  return `${day} de ${monthLabel} de ${year}`;
-}

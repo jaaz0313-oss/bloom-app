@@ -24,6 +24,27 @@ export function formatShortDate(isoDate: string): string {
   }).format(date);
 }
 
+/** Fecha corta con abreviaturas fijas (evita hydration mismatch entre servidor y cliente). */
+export function formatShortDateStable(isoDate: string): string {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  const monthLabels = [
+    "ene.",
+    "feb.",
+    "mar.",
+    "abr.",
+    "may.",
+    "jun.",
+    "jul.",
+    "ago.",
+    "sep.",
+    "oct.",
+    "nov.",
+    "dic.",
+  ];
+  const monthLabel = monthLabels[(month ?? 1) - 1] ?? "";
+  return `${day} de ${monthLabel} de ${year}`;
+}
+
 const MESSAGE_LOWERCASE_WORDS = new Set([
   "y",
   "de",

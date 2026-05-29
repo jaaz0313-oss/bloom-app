@@ -17,11 +17,9 @@ export type CotizacionItemRow = {
   cotizacion_id: string;
   categoria: string;
   descripcion: string | null;
-  precio_min: number | null;
-  precio_max: number | null;
-  precio_fijo: number | null;
-  es_precio_fijo: boolean;
-  proveedor_sugerido: string | null;
+  precio_estimado: number | null;
+  proveedor_sugerido_id: string | null;
+  notas_internas: string | null;
   incluido: boolean;
 };
 

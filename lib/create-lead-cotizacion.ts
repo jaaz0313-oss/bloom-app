@@ -28,7 +28,6 @@ export async function createCotizacionForLead(
     cotizacion_id: cotizacion.id,
     categoria,
     incluido: true,
-    es_precio_fijo: false,
   }));
 
   const { error: itemsError } = await supabase

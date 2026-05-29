@@ -63,7 +63,7 @@ export default async function CotizacionPage({ params }: PageProps) {
   const { data: itemsHistorico } = await supabase
     .from("cotizacion_items")
     .select(
-      "categoria, precio_min, precio_max, precio_fijo, es_precio_fijo, incluido, cotizaciones(numero_invitados)",
+      "categoria, precio_estimado, incluido, cotizaciones(numero_invitados)",
     )
     .eq("incluido", true)
     .neq("cotizacion_id", id);

@@ -8,9 +8,8 @@ export type HistoricoPrecioCategoria = {
   numero_invitados: number | null;
 };
 
-export type RangoSugerido = {
-  min: number;
-  max: number;
+export type PrecioSugerido = {
+  precio: number;
   muestras: number;
 };
 
@@ -23,11 +22,11 @@ export function parsePrecioFromNotas(notas: string | null): number | null {
   return Number.isFinite(value) && value > 0 ? value : null;
 }
 
-export function suggestPriceRangeFromHistory(
+export function suggestPrecioFromHistory(
   categoria: string,
   numeroInvitados: number | null,
   historico: HistoricoPrecioCategoria[],
-): RangoSugerido | null {
+): PrecioSugerido | null {
   let pool = historico.filter((h) => h.categoria === categoria && h.valor > 0);
 
   if (numeroInvitados != null && numeroInvitados > 0) {
@@ -44,63 +43,37 @@ export function suggestPriceRangeFromHistory(
 
   if (pool.length === 0) return null;
 
-  const values = pool.map((p) => p.valor).sort((a, b) => a - b);
+  const values = pool.map((p) => p.valor);
+  const promedio = Math.round(
+    values.reduce((sum, v) => sum + v, 0) / values.length,
+  );
+
   return {
-    min: values[0],
-    max: values[values.length - 1],
+    precio: promedio,
     muestras: values.length,
   };
 }
 
-export function getItemPrecioRange(item: CotizacionItemRow): {
-  min: number;
-  max: number;
-} | null {
+export function getItemPrecioEstimado(item: CotizacionItemRow): number | null {
   if (!item.incluido) return null;
-
-  if (item.es_precio_fijo && item.precio_fijo != null && item.precio_fijo > 0) {
-    return { min: item.precio_fijo, max: item.precio_fijo };
-  }
-
-  const min = item.precio_min ?? 0;
-  const max = item.precio_max ?? 0;
-  if (min <= 0 && max <= 0) return null;
-  return {
-    min: min > 0 ? min : max,
-    max: max > 0 ? max : min,
-  };
+  if (item.precio_estimado == null || item.precio_estimado <= 0) return null;
+  return item.precio_estimado;
 }
 
-export function computeCotizacionTotals(items: CotizacionItemRow[]): {
-  totalMin: number;
-  totalMax: number;
-} {
-  let totalMin = 0;
-  let totalMax = 0;
-
+export function computeCotizacionTotal(items: CotizacionItemRow[]): number {
+  let total = 0;
   for (const item of items) {
-    const range = getItemPrecioRange(item);
-    if (!range) continue;
-    totalMin += range.min;
-    totalMax += range.max;
+    const precio = getItemPrecioEstimado(item);
+    if (precio != null) total += precio;
   }
-
-  return { totalMin, totalMax };
+  return total;
 }
 
 function formatItemLine(item: CotizacionItemRow): string {
-  const range = getItemPrecioRange(item);
-  if (!range) return "";
+  const precio = getItemPrecioEstimado(item);
+  if (precio == null) return "";
 
-  const precioTexto =
-    range.min === range.max
-      ? formatCurrency(range.min)
-      : `${formatCurrency(range.min)} - ${formatCurrency(range.max)}`;
-
-  const proveedor = item.proveedor_sugerido?.trim();
-  const suffix = proveedor ? ` (${proveedor})` : "";
-
-  return `• ${item.categoria}${suffix}: ${precioTexto}`;
+  return `• ${item.categoria}: ${formatCurrency(precio)}`;
 }
 
 export function buildCotizacionLeadWhatsAppMessage(params: {
@@ -111,7 +84,7 @@ export function buildCotizacionLeadWhatsAppMessage(params: {
 }): string {
   const { nombreLead, numeroInvitados, fechaEstimada, items } = params;
   const incluidos = items.filter((i) => i.incluido);
-  const { totalMin, totalMax } = computeCotizacionTotals(incluidos);
+  const totalEstimado = computeCotizacionTotal(incluidos);
 
   const lineas = incluidos
     .map(formatItemLine)
@@ -124,11 +97,6 @@ export function buildCotizacionLeadWhatsAppMessage(params: {
     ? formatWeddingDate(fechaEstimada)
     : "Por definir";
 
-  const totalTexto =
-    totalMin === totalMax
-      ? formatCurrency(totalMin)
-      : `${formatCurrency(totalMin)} - ${formatCurrency(totalMax)}`;
-
   return `Hola ${nombreLead}, aquí está la proyección de costos para su boda:
 
 📋 COTIZACIÓN ESTIMADA
@@ -137,7 +105,7 @@ export function buildCotizacionLeadWhatsAppMessage(params: {
 
 ${lineas}
 
-💰 TOTAL ESTIMADO: ${totalTexto}
+💰 TOTAL ESTIMADO: ${formatCurrency(totalEstimado)}
 
 Esta es una proyección aproximada. Los precios finales dependen de los proveedores seleccionados. ¡Quedamos atentos para resolver sus dudas! 🌸`;
 }
