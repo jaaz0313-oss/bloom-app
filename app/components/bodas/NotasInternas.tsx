@@ -5,11 +5,20 @@ import { useRouter } from "next/navigation";
 import type { NotaBodaRow } from "@/app/data/notas-boda";
 import { formatDateTimeStable } from "@/lib/format";
 import type { UserRole } from "@/lib/auth/roles";
+import {
+  buildMencionNotaWhatsAppUrls,
+  findMentionedUsers,
+  openMencionNotaWhatsAppTabs,
+  type EquipoUsuarioMencion,
+} from "@/lib/notas-menciones";
 import { supabase } from "@/lib/supabase";
+import { MentionTextarea } from "./MentionTextarea";
 
 type NotasInternasProps = {
   bodaId: string;
+  bodaNombre: string;
   initialNotas: NotaBodaRow[];
+  equipo: EquipoUsuarioMencion[];
   currentUserId: string;
   currentUserNombre: string;
   role: UserRole;
@@ -20,7 +29,9 @@ const textareaClass =
 
 export function NotasInternas({
   bodaId,
+  bodaNombre,
   initialNotas,
+  equipo,
   currentUserId,
   currentUserNombre,
   role,
@@ -35,6 +46,38 @@ export function NotasInternas({
   function canDeleteNota(nota: NotaBodaRow): boolean {
     if (role === "admin") return true;
     return nota.created_by === currentUserId;
+  }
+
+  async function procesarMenciones(notaId: string, texto: string) {
+    const mencionados = findMentionedUsers(texto, equipo).filter(
+      (u) => u.id !== currentUserId,
+    );
+
+    if (mencionados.length === 0) return;
+
+    const rows = mencionados.map((u) => ({
+      nota_id: notaId,
+      usuario_id: u.id,
+      visto: false,
+    }));
+
+    const { error: mencionesError } = await supabase!
+      .from("menciones_notas")
+      .insert(rows);
+
+    if (mencionesError) {
+      console.error("[menciones_notas]", mencionesError.message);
+    }
+
+    const urls = buildMencionNotaWhatsAppUrls(mencionados, {
+      bodaNombre,
+      contenidoNota: texto,
+      autorNombre: currentUserNombre,
+    });
+
+    if (urls.length > 0) {
+      openMencionNotaWhatsAppTabs(urls);
+    }
   }
 
   async function handleAgregar(e: React.FormEvent) {
@@ -71,7 +114,9 @@ export function NotasInternas({
       }
 
       if (data) {
-        setNotas((current) => [data as NotaBodaRow, ...current]);
+        const nota = data as NotaBodaRow;
+        setNotas((current) => [nota, ...current]);
+        await procesarMenciones(nota.id, texto);
       }
       setContenido("");
       router.refresh();
@@ -112,20 +157,22 @@ export function NotasInternas({
         </span>
       </div>
       <p className="mt-1 text-sm text-bloom-muted">
-        Notas internas para coordinación. No se comparten con los clientes.
+        Notas internas para coordinación. Usa @ para mencionar a alguien del
+        equipo.
       </p>
 
       <form className="mt-5 space-y-3" onSubmit={handleAgregar}>
         <label htmlFor="nota-interna-contenido" className="sr-only">
           Nueva nota
         </label>
-        <textarea
+        <MentionTextarea
           id="nota-interna-contenido"
+          value={contenido}
+          onChange={setContenido}
+          equipo={equipo}
           rows={3}
           className={textareaClass}
-          value={contenido}
-          onChange={(e) => setContenido(e.target.value)}
-          placeholder="Escribe una nota para el equipo…"
+          placeholder="Escribe una nota… Usa @ para mencionar al equipo"
           disabled={submitting}
         />
         <div className="flex justify-end">

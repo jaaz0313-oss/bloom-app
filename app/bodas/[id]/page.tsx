@@ -20,6 +20,7 @@ import { formatWeddingDate } from "@/lib/format";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { requireAuthUser } from "@/lib/auth/user-profiles";
 import { hasPermission } from "@/lib/auth/roles";
+import type { EquipoUsuarioMencion } from "@/lib/notas-menciones";
 
 export const dynamic = "force-dynamic";
 
@@ -92,6 +93,18 @@ export default async function BodaDetailPage({ params }: PageProps) {
 
   const notas = (notasData ?? []) as NotaBodaRow[];
 
+  const { data: equipoData, error: equipoError } = await supabase
+    .from("user_profiles")
+    .select("id, nombre, username, telefono")
+    .eq("activo", true)
+    .order("nombre", { ascending: true });
+
+  if (equipoError) {
+    console.error(equipoError);
+  }
+
+  const equipo = (equipoData ?? []) as EquipoUsuarioMencion[];
+
   return (
     <div className="min-h-full bg-bloom-canvas font-sans">
       <DashboardHeader user={user} />
@@ -140,7 +153,9 @@ export default async function BodaDetailPage({ params }: PageProps) {
 
           <NotasInternas
             bodaId={id}
+            bodaNombre={bodaRow.nombre_pareja}
             initialNotas={notas}
+            equipo={equipo}
             currentUserId={user.id}
             currentUserNombre={user.nombre}
             role={user.rol}
