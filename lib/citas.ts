@@ -9,15 +9,21 @@ import type { BodaRow } from "@/app/data/weddings";
 import type { LeadRow } from "@/app/data/leads";
 import { parseProveedorFromCitaTitulo } from "@/lib/cita-titulo";
 import { formatLongDateStable } from "@/lib/format";
-import { buildWhatsAppUrl } from "@/lib/whatsapp";
+import { buildGrupoWhatsAppUrl, buildWhatsAppUrl } from "@/lib/whatsapp";
 import type { UserRole } from "@/lib/auth/roles";
 
 export type CitaProveedorLookup = {
   nombre: string;
+  telefono?: string | null;
 };
 
+export type CitaBodaWhatsAppLookup = Pick<
+  BodaRow,
+  "nombre_pareja" | "telefono_novia" | "telefono_novio" | "whatsapp_grupo_link"
+>;
+
 export type CitaWhatsAppLookupContext = {
-  bodasById: Record<string, Pick<BodaRow, "nombre_pareja" | "telefono_novia" | "telefono_novio">>;
+  bodasById: Record<string, CitaBodaWhatsAppLookup>;
   leadsById: Record<string, Pick<LeadRow, "nombre_pareja">>;
   proveedoresById?: Record<string, CitaProveedorLookup>;
 };
@@ -59,6 +65,115 @@ export function getProveedorNombreForCita(
   if (fromTitulo?.nombre?.trim()) return fromTitulo.nombre.trim();
 
   return null;
+}
+
+export function getProveedorTelefonoForCita(
+  cita: Pick<CitaRow, "proveedor_id">,
+  proveedoresById?: Record<string, CitaProveedorLookup>,
+): string | null {
+  if (!cita.proveedor_id) return null;
+  const telefono = proveedoresById?.[cita.proveedor_id]?.telefono?.trim();
+  return telefono || null;
+}
+
+function buildCitaWhatsAppLugarMeetLines(
+  lugar?: string | null,
+  linkMeet?: string | null,
+): string[] {
+  const lines: string[] = [];
+  if (lugar?.trim()) lines.push(`📍 ${lugar.trim()}`);
+  if (linkMeet?.trim()) lines.push(`🔗 ${linkMeet.trim()}`);
+  return lines;
+}
+
+export function buildCitaRecordatorioClienteWhatsAppMessage(params: {
+  nombreCliente: string;
+  horaInicio: string;
+  lugar?: string | null;
+  linkMeet?: string | null;
+}): string {
+  const lines = [
+    `Hola ${params.nombreCliente.trim()}, te recordamos tu cita con Celestia hoy:`,
+    `🕐 ${formatTimeStable(params.horaInicio)}`,
+    ...buildCitaWhatsAppLugarMeetLines(params.lugar, params.linkMeet),
+    "",
+    "Por favor confírmanos tu asistencia respondiendo:",
+    "✅ CONFIRMO - si asistirás",
+    "❌ CANCELO - si no puedes asistir",
+    "",
+    "¡Te esperamos! 🌸",
+  ];
+  return lines.join("\n");
+}
+
+export function buildCitaRecordatorioClienteWhatsAppMessageFromCita(
+  cita: Pick<
+    CitaRow,
+    "hora_inicio" | "lugar" | "link_meet" | "boda_id" | "lead_id"
+  >,
+  context: CitaWhatsAppLookupContext,
+): string | null {
+  const cliente = getClienteInfoForCita(cita, context.bodasById, context.leadsById);
+  if (!cliente?.nombre?.trim()) return null;
+
+  return buildCitaRecordatorioClienteWhatsAppMessage({
+    nombreCliente: cliente.nombre,
+    horaInicio: cita.hora_inicio,
+    lugar: cita.lugar,
+    linkMeet: cita.link_meet,
+  });
+}
+
+export function buildCitaRecordatorioProveedorWhatsAppMessage(params: {
+  nombreProveedor: string;
+  nombrePareja: string;
+  horaInicio: string;
+  lugar?: string | null;
+  linkMeet?: string | null;
+}): string {
+  const lines = [
+    `Hola ${params.nombreProveedor.trim()}, te recordamos nuestra reunión con los novios ${params.nombrePareja.trim()} hoy a las ${formatTimeStable(params.horaInicio)}.`,
+    ...buildCitaWhatsAppLugarMeetLines(params.lugar, params.linkMeet),
+    "",
+    "Por favor confírmanos tu asistencia respondiendo:",
+    "✅ CONFIRMO",
+    "❌ CANCELO",
+    "",
+    "¡Hasta pronto! 🌸",
+  ];
+  return lines.join("\n");
+}
+
+export function buildCitaRecordatorioProveedorWhatsAppMessageFromCita(
+  cita: Pick<
+    CitaRow,
+    | "tipo"
+    | "titulo"
+    | "proveedor_id"
+    | "hora_inicio"
+    | "lugar"
+    | "link_meet"
+    | "boda_id"
+    | "lead_id"
+  >,
+  context: CitaWhatsAppLookupContext,
+): string | null {
+  if (cita.tipo !== "reunion_proveedor") return null;
+
+  const nombreProveedor = getProveedorNombreForCita(cita, context.proveedoresById);
+  if (!nombreProveedor) return null;
+
+  const cliente = getClienteInfoForCita(cita, context.bodasById, context.leadsById);
+  const nombrePareja = cliente?.nombre?.trim();
+  if (!nombrePareja) return null;
+
+  return buildCitaRecordatorioProveedorWhatsAppMessage({
+    nombreProveedor,
+    nombrePareja,
+    horaInicio: cita.hora_inicio,
+    lugar: cita.lugar,
+    linkMeet: cita.link_meet,
+  });
 }
 
 function buildCitaWhatsAppDetalleLines(params: {
@@ -163,15 +278,16 @@ export type ClienteCitaInfo = {
 
 export function getClienteInfoForCita(
   cita: Pick<CitaRow, "boda_id" | "lead_id">,
-  bodasById: Record<string, Pick<BodaRow, "nombre_pareja" | "telefono_novia" | "telefono_novio">>,
+  bodasById: Record<string, CitaBodaWhatsAppLookup>,
   leadsById: Record<string, Pick<LeadRow, "nombre_pareja">>,
 ): ClienteCitaInfo | null {
   if (cita.boda_id) {
     const boda = bodasById[cita.boda_id];
     if (!boda) return null;
-    const telefono =
-      boda.telefono_novia?.trim() || boda.telefono_novio?.trim() || null;
-    return { nombre: boda.nombre_pareja, telefono };
+    return {
+      nombre: boda.nombre_pareja,
+      telefono: boda.telefono_novia?.trim() || null,
+    };
   }
   if (cita.lead_id) {
     const lead = leadsById[cita.lead_id];
@@ -230,12 +346,128 @@ export function buildCitaConfirmacionWhatsAppMessageFromCita(
   });
 }
 
+export function buildCitaGrupoConfirmacionWhatsAppMessage(params: {
+  nombrePareja?: string | null;
+  fecha: string;
+  horaInicio: string;
+  horaFin?: string | null;
+  tipo?: CitaTipo;
+  proveedorNombre?: string | null;
+  lugar?: string | null;
+  linkMeet?: string | null;
+}): string {
+  const { nombrePareja, fecha, horaInicio, horaFin, tipo, proveedorNombre, lugar, linkMeet } =
+    params;
+
+  const saludo =
+    nombrePareja?.trim() ?
+      `Hola ${nombrePareja.trim()}, agendamos una nueva cita con Celestia:`
+    : "Hola, agendamos una nueva cita con Celestia:";
+
+  const lines = [
+    saludo,
+    ...buildCitaWhatsAppDetalleLines({
+      fecha,
+      horaInicio,
+      horaFin,
+      tipo: tipo ?? "reunion_seguimiento",
+      proveedorNombre,
+      lugar,
+      linkMeet,
+    }),
+    "¡Los esperamos! 🌸",
+  ];
+
+  return lines.join("\n");
+}
+
+export function buildCitaGrupoConfirmacionWhatsAppMessageFromCita(
+  cita: CitaWhatsAppFields,
+  context: CitaWhatsAppLookupContext,
+): string {
+  const cliente = getClienteInfoForCita(cita, context.bodasById, context.leadsById);
+
+  return buildCitaGrupoConfirmacionWhatsAppMessage({
+    nombrePareja: cliente?.nombre ?? null,
+    fecha: cita.fecha,
+    horaInicio: cita.hora_inicio,
+    horaFin: cita.hora_fin,
+    tipo: cita.tipo,
+    proveedorNombre: getProveedorNombreForCita(cita, context.proveedoresById),
+    lugar: cita.lugar,
+    linkMeet: cita.link_meet,
+  });
+}
+
+export function buildCitaProveedorConfirmacionWhatsAppMessage(params: {
+  nombreProveedor: string;
+  nombrePareja: string;
+  fecha: string;
+  horaInicio: string;
+  horaFin?: string | null;
+  lugar?: string | null;
+  linkMeet?: string | null;
+}): string {
+  const fechaNorm = normalizeCitaFecha(params.fecha);
+  const lines = [
+    `Hola ${params.nombreProveedor.trim()}, confirmamos nuestra reunión con los novios ${params.nombrePareja.trim()}:`,
+    `📅 ${formatLongDateStable(fechaNorm)}`,
+    `🕐 ${formatCitaHoraTexto(params.horaInicio, params.horaFin)}`,
+    ...buildCitaWhatsAppLugarMeetLines(params.lugar, params.linkMeet),
+    "¡Hasta pronto! 🌸",
+  ];
+  return lines.join("\n");
+}
+
+export function buildCitaProveedorConfirmacionWhatsAppMessageFromCita(
+  cita: CitaWhatsAppFields,
+  context: CitaWhatsAppLookupContext,
+): string | null {
+  if (cita.tipo !== "reunion_proveedor") return null;
+
+  const nombreProveedor = getProveedorNombreForCita(cita, context.proveedoresById);
+  if (!nombreProveedor) return null;
+
+  const cliente = getClienteInfoForCita(cita, context.bodasById, context.leadsById);
+  const nombrePareja = cliente?.nombre?.trim();
+  if (!nombrePareja) return null;
+
+  return buildCitaProveedorConfirmacionWhatsAppMessage({
+    nombreProveedor,
+    nombrePareja,
+    fecha: cita.fecha,
+    horaInicio: cita.hora_inicio,
+    horaFin: cita.hora_fin,
+    lugar: cita.lugar,
+    linkMeet: cita.link_meet,
+  });
+}
+
 export function getCitaWhatsAppUrl(
   telefono: string | null | undefined,
   message: string,
 ): string | null {
   if (!telefono?.trim()) return null;
   return buildWhatsAppUrl(telefono, message);
+}
+
+/** WhatsApp al cliente: grupo de la boda con mensaje prellenado, o teléfono de la novia. */
+export function getCitaClienteWhatsAppUrl(
+  cita: Pick<CitaRow, "boda_id" | "lead_id">,
+  message: string,
+  bodasById: Record<string, CitaBodaWhatsAppLookup>,
+): string | null {
+  if (!message.trim() || !cita.boda_id) return null;
+
+  const boda = bodasById[cita.boda_id];
+  if (!boda) return null;
+
+  const grupoLink = boda.whatsapp_grupo_link?.trim();
+  if (grupoLink) {
+    return buildGrupoWhatsAppUrl(grupoLink, message);
+  }
+
+  return getCitaWhatsAppUrl(boda.telefono_novia, message);
 }
 
 export function getCitaRelacionLabel(

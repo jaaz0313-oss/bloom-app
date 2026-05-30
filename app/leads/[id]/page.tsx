@@ -53,7 +53,7 @@ export default async function LeadDetailPage({ params }: PageProps) {
   const { data: bodasLookup } = await supabase
     .from("bodas")
     .select(
-      "id, nombre_pareja, telefono_novia, telefono_novio, email_novia, email_novio",
+      "id, nombre_pareja, telefono_novia, telefono_novio, whatsapp_grupo_link, email_novia, email_novio",
     )
     .order("nombre_pareja", { ascending: true });
 

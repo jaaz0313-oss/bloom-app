@@ -116,12 +116,49 @@ export default async function Home({ searchParams }: HomeProps) {
   const bodasById = Object.fromEntries(
     ((bodasData ?? []) as BodaRow[]).map((b) => [
       b.id,
-      { nombre_pareja: b.nombre_pareja },
+      {
+        nombre_pareja: b.nombre_pareja,
+        telefono_novia: b.telefono_novia,
+        telefono_novio: b.telefono_novio,
+        whatsapp_grupo_link: b.whatsapp_grupo_link,
+      },
     ]),
   );
   const leadsById = Object.fromEntries(
     leads.map((l) => [l.id, { nombre_pareja: l.nombre_pareja }]),
   );
+
+  const proveedorIds = [
+    ...new Set(
+      citasHoy
+        .map((c) => c.proveedor_id)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+
+  let proveedoresById: Record<
+    string,
+    { nombre: string; telefono: string | null }
+  > = {};
+
+  if (proveedorIds.length > 0) {
+    const { data: proveedoresCitasData, error: proveedoresCitasError } =
+      await supabase
+        .from("proveedores")
+        .select("id, nombre, telefono")
+        .in("id", proveedorIds);
+
+    if (proveedoresCitasError) {
+      console.error(proveedoresCitasError);
+    } else if (proveedoresCitasData) {
+      proveedoresById = Object.fromEntries(
+        proveedoresCitasData.map((p) => [
+          p.id,
+          { nombre: p.nombre, telefono: p.telefono },
+        ]),
+      );
+    }
+  }
 
   return (
     <div className="min-h-full bg-bloom-canvas font-sans">
@@ -132,8 +169,7 @@ export default async function Home({ searchParams }: HomeProps) {
         <CronogramaAlertsSection alerts={cronogramaAlerts} />
         <CitasHoySection
           citas={citasHoy}
-          bodasById={bodasById}
-          leadsById={leadsById}
+          context={{ bodasById, leadsById, proveedoresById }}
         />
 
         <div className="inline-flex rounded-full border border-bloom-border bg-bloom-surface p-1">

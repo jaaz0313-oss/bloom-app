@@ -23,7 +23,6 @@ import {
   parseProveedorFromCitaTitulo,
 } from "@/lib/cita-titulo";
 import {
-  buildCitaModificacionWhatsAppMessageFromCita,
   canCreateCitaTipo,
   citaScheduleChanged,
   getCitaScheduleSnapshot,
@@ -112,6 +111,9 @@ export function CitaFormModal({
   const [confirmacionTipo, setConfirmacionTipo] =
     useState<ConfirmacionTipo>("created");
   const [involvedEmails, setInvolvedEmails] = useState<CitaInvolvedEmail[]>([]);
+  const [createdProveedorTelefono, setCreatedProveedorTelefono] = useState<
+    string | null
+  >(null);
 
   const bodasById = useMemo(
     () => Object.fromEntries(bodas.map((b) => [b.id, b])),
@@ -167,6 +169,7 @@ export function CitaFormModal({
     setError(null);
     setCreatedCita(null);
     setInvolvedEmails([]);
+    setCreatedProveedorTelefono(null);
     setConfirmacionTipo("created");
 
     if (editingCita) {
@@ -355,6 +358,7 @@ export function CitaFormModal({
       const cita = data as CitaRow;
       setCreatedCita(cita);
       setInvolvedEmails(emailEntries);
+      setCreatedProveedorTelefono(proveedorCita?.telefono?.trim() || null);
       setConfirmacionTipo("created");
       onCreated?.(cita);
       router.refresh();
@@ -362,14 +366,6 @@ export function CitaFormModal({
       setSubmitting(false);
     }
   }
-
-  const modificacionWhatsapp = useMemo(() => {
-    if (!createdCita || confirmacionTipo !== "modified") return null;
-    return buildCitaModificacionWhatsAppMessageFromCita(createdCita, {
-      bodasById,
-      leadsById,
-    });
-  }, [createdCita, confirmacionTipo, bodasById, leadsById]);
 
   const confirmacionHeading =
     confirmacionTipo === "created"
@@ -380,6 +376,7 @@ export function CitaFormModal({
 
   function handleConfirmacionClose() {
     setCreatedCita(null);
+    setCreatedProveedorTelefono(null);
     onClose();
   }
 
@@ -406,7 +403,7 @@ export function CitaFormModal({
           </h3>
           <button
             type="button"
-            onClick={onClose}
+            onClick={createdCita ? handleConfirmacionClose : onClose}
             className="rounded-full p-2 text-bloom-muted hover:bg-bloom-border"
           >
             ✕
@@ -420,26 +417,8 @@ export function CitaFormModal({
             bodasById={bodasById}
             leadsById={leadsById}
             onClose={handleConfirmacionClose}
-            resumenTitle={
-              confirmacionTipo === "modified"
-                ? "Cita actualizada"
-                : "Resumen de la cita"
-            }
-            whatsappSectionTitle={
-              confirmacionTipo === "modified"
-                ? "Aviso de cambios al cliente (WhatsApp)"
-                : confirmacionTipo === "created"
-                  ? "Mensaje para el cliente (WhatsApp)"
-                  : "Mensaje para el cliente"
-            }
-            whatsappMessageOverride={
-              confirmacionTipo === "modified"
-                ? modificacionWhatsapp
-                : confirmacionTipo === "updated"
-                  ? null
-                  : undefined
-            }
-            showEmailsSection={confirmacionTipo !== "updated"}
+            variant={confirmacionTipo}
+            proveedorTelefono={createdProveedorTelefono}
           />
         ) : (
           <form className="mt-5 space-y-4" onSubmit={handleSubmit}>

@@ -5,8 +5,7 @@ import { useRouter } from "next/navigation";
 import type { CitaRow } from "@/app/data/citas";
 import {
   buildCitaCancelacionWhatsAppMessageFromCita,
-  getCitaWhatsAppUrl,
-  getClienteInfoForCita,
+  getCitaClienteWhatsAppUrl,
   isCitaActiva,
   normalizeCitaRow,
 } from "@/lib/citas";
@@ -70,9 +69,12 @@ export function CitaConAcciones({
 
   const cancelWhatsappUrl = useMemo(() => {
     if (!cancelledCita || !cancelWhatsappMessage) return null;
-    const cliente = getClienteInfoForCita(cancelledCita, bodasById, leadsById);
-    return getCitaWhatsAppUrl(cliente?.telefono, cancelWhatsappMessage);
-  }, [cancelledCita, cancelWhatsappMessage, bodasById, leadsById]);
+    return getCitaClienteWhatsAppUrl(
+      cancelledCita,
+      cancelWhatsappMessage,
+      bodasById,
+    );
+  }, [cancelledCita, cancelWhatsappMessage, bodasById]);
 
   async function handleCancelConfirm() {
     if (!supabase) return;

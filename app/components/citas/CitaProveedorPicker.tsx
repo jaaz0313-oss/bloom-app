@@ -8,6 +8,7 @@ export type CitaProveedorCita = {
   nombre: string;
   categoria: string;
   email: string | null;
+  telefono?: string | null;
 };
 
 type EntryMode = "directorio" | "manual";
@@ -31,7 +32,7 @@ export function CitaProveedorPicker({
   const [entryMode, setEntryMode] = useState<EntryMode | null>(null);
   const [directoryQuery, setDirectoryQuery] = useState("");
   const [directoryResults, setDirectoryResults] = useState<
-    Pick<DirectorioProveedorRow, "id" | "nombre" | "categoria" | "email">[]
+    Pick<DirectorioProveedorRow, "id" | "nombre" | "categoria" | "email" | "telefono">[]
   >([]);
   const [directorySearchedQuery, setDirectorySearchedQuery] = useState<
     string | null
@@ -78,7 +79,7 @@ export function CitaProveedorPicker({
     const timeout = window.setTimeout(async () => {
       const { data, error } = await supabase
         .from("directorio_proveedores")
-        .select("id, nombre, categoria, email")
+        .select("id, nombre, categoria, email, telefono")
         .eq("activo", true)
         .ilike("nombre", `%${query}%`)
         .order("nombre", { ascending: true })
@@ -91,7 +92,7 @@ export function CitaProveedorPicker({
         setDirectoryResults(
           (data ?? []) as Pick<
             DirectorioProveedorRow,
-            "id" | "nombre" | "categoria" | "email"
+            "id" | "nombre" | "categoria" | "email" | "telefono"
           >[],
         );
       }
@@ -132,7 +133,10 @@ export function CitaProveedorPicker({
   }
 
   function applyDirectoryProvider(
-    provider: Pick<DirectorioProveedorRow, "nombre" | "categoria" | "email">,
+    provider: Pick<
+      DirectorioProveedorRow,
+      "nombre" | "categoria" | "email" | "telefono"
+    >,
   ) {
     onInteraction?.();
     setDirectoryQuery(provider.nombre);
@@ -141,6 +145,7 @@ export function CitaProveedorPicker({
       nombre: provider.nombre,
       categoria: provider.categoria,
       email: provider.email?.trim() || null,
+      telefono: provider.telefono?.trim() || null,
     });
   }
 

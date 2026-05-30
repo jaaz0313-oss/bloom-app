@@ -1,19 +1,14 @@
 import Link from "next/link";
 import type { CitaRow } from "@/app/data/citas";
-import { sortCitasBySchedule } from "@/lib/citas";
-import { CitaListItem } from "./CitaListItem";
+import { sortCitasBySchedule, type CitaWhatsAppLookupContext } from "@/lib/citas";
+import { CitaHoyItem } from "./CitaHoyItem";
 
 type CitasHoySectionProps = {
   citas: CitaRow[];
-  bodasById: Record<string, { nombre_pareja: string }>;
-  leadsById: Record<string, { nombre_pareja: string }>;
+  context: CitaWhatsAppLookupContext;
 };
 
-export function CitasHoySection({
-  citas,
-  bodasById,
-  leadsById,
-}: CitasHoySectionProps) {
+export function CitasHoySection({ citas, context }: CitasHoySectionProps) {
   const sorted = sortCitasBySchedule(citas);
 
   if (sorted.length === 0) return null;
@@ -36,15 +31,10 @@ export function CitasHoySection({
         </Link>
       </div>
 
-      <ul className="mt-4 space-y-2">
+      <ul className="mt-4 space-y-3">
         {sorted.map((cita) => (
           <li key={cita.id}>
-            <CitaListItem
-              cita={cita}
-              bodasById={bodasById}
-              leadsById={leadsById}
-              compact
-            />
+            <CitaHoyItem cita={cita} context={context} />
           </li>
         ))}
       </ul>
