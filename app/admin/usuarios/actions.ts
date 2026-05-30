@@ -19,11 +19,15 @@ export async function createUserAction(formData: FormData) {
   const username = String(formData.get("username") ?? "").trim().toLowerCase();
   const nombre = String(formData.get("nombre") ?? "").trim();
   const telefono = String(formData.get("telefono") ?? "").trim() || null;
+  const email = String(formData.get("email") ?? "").trim() || null;
   const rol = String(formData.get("rol") ?? "").trim() as UserRole;
   const password = String(formData.get("password") ?? "");
 
   if (!username || !nombre || !VALID_ROLES.has(rol) || password.length < 8) {
     throw new Error("Datos inválidos para crear usuario.");
+  }
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new Error("Email inválido.");
   }
 
   const { data: authUser, error: createError } =
@@ -43,6 +47,7 @@ export async function createUserAction(formData: FormData) {
     username,
     nombre,
     telefono,
+    email,
     rol,
     activo: true,
   });
@@ -58,16 +63,20 @@ export async function updateUserAction(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const nombre = String(formData.get("nombre") ?? "").trim();
   const telefono = String(formData.get("telefono") ?? "").trim() || null;
+  const email = String(formData.get("email") ?? "").trim() || null;
   const rol = String(formData.get("rol") ?? "").trim() as UserRole;
   const password = String(formData.get("password") ?? "").trim();
 
   if (!id || !nombre || !VALID_ROLES.has(rol)) {
     throw new Error("Datos inválidos para actualizar usuario.");
   }
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new Error("Email inválido.");
+  }
 
   const { error: profileError } = await supabaseAdmin
     .from("user_profiles")
-    .update({ nombre, telefono, rol })
+    .update({ nombre, telefono, email, rol })
     .eq("id", id);
 
   if (profileError) throw new Error(profileError.message);

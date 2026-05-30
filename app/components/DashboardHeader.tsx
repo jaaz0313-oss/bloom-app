@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { MencionesNotificaciones } from "@/app/components/MencionesNotificaciones";
+import { UserEmailEditor } from "@/app/components/UserEmailEditor";
 import { UserPhoneEditor } from "@/app/components/UserPhoneEditor";
 import { ROLE_LABELS, type UserRole } from "@/lib/auth/roles";
 
@@ -13,6 +14,7 @@ type DashboardHeaderProps = {
     nombre: string;
     rol: UserRole;
     telefono: string | null;
+    email: string | null;
   };
 };
 
@@ -49,8 +51,15 @@ export function DashboardHeader({ user }: DashboardHeaderProps) {
               {ROLE_LABELS[user.rol]}
             </p>
             <p className="font-medium text-bloom-ink">{user.nombre}</p>
+            <UserEmailEditor initialEmail={user.email} />
             <UserPhoneEditor initialTelefono={user.telefono} />
             <div className="mt-2 flex items-center justify-end gap-2">
+              <Link
+                href="/calendario"
+                className="rounded-full border border-bloom-border px-3 py-1 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-canvas"
+              >
+                Calendario
+              </Link>
               <MencionesNotificaciones userId={user.id} />
               {user.rol === "admin" && (
                 <>

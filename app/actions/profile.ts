@@ -20,3 +20,25 @@ export async function updateOwnTelefonoAction(formData: FormData) {
 
   revalidatePath("/", "layout");
 }
+
+export async function updateOwnEmailAction(formData: FormData) {
+  const user = await requireAuthUser();
+  const raw = String(formData.get("email") ?? "").trim();
+  const email = raw || null;
+
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new Error("Ingresa un email válido.");
+  }
+
+  const supabase = await createServerSupabaseClient();
+  const { error } = await supabase
+    .from("user_profiles")
+    .update({ email })
+    .eq("id", user.id);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath("/", "layout");
+}

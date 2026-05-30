@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CronogramaAlertsSection } from "./components/CronogramaAlertsSection";
 import { LeadsBoard } from "./components/LeadsBoard";
+import { CitasHoySection } from "./components/citas/CitasHoySection";
 import { PaymentAlertsSection } from "./components/PaymentAlertsSection";
 import { DashboardHeader } from "./components/DashboardHeader";
 import { WeddingCard } from "./components/WeddingCard";
@@ -8,6 +9,7 @@ import { NewWeddingModalButton } from "./components/NewWeddingModalButton";
 import { buildCronogramaAlerts } from "./data/cronograma-alerts";
 import { buildPaymentAlerts } from "./data/payment-alerts";
 import type { LeadRow } from "./data/leads";
+import type { CitaRow } from "./data/citas";
 import type { ProveedorRow } from "./data/providers";
 import { mapBodaToWedding, type BodaRow } from "./data/weddings";
 import { requireAuthUser } from "@/lib/auth/user-profiles";
@@ -30,6 +32,7 @@ export default async function Home({ searchParams }: HomeProps) {
   let leads: LeadRow[] = [];
   let paymentAlerts: ReturnType<typeof buildPaymentAlerts> = [];
   let cronogramaAlerts: ReturnType<typeof buildCronogramaAlerts> = [];
+  let citasHoy: CitaRow[] = [];
 
   const { data: bodasData, error: bodasError } = await supabase
     .from("bodas")
@@ -98,6 +101,28 @@ export default async function Home({ searchParams }: HomeProps) {
     );
   }
 
+  const { data: citasHoyData, error: citasHoyError } = await supabase
+    .from("citas")
+    .select("*")
+    .eq("fecha", today)
+    .order("hora_inicio", { ascending: true });
+
+  if (citasHoyError) {
+    console.error(citasHoyError);
+  } else if (citasHoyData) {
+    citasHoy = citasHoyData as CitaRow[];
+  }
+
+  const bodasById = Object.fromEntries(
+    ((bodasData ?? []) as BodaRow[]).map((b) => [
+      b.id,
+      { nombre_pareja: b.nombre_pareja },
+    ]),
+  );
+  const leadsById = Object.fromEntries(
+    leads.map((l) => [l.id, { nombre_pareja: l.nombre_pareja }]),
+  );
+
   return (
     <div className="min-h-full bg-bloom-canvas font-sans">
       <DashboardHeader user={user} />
@@ -105,6 +130,11 @@ export default async function Home({ searchParams }: HomeProps) {
       <main className="mx-auto max-w-5xl px-6 py-10 sm:px-8">
         <PaymentAlertsSection alerts={paymentAlerts} />
         <CronogramaAlertsSection alerts={cronogramaAlerts} />
+        <CitasHoySection
+          citas={citasHoy}
+          bodasById={bodasById}
+          leadsById={leadsById}
+        />
 
         <div className="inline-flex rounded-full border border-bloom-border bg-bloom-surface p-1">
           <Link
@@ -132,6 +162,12 @@ export default async function Home({ searchParams }: HomeProps) {
             className="rounded-full px-4 py-2 text-sm font-medium text-bloom-ink transition-colors hover:bg-bloom-border"
           >
             Directorio
+          </Link>
+          <Link
+            href="/calendario"
+            className="rounded-full px-4 py-2 text-sm font-medium text-bloom-ink transition-colors hover:bg-bloom-border"
+          >
+            Calendario
           </Link>
         </div>
 

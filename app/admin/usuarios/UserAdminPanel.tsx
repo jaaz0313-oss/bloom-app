@@ -8,6 +8,7 @@ type UserItem = {
   username: string;
   nombre: string;
   telefono: string | null;
+  email: string | null;
   rol: UserRole;
   activo: boolean;
 };
@@ -51,6 +52,12 @@ export function UserAdminPanel({
             type="tel"
             className={inputClass}
             placeholder="Teléfono (opcional)"
+          />
+          <input
+            name="email"
+            type="email"
+            className={inputClass}
+            placeholder="Email (opcional)"
           />
           <select name="rol" className={inputClass} defaultValue="lider" required>
             {roles.map((role) => (
@@ -110,6 +117,13 @@ export function UserAdminPanel({
                   defaultValue={user.telefono ?? ""}
                   className={inputClass}
                   placeholder="Teléfono"
+                />
+                <input
+                  name="email"
+                  type="email"
+                  defaultValue={user.email ?? ""}
+                  className={inputClass}
+                  placeholder="Email"
                 />
                 <select name="rol" defaultValue={user.rol} className={inputClass}>
                   {roles.map((role) => (

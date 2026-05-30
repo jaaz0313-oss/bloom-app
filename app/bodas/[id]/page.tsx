@@ -7,8 +7,10 @@ import { DeleteWeddingButton } from "@/app/components/bodas/DeleteWeddingButton"
 import { ShareWithClientButton } from "@/app/components/bodas/ShareWithClientButton";
 import { PaymentProjection } from "@/app/components/bodas/PaymentProjection";
 import { CronogramaContratacion } from "@/app/components/CronogramaContratacion";
+import { CitasSection } from "@/app/components/citas/CitasSection";
 import { NotasInternas } from "@/app/components/bodas/NotasInternas";
 import { ProviderList } from "@/app/components/bodas/ProviderList";
+import type { CitaRow } from "@/app/data/citas";
 import type { NotaBodaRow } from "@/app/data/notas-boda";
 import type { BodaRow } from "@/app/data/weddings";
 import { groupPagosByProveedor, type PagoRow } from "@/app/data/pagos";
@@ -95,7 +97,7 @@ export default async function BodaDetailPage({ params }: PageProps) {
 
   const { data: equipoData, error: equipoError } = await supabase
     .from("user_profiles")
-    .select("id, nombre, username, telefono")
+    .select("id, nombre, username, telefono, email")
     .eq("activo", true)
     .order("nombre", { ascending: true });
 
@@ -104,6 +106,32 @@ export default async function BodaDetailPage({ params }: PageProps) {
   }
 
   const equipo = (equipoData ?? []) as EquipoUsuarioMencion[];
+
+  const { data: citasData } = await supabase
+    .from("citas")
+    .select("*")
+    .eq("boda_id", id)
+    .order("fecha", { ascending: true })
+    .order("hora_inicio", { ascending: true });
+
+  const { data: bodasLookup } = await supabase
+    .from("bodas")
+    .select(
+      "id, nombre_pareja, telefono_novia, telefono_novio, email_novia, email_novio",
+    )
+    .order("nombre_pareja", { ascending: true });
+
+  const { data: leadsLookup } = await supabase
+    .from("leads")
+    .select("id, nombre_pareja")
+    .order("nombre_pareja", { ascending: true });
+
+  const equipoCitas = (equipoData ?? []).map((u) => ({
+    id: u.id,
+    nombre: u.nombre,
+    username: u.username,
+    email: u.email ?? null,
+  }));
 
   return (
     <div className="min-h-full bg-bloom-canvas font-sans">
@@ -159,6 +187,17 @@ export default async function BodaDetailPage({ params }: PageProps) {
             currentUserId={user.id}
             currentUserNombre={user.nombre}
             role={user.rol}
+          />
+
+          <CitasSection
+            initialCitas={(citasData ?? []) as CitaRow[]}
+            bodas={bodasLookup ?? []}
+            leads={leadsLookup ?? []}
+            equipo={equipoCitas}
+            role={user.rol}
+            currentUserId={user.id}
+            currentUserNombre={user.nombre}
+            defaultBodaId={id}
           />
 
           <PaymentProjection

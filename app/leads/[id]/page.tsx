@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DashboardHeader } from "@/app/components/DashboardHeader";
+import { CitasSection } from "@/app/components/citas/CitasSection";
 import { LeadCotizacionesSection } from "@/app/components/leads/LeadCotizacionesSection";
 import {
   LEAD_STATUS_LABELS,
   LEAD_STATUS_STYLES,
   type LeadRow,
 } from "@/app/data/leads";
+import type { CitaRow } from "@/app/data/citas";
 import type { CotizacionRow } from "@/app/data/cotizaciones";
 import { formatCurrency, formatShortDate } from "@/lib/format";
 import { requireAuthUser } from "@/lib/auth/user-profiles";
@@ -40,6 +42,31 @@ export default async function LeadDetailPage({ params }: PageProps) {
     .select("*")
     .eq("lead_id", id)
     .order("created_at", { ascending: false });
+
+  const { data: citasData } = await supabase
+    .from("citas")
+    .select("*")
+    .eq("lead_id", id)
+    .order("fecha", { ascending: true })
+    .order("hora_inicio", { ascending: true });
+
+  const { data: bodasLookup } = await supabase
+    .from("bodas")
+    .select(
+      "id, nombre_pareja, telefono_novia, telefono_novio, email_novia, email_novio",
+    )
+    .order("nombre_pareja", { ascending: true });
+
+  const { data: leadsLookup } = await supabase
+    .from("leads")
+    .select("id, nombre_pareja")
+    .order("nombre_pareja", { ascending: true });
+
+  const { data: equipoData } = await supabase
+    .from("user_profiles")
+    .select("id, nombre, username, email")
+    .eq("activo", true)
+    .order("nombre", { ascending: true });
 
   return (
     <div className="min-h-full bg-bloom-canvas font-sans">
@@ -101,6 +128,17 @@ export default async function LeadDetailPage({ params }: PageProps) {
             </div>
           )}
         </dl>
+
+        <CitasSection
+          initialCitas={(citasData ?? []) as CitaRow[]}
+          bodas={bodasLookup ?? []}
+          leads={leadsLookup ?? []}
+          equipo={equipoData ?? []}
+          role={user.rol}
+          currentUserId={user.id}
+          currentUserNombre={user.nombre}
+          defaultLeadId={id}
+        />
 
         <LeadCotizacionesSection
           lead={leadRow}

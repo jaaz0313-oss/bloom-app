@@ -24,6 +24,28 @@ export function formatShortDate(isoDate: string): string {
   }).format(date);
 }
 
+/** Fecha larga en español, estable (evita hydration mismatch). */
+export function formatLongDateStable(isoDate: string): string {
+  const datePart = isoDate.includes("T") ? isoDate.split("T")[0] : isoDate;
+  const [year, month, day] = datePart.split("-").map(Number);
+  const monthLabels = [
+    "enero",
+    "febrero",
+    "marzo",
+    "abril",
+    "mayo",
+    "junio",
+    "julio",
+    "agosto",
+    "septiembre",
+    "octubre",
+    "noviembre",
+    "diciembre",
+  ];
+  const monthLabel = monthLabels[(month ?? 1) - 1] ?? "";
+  return `${day} de ${monthLabel} de ${year}`;
+}
+
 /** Fecha corta con abreviaturas fijas (evita hydration mismatch entre servidor y cliente). */
 export function formatShortDateStable(isoDate: string): string {
   const [year, month, day] = isoDate.split("-").map(Number);
