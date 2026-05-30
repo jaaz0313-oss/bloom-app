@@ -8,6 +8,7 @@ export type UserProfile = {
   id: string;
   username: string;
   nombre: string;
+  telefono: string | null;
   rol: UserRole;
   activo: boolean;
 };
@@ -16,6 +17,7 @@ export type AuthUser = {
   id: string;
   username: string;
   nombre: string;
+  telefono: string | null;
   rol: UserRole;
   permissions: Permission[];
 };
@@ -30,7 +32,7 @@ export const getCurrentAuthUser = cache(async (): Promise<AuthUser | null> => {
 
   const { data, error } = await supabase
     .from("user_profiles")
-    .select("id, username, nombre, rol, activo")
+    .select("id, username, nombre, telefono, rol, activo")
     .eq("id", session.user.id)
     .maybeSingle();
 
@@ -41,6 +43,7 @@ export const getCurrentAuthUser = cache(async (): Promise<AuthUser | null> => {
     id: profile.id,
     username: profile.username,
     nombre: profile.nombre,
+    telefono: profile.telefono ?? null,
     rol: profile.rol,
     permissions: getPermissionsForRole(profile.rol),
   };

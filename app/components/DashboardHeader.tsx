@@ -3,12 +3,14 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { UserPhoneEditor } from "@/app/components/UserPhoneEditor";
 import { ROLE_LABELS, type UserRole } from "@/lib/auth/roles";
 
 type DashboardHeaderProps = {
   user: {
     nombre: string;
     rol: UserRole;
+    telefono: string | null;
   };
 };
 
@@ -45,6 +47,7 @@ export function DashboardHeader({ user }: DashboardHeaderProps) {
               {ROLE_LABELS[user.rol]}
             </p>
             <p className="font-medium text-bloom-ink">{user.nombre}</p>
+            <UserPhoneEditor initialTelefono={user.telefono} />
             <div className="mt-2 flex items-center justify-end gap-2">
               {user.rol === "admin" && (
                 <>

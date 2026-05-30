@@ -18,6 +18,7 @@ export async function createUserAction(formData: FormData) {
 
   const username = String(formData.get("username") ?? "").trim().toLowerCase();
   const nombre = String(formData.get("nombre") ?? "").trim();
+  const telefono = String(formData.get("telefono") ?? "").trim() || null;
   const rol = String(formData.get("rol") ?? "").trim() as UserRole;
   const password = String(formData.get("password") ?? "");
 
@@ -41,6 +42,7 @@ export async function createUserAction(formData: FormData) {
     id: authUser.user.id,
     username,
     nombre,
+    telefono,
     rol,
     activo: true,
   });
@@ -55,6 +57,7 @@ export async function updateUserAction(formData: FormData) {
 
   const id = String(formData.get("id") ?? "");
   const nombre = String(formData.get("nombre") ?? "").trim();
+  const telefono = String(formData.get("telefono") ?? "").trim() || null;
   const rol = String(formData.get("rol") ?? "").trim() as UserRole;
   const password = String(formData.get("password") ?? "").trim();
 
@@ -64,7 +67,7 @@ export async function updateUserAction(formData: FormData) {
 
   const { error: profileError } = await supabaseAdmin
     .from("user_profiles")
-    .update({ nombre, rol })
+    .update({ nombre, telefono, rol })
     .eq("id", id);
 
   if (profileError) throw new Error(profileError.message);
