@@ -13,6 +13,7 @@ import { supabase } from "@/lib/supabase";
 type BriefBodaProps = {
   bodaId: string;
   initialBrief: BriefBodaRow | null;
+  embedded?: boolean;
 };
 
 type FieldDef = {
@@ -159,7 +160,11 @@ function formPayload(data: BriefBodaFormData): BriefBodaFormData {
   return payload as BriefBodaFormData;
 }
 
-export function BriefBoda({ bodaId, initialBrief }: BriefBodaProps) {
+export function BriefBoda({
+  bodaId,
+  initialBrief,
+  embedded = false,
+}: BriefBodaProps) {
   const router = useRouter();
   const [briefId, setBriefId] = useState<string | null>(initialBrief?.id ?? null);
   const [form, setForm] = useState<BriefBodaFormData>(() =>
@@ -287,26 +292,48 @@ export function BriefBoda({ bodaId, initialBrief }: BriefBodaProps) {
     });
   }
 
+  const shellClass = embedded
+    ? ""
+    : "rounded-2xl border border-bloom-border bg-bloom-surface p-5 shadow-sm";
+  const Shell = embedded ? "div" : "section";
+
   return (
-    <section className="rounded-2xl border border-bloom-border bg-bloom-surface p-5 shadow-sm">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+    <Shell className={shellClass}>
+      <div
+        className={`flex flex-wrap items-start justify-between gap-3 ${
+          embedded ? "mb-4" : ""
+        }`}
+      >
+        {embedded ? (
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="font-display text-xl text-bloom-ink">Brief de la boda</h2>
             <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-wide text-amber-900">
               Solo visible para el equipo
             </span>
+            {!briefId && (
+              <span className="text-xs text-bloom-muted">Sin brief guardado aún</span>
+            )}
           </div>
-          <p className="mt-1 text-sm text-bloom-muted">
-            Guía interna del equipo - Segunda reunión
-          </p>
-        </div>
-        {!briefId && (
-          <span className="text-xs text-bloom-muted">Sin brief guardado aún</span>
+        ) : (
+          <>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="font-display text-xl text-bloom-ink">Brief de la boda</h2>
+                <span className="inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-wide text-amber-900">
+                  Solo visible para el equipo
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-bloom-muted">
+                Guía interna del equipo - Segunda reunión
+              </p>
+            </div>
+            {!briefId && (
+              <span className="text-xs text-bloom-muted">Sin brief guardado aún</span>
+            )}
+          </>
         )}
       </div>
 
-      <div className="mt-5 space-y-3">
+      <div className={`space-y-3 ${embedded ? "" : "mt-5"}`}>
         {BRIEF_SECTIONS.map((section) => {
           const isOpen = expanded[section.id] ?? false;
           const isEditing = editingSection === section.id;
@@ -410,7 +437,7 @@ export function BriefBoda({ bodaId, initialBrief }: BriefBodaProps) {
           <span className="text-sm text-green-700">Brief guardado</span>
         )}
       </div>
-    </section>
+    </Shell>
   );
 }
 

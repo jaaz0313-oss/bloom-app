@@ -18,12 +18,29 @@ type CronogramaContratacionProps = {
   bodaId: string;
   fechaBoda: string;
   canManage: boolean;
+  embedded?: boolean;
 };
+
+function CronogramaShell({
+  embedded,
+  children,
+}: {
+  embedded: boolean;
+  children: React.ReactNode;
+}) {
+  if (embedded) return <div>{children}</div>;
+  return (
+    <section className="rounded-2xl border border-bloom-border bg-bloom-surface p-6 shadow-sm">
+      {children}
+    </section>
+  );
+}
 
 export function CronogramaContratacion({
   bodaId,
   fechaBoda,
   canManage,
+  embedded = false,
 }: CronogramaContratacionProps) {
   const router = useRouter();
   const [items, setItems] = useState<CronogramaItemRow[]>([]);
@@ -150,22 +167,28 @@ export function CronogramaContratacion({
 
   if (loading) {
     return (
-      <section className="rounded-2xl border border-bloom-border bg-bloom-surface p-6 shadow-sm">
-        <h2 className="font-display text-xl text-bloom-ink">
-          Cronograma de contratación
-        </h2>
-        <p className="mt-4 text-sm text-bloom-muted">Cargando hitos…</p>
-      </section>
+      <CronogramaShell embedded={embedded}>
+        {!embedded && (
+          <h2 className="font-display text-xl text-bloom-ink">
+            Cronograma de contratación
+          </h2>
+        )}
+        <p className={`text-sm text-bloom-muted ${embedded ? "" : "mt-4"}`}>
+          Cargando hitos…
+        </p>
+      </CronogramaShell>
     );
   }
 
   if (items.length === 0) {
     return (
-      <section className="rounded-2xl border border-bloom-border bg-bloom-surface p-6 shadow-sm">
-        <h2 className="font-display text-xl text-bloom-ink">
-          Cronograma de contratación
-        </h2>
-        <p className="mt-1 text-sm text-bloom-muted">
+      <CronogramaShell embedded={embedded}>
+        {!embedded && (
+          <h2 className="font-display text-xl text-bloom-ink">
+            Cronograma de contratación
+          </h2>
+        )}
+        <p className={`text-sm text-bloom-muted ${embedded ? "mb-0" : "mt-1"}`}>
           Esta boda aún no tiene hitos de contratación.
         </p>
 
@@ -185,21 +208,32 @@ export function CronogramaContratacion({
             {generating ? "Generando…" : "Generar cronograma"}
           </button>
         )}
-      </section>
+      </CronogramaShell>
     );
   }
 
   return (
-    <section className="rounded-2xl border border-bloom-border bg-bloom-surface p-6 shadow-sm">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h2 className="font-display text-xl text-bloom-ink">
-            Cronograma de contratación
-          </h2>
-          <p className="mt-1 text-sm text-bloom-muted">
+    <CronogramaShell embedded={embedded}>
+      <div
+        className={`flex flex-col gap-4 sm:flex-row sm:items-end ${
+          embedded ? "sm:justify-end" : "sm:justify-between"
+        }`}
+      >
+        {!embedded && (
+          <div>
+            <h2 className="font-display text-xl text-bloom-ink">
+              Cronograma de contratación
+            </h2>
+            <p className="mt-1 text-sm text-bloom-muted">
+              Hitos recomendados · boda el {formatShortDate(fechaBoda)}
+            </p>
+          </div>
+        )}
+        {embedded && (
+          <p className="text-sm text-bloom-muted sm:mr-auto">
             Hitos recomendados · boda el {formatShortDate(fechaBoda)}
           </p>
-        </div>
+        )}
         <div className="flex flex-col items-start gap-2 sm:items-end">
           <p className="text-sm font-medium text-bloom-ink">
             {completados} de {total} completados
@@ -338,7 +372,7 @@ export function CronogramaContratacion({
           );
         })}
       </ul>
-    </section>
+    </CronogramaShell>
   );
 }
 

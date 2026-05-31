@@ -22,6 +22,7 @@ type CitasSectionProps = {
   currentUserNombre: string;
   defaultBodaId?: string | null;
   defaultLeadId?: string | null;
+  embedded?: boolean;
 };
 
 export function CitasSection({
@@ -34,6 +35,7 @@ export function CitasSection({
   currentUserNombre,
   defaultBodaId = null,
   defaultLeadId = null,
+  embedded = false,
 }: CitasSectionProps) {
   const [citas, setCitas] = useState(() => initialCitas.map(normalizeCitaRow));
   const [modalOpen, setModalOpen] = useState(false);
@@ -55,15 +57,26 @@ export function CitasSection({
     });
   }
 
+  const shellClass = embedded
+    ? ""
+    : "rounded-2xl border border-bloom-border bg-bloom-surface p-5 shadow-sm";
+  const Shell = embedded ? "div" : "section";
+
   return (
-    <section className="rounded-2xl border border-bloom-border bg-bloom-surface p-5 shadow-sm">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="font-display text-xl text-bloom-ink">Citas</h2>
-          <p className="mt-1 text-sm text-bloom-muted">
-            Reuniones y compromisos relacionados.
-          </p>
-        </div>
+    <Shell className={shellClass}>
+      <div
+        className={`flex flex-col gap-3 sm:flex-row sm:items-center ${
+          embedded ? "sm:justify-end" : "sm:justify-between"
+        }`}
+      >
+        {!embedded && (
+          <div>
+            <h2 className="font-display text-xl text-bloom-ink">Citas</h2>
+            <p className="mt-1 text-sm text-bloom-muted">
+              Reuniones y compromisos relacionados.
+            </p>
+          </div>
+        )}
         <button
           type="button"
           onClick={() => setModalOpen(true)}
@@ -74,11 +87,15 @@ export function CitasSection({
       </div>
 
       {sorted.length === 0 ? (
-        <p className="mt-6 rounded-xl border border-dashed border-bloom-border bg-bloom-canvas/60 px-4 py-8 text-center text-sm text-bloom-muted">
+        <p
+          className={`rounded-xl border border-dashed border-bloom-border bg-bloom-canvas/60 px-4 py-8 text-center text-sm text-bloom-muted ${
+            embedded ? "mt-4" : "mt-6"
+          }`}
+        >
           No hay citas programadas.
         </p>
       ) : (
-        <ul className="mt-5 space-y-3">
+        <ul className={`space-y-3 ${embedded ? "mt-4" : "mt-5"}`}>
           {sorted.map((cita) => (
             <li key={cita.id}>
               <CitaConAcciones
@@ -114,6 +131,6 @@ export function CitasSection({
         defaultBodaId={defaultBodaId}
         defaultLeadId={defaultLeadId}
       />
-    </section>
+    </Shell>
   );
 }

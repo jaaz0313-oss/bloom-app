@@ -22,6 +22,7 @@ type NotasInternasProps = {
   currentUserId: string;
   currentUserNombre: string;
   role: UserRole;
+  embedded?: boolean;
 };
 
 const textareaClass =
@@ -35,6 +36,7 @@ export function NotasInternas({
   currentUserId,
   currentUserNombre,
   role,
+  embedded = false,
 }: NotasInternasProps) {
   const router = useRouter();
   const [notas, setNotas] = useState(initialNotas);
@@ -148,20 +150,34 @@ export function NotasInternas({
     }
   }
 
-  return (
-    <section className="rounded-2xl border border-bloom-border bg-bloom-surface p-5 shadow-sm">
-      <div className="flex flex-wrap items-center gap-2">
-        <h2 className="font-display text-xl text-bloom-ink">Notas del equipo</h2>
-        <span className="inline-flex rounded-full bg-bloom-canvas px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-bloom-muted">
-          Solo visible para el equipo
-        </span>
-      </div>
-      <p className="mt-1 text-sm text-bloom-muted">
-        Notas internas para coordinación. Usa @ para mencionar a alguien del
-        equipo.
-      </p>
+  const shellClass = embedded
+    ? ""
+    : "rounded-2xl border border-bloom-border bg-bloom-surface p-5 shadow-sm";
+  const Shell = embedded ? "div" : "section";
 
-      <form className="mt-5 space-y-3" onSubmit={handleAgregar}>
+  return (
+    <Shell className={shellClass}>
+      {!embedded && (
+        <>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="font-display text-xl text-bloom-ink">Notas del equipo</h2>
+            <span className="inline-flex rounded-full bg-bloom-canvas px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-bloom-muted">
+              Solo visible para el equipo
+            </span>
+          </div>
+          <p className="mt-1 text-sm text-bloom-muted">
+            Notas internas para coordinación. Usa @ para mencionar a alguien del
+            equipo.
+          </p>
+        </>
+      )}
+      {embedded && (
+        <p className="mb-4 text-sm text-bloom-muted">
+          Usa @ para mencionar a alguien del equipo.
+        </p>
+      )}
+
+      <form className={`space-y-3 ${embedded ? "" : "mt-5"}`} onSubmit={handleAgregar}>
         <label htmlFor="nota-interna-contenido" className="sr-only">
           Nueva nota
         </label>
@@ -228,6 +244,6 @@ export function NotasInternas({
           ))}
         </ul>
       )}
-    </section>
+    </Shell>
   );
 }

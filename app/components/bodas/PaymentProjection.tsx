@@ -4,23 +4,39 @@ type PaymentProjectionProps = {
   totalContratado: number;
   totalPagado: number;
   saldoPendiente: number;
+  embedded?: boolean;
 };
 
 export function PaymentProjection({
   totalContratado,
   totalPagado,
   saldoPendiente,
+  embedded = false,
 }: PaymentProjectionProps) {
-  return (
-    <section className="rounded-2xl border border-bloom-border bg-bloom-surface p-6 shadow-sm">
-      <h2 className="font-display text-xl text-bloom-ink">
-        Proyección de pagos
-      </h2>
-      <p className="mt-1 text-sm text-bloom-muted">
-        Resumen de proveedores con estado contratado
-      </p>
+  const shellClass = embedded
+    ? ""
+    : "rounded-2xl border border-bloom-border bg-bloom-surface p-6 shadow-sm";
+  const Shell = embedded ? "div" : "section";
 
-      <dl className="mt-5 grid gap-4 sm:grid-cols-3">
+  return (
+    <Shell className={shellClass}>
+      {!embedded && (
+        <>
+          <h2 className="font-display text-xl text-bloom-ink">
+            Proyección de pagos
+          </h2>
+          <p className="mt-1 text-sm text-bloom-muted">
+            Resumen de proveedores con estado contratado
+          </p>
+        </>
+      )}
+      {embedded && (
+        <p className="mb-4 text-sm text-bloom-muted">
+          Resumen de proveedores con estado contratado
+        </p>
+      )}
+
+      <dl className={`grid gap-4 sm:grid-cols-3 ${embedded ? "" : "mt-5"}`}>
         <div className="rounded-xl bg-bloom-canvas px-4 py-3">
           <dt className="text-xs font-medium uppercase tracking-wider text-bloom-muted">
             Total contratado
@@ -46,6 +62,6 @@ export function PaymentProjection({
           </dd>
         </div>
       </dl>
-    </section>
+    </Shell>
   );
 }

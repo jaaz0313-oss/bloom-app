@@ -18,6 +18,7 @@ type ClientInfoSectionProps = {
   plannerName?: string;
   providers?: ProveedorRow[];
   pagosByProveedor?: Record<string, PagoRow[]>;
+  embedded?: boolean;
 };
 
 type ClientInfoForm = {
@@ -41,6 +42,7 @@ export function ClientInfoSection({
   plannerName,
   providers = [],
   pagosByProveedor = {},
+  embedded = false,
 }: ClientInfoSectionProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -158,17 +160,28 @@ export function ClientInfoSection({
     }
   }
 
+  const shellClass = embedded
+    ? ""
+    : "rounded-2xl border border-bloom-border bg-bloom-surface p-6 shadow-sm";
+  const Shell = embedded ? "div" : "section";
+
   return (
-    <section className="rounded-2xl border border-bloom-border bg-bloom-surface p-6 shadow-sm">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h2 className="font-display text-xl text-bloom-ink">
-            Información de los clientes
-          </h2>
-          <p className="mt-1 text-sm text-bloom-muted">
-            Datos de contacto y documentación de los novios.
-          </p>
-        </div>
+    <Shell className={shellClass}>
+      <div
+        className={`flex flex-col gap-4 sm:flex-row sm:items-end ${
+          embedded ? "sm:justify-end" : "sm:justify-between"
+        }`}
+      >
+        {!embedded && (
+          <div>
+            <h2 className="font-display text-xl text-bloom-ink">
+              Información de los clientes
+            </h2>
+            <p className="mt-1 text-sm text-bloom-muted">
+              Datos de contacto y documentación de los novios.
+            </p>
+          </div>
+        )}
         <div className="flex flex-wrap gap-2">
           {hasPermission(role, "whatsapp.send") && (
             <SendWhatsAppButton
@@ -522,7 +535,7 @@ export function ClientInfoSection({
           </div>
         </div>
       )}
-    </section>
+    </Shell>
   );
 }
 

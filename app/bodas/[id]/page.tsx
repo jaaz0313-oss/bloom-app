@@ -1,28 +1,22 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DashboardHeader } from "@/app/components/DashboardHeader";
-import { AddProviderModalButton } from "@/app/components/bodas/AddProviderModalButton";
-import { ClientInfoSection } from "@/app/components/bodas/ClientInfoSection";
+import { BodaDetailSections } from "@/app/components/bodas/BodaDetailSections";
 import { DeleteWeddingButton } from "@/app/components/bodas/DeleteWeddingButton";
 import { ShareWithClientButton } from "@/app/components/bodas/ShareWithClientButton";
-import { PaymentProjection } from "@/app/components/bodas/PaymentProjection";
-import { CronogramaContratacion } from "@/app/components/CronogramaContratacion";
-import { CitasSection } from "@/app/components/citas/CitasSection";
-import { BriefBoda } from "@/app/components/bodas/BriefBoda";
-import { ContratoSection } from "@/app/components/bodas/ContratoSection";
-import { NotasInternas } from "@/app/components/bodas/NotasInternas";
-import { ProviderList } from "@/app/components/bodas/ProviderList";
 import type { CitaRow } from "@/app/data/citas";
 import type { BriefBodaRow } from "@/app/data/brief-boda";
 import type { ContratoRow } from "@/app/data/contratos";
 import type { NotaBodaRow } from "@/app/data/notas-boda";
 import type { BodaRow } from "@/app/data/weddings";
 import { groupPagosByProveedor, type PagoRow } from "@/app/data/pagos";
-import {
-  computePaymentProjection,
-  type ProveedorRow,
-} from "@/app/data/providers";
+import type { ProveedorRow } from "@/app/data/providers";
 import { formatWeddingDate } from "@/lib/format";
+import {
+  hasBriefContent,
+  hasClientInfoContent,
+  hasContratoContent,
+} from "@/lib/boda-section-content";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { requireAuthUser } from "@/lib/auth/user-profiles";
 import { hasPermission } from "@/lib/auth/roles";
@@ -85,8 +79,6 @@ export default async function BodaDetailPage({ params }: PageProps) {
     }
   }
 
-  const projection = computePaymentProjection(providers, pagosByProveedor);
-
   const { data: notasData, error: notasError } = await supabase
     .from("notas_boda")
     .select("*")
@@ -114,6 +106,11 @@ export default async function BodaDetailPage({ params }: PageProps) {
     .maybeSingle();
 
   const contrato = (contratoData as ContratoRow | null) ?? null;
+
+  const { count: cronogramaCount } = await supabase
+    .from("cronograma_items")
+    .select("*", { count: "exact", head: true })
+    .eq("boda_id", id);
 
   const { data: equipoData, error: equipoError } = await supabase
     .from("user_profiles")
@@ -192,99 +189,29 @@ export default async function BodaDetailPage({ params }: PageProps) {
           </div>
         </header>
 
-        <div className="mt-8 space-y-8">
-          <ClientInfoSection
-            bodaId={id}
-            boda={bodaRow}
-            role={user.rol}
-            plannerName={user.nombre}
-            providers={providers}
-            pagosByProveedor={pagosByProveedor}
-          />
-
-          <NotasInternas
-            bodaId={id}
-            bodaNombre={bodaRow.nombre_pareja}
-            initialNotas={notas}
-            equipo={equipo}
-            currentUserId={user.id}
-            currentUserNombre={user.nombre}
-            role={user.rol}
-          />
-
-          {canViewBrief && (
-            <BriefBoda bodaId={id} initialBrief={brief} />
-          )}
-
-          {canViewContrato && (
-            <ContratoSection
-              bodaId={id}
-              boda={bodaRow}
-              initialContrato={contrato}
-            />
-          )}
-
-          <CitasSection
-            initialCitas={(citasData ?? []) as CitaRow[]}
-            bodas={bodasLookup ?? []}
-            leads={leadsLookup ?? []}
-            equipo={equipoCitas}
-            role={user.rol}
-            currentUserId={user.id}
-            currentUserNombre={user.nombre}
-            defaultBodaId={id}
-          />
-
-          <PaymentProjection
-            totalContratado={projection.totalContratado}
-            totalPagado={projection.totalPagado}
-            saldoPendiente={projection.saldoPendiente}
-          />
-
-          <section>
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <h2 className="font-display text-xl text-bloom-ink">
-                  Proveedores
-                </h2>
-                <p className="mt-1 text-sm text-bloom-muted">
-                  {providers.length}{" "}
-                  {providers.length === 1 ? "proveedor" : "proveedores"}{" "}
-                  registrados
-                </p>
-              </div>
-              {hasPermission(user.rol, "providers.manage") && (
-                <AddProviderModalButton
-                  bodaId={id}
-                  bodaNombre={bodaRow.nombre_pareja}
-                  role={user.rol}
-                />
-              )}
-            </div>
-
-            <div className="mt-5">
-              <ProviderList
-                providers={providers}
-                bodaId={id}
-                boda={{
-                  nombrePareja: bodaRow.nombre_pareja,
-                  fechaBoda: bodaRow.fecha_boda,
-                  ciudad: bodaRow.ciudad,
-                }}
-                plannerName={user.nombre}
-                pagosByProveedor={pagosByProveedor}
-                role={user.rol}
-                whatsappGrupoLink={bodaRow.whatsapp_grupo_link}
-              />
-            </div>
-          </section>
-
-          <CronogramaContratacion
-            bodaId={id}
-            fechaBoda={bodaRow.fecha_boda}
-            canManage={hasPermission(user.rol, "cronograma.manage")}
-          />
-        </div>
+        <BodaDetailSections
+          bodaId={id}
+          boda={bodaRow}
+          role={user.rol}
+          plannerName={user.nombre}
+          currentUserId={user.id}
+          providers={providers}
+          pagosByProveedor={pagosByProveedor}
+          notas={notas}
+          brief={brief}
+          contrato={contrato}
+          citas={(citasData ?? []) as CitaRow[]}
+          bodasLookup={bodasLookup ?? []}
+          leadsLookup={leadsLookup ?? []}
+          equipo={equipo}
+          equipoCitas={equipoCitas}
+          canViewBrief={canViewBrief}
+          canViewContrato={canViewContrato}
+          hasCronograma={(cronogramaCount ?? 0) > 0}
+          hasClientInfo={hasClientInfoContent(bodaRow)}
+          hasBrief={hasBriefContent(brief)}
+          hasContrato={hasContratoContent(contrato, bodaRow)}
+        />
 
         {hasPermission(user.rol, "weddings.delete") && (
           <div className="mt-12 border-t border-bloom-border pt-8">

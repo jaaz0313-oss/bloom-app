@@ -19,6 +19,7 @@ import { downloadContratoDocx } from "@/lib/download-contrato-docx";
 import { supabase } from "@/lib/supabase";
 
 type ContratoSectionProps = {
+  embedded?: boolean;
   bodaId: string;
   boda: Pick<
     BodaRow,
@@ -68,6 +69,7 @@ function buildInitialForm(
 }
 
 export function ContratoSection({
+  embedded = false,
   bodaId,
   boda,
   initialContrato,
@@ -286,15 +288,26 @@ export function ContratoSection({
     }
   }
 
+  const shellClass = embedded
+    ? ""
+    : "rounded-2xl border border-bloom-border bg-bloom-surface p-6 shadow-sm";
+  const Shell = embedded ? "div" : "section";
+
   return (
-    <section className="rounded-2xl border border-bloom-border bg-bloom-surface p-6 shadow-sm">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h2 className="font-display text-xl text-bloom-ink">Contrato</h2>
-          <p className="mt-1 text-sm text-bloom-muted">
-            Honorarios, anticipo y generación del documento para firma
-          </p>
-        </div>
+    <Shell className={shellClass}>
+      <div
+        className={`flex flex-col gap-4 sm:flex-row sm:items-start ${
+          embedded ? "sm:justify-end" : "sm:justify-between"
+        }`}
+      >
+        {!embedded && (
+          <div>
+            <h2 className="font-display text-xl text-bloom-ink">Contrato</h2>
+            <p className="mt-1 text-sm text-bloom-muted">
+              Honorarios, anticipo y generación del documento para firma
+            </p>
+          </div>
+        )}
         <span
           className={`inline-flex self-start rounded-full border px-3 py-1 text-xs font-medium ${CONTRATO_ESTADO_STYLES[estado]}`}
         >
@@ -313,7 +326,10 @@ export function ContratoSection({
         </p>
       )}
 
-      <form className="mt-5 space-y-4" onSubmit={handleSaveChanges}>
+      <form
+        className={`space-y-4 ${embedded ? "mt-4" : "mt-5"}`}
+        onSubmit={handleSaveChanges}
+      >
         <Field label="¿Quién firma el contrato?">
           <select
             className={inputClass}
@@ -460,7 +476,7 @@ export function ContratoSection({
           </button>
         </div>
       </form>
-    </section>
+    </Shell>
   );
 }
 
