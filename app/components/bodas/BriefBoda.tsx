@@ -46,7 +46,6 @@ const BRIEF_SECTIONS: SectionDef[] = [
     title: "Ceremonia",
     fields: [
       { key: "ceremonia_tipo", label: "Tipo de ceremonia", type: "text" },
-      { key: "ceremonia_celebrante", label: "Celebrante", type: "text" },
       { key: "ceremonia_musica", label: "Música", rows: 2 },
       { key: "ceremonia_inspiracion", label: "Inspiración", rows: 3 },
     ],
@@ -65,13 +64,8 @@ const BRIEF_SECTIONS: SectionDef[] = [
     id: "recepcion",
     title: "Recepción",
     fields: [
-      { key: "recepcion_mesas", label: "Mesas", rows: 2 },
       { key: "recepcion_iluminacion", label: "Iluminación", rows: 2 },
       { key: "recepcion_musica", label: "Música", rows: 2 },
-      { key: "recepcion_primer_baile", label: "Primer baile", rows: 2 },
-      { key: "recepcion_baile_padres", label: "Baile con padres", rows: 2 },
-      { key: "recepcion_canciones_no", label: "Canciones que no quieren", rows: 2 },
-      { key: "recepcion_hora_loca", label: "Hora loca", rows: 2 },
     ],
   },
   {
@@ -83,7 +77,6 @@ const BRIEF_SECTIONS: SectionDef[] = [
       { key: "catering_restricciones", label: "Restricciones alimentarias", rows: 2 },
       { key: "catering_torta", label: "Torta", rows: 2 },
       { key: "catering_cocteleria", label: "Coctelería", rows: 2 },
-      { key: "catering_estacion_cafe", label: "Estación de café", rows: 2 },
     ],
   },
   {
@@ -91,8 +84,6 @@ const BRIEF_SECTIONS: SectionDef[] = [
     title: "Fotografía y Video",
     fields: [
       { key: "foto_estilo", label: "Estilo", rows: 2 },
-      { key: "foto_momentos_clave", label: "Momentos clave", rows: 3 },
-      { key: "foto_no_quieren", label: "Lo que no quieren", rows: 2 },
       { key: "foto_album", label: "Álbum físico", type: "checkbox" },
       { key: "foto_drone", label: "Tomas con drone", type: "checkbox" },
       { key: "foto_video", label: "Video", rows: 2 },
