@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { PagoRow } from "@/app/data/pagos";
 import { computeTotalPagado } from "@/app/data/pagos";
-import { formatCurrency, formatShortDate } from "@/lib/format";
+import { formatCurrency, formatShortDateStable } from "@/lib/format";
 import { AUDITORIA_ACCIONES, logAuditoria } from "@/lib/auditoria";
 import { supabase } from "@/lib/supabase";
 import { hasPermission, type UserRole } from "@/lib/auth/roles";
@@ -283,7 +283,7 @@ export function ProviderPayments({
                   {formatCurrency(pago.monto)}
                 </p>
                 <p className="text-bloom-muted">
-                  {formatShortDate(pago.fecha_pago)}
+                  {formatShortDateStable(pago.fecha_pago)}
                 </p>
               </div>
               {pago.concepto && (

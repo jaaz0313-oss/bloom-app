@@ -8,9 +8,11 @@ import { ShareWithClientButton } from "@/app/components/bodas/ShareWithClientBut
 import { PaymentProjection } from "@/app/components/bodas/PaymentProjection";
 import { CronogramaContratacion } from "@/app/components/CronogramaContratacion";
 import { CitasSection } from "@/app/components/citas/CitasSection";
+import { BriefBoda } from "@/app/components/bodas/BriefBoda";
 import { NotasInternas } from "@/app/components/bodas/NotasInternas";
 import { ProviderList } from "@/app/components/bodas/ProviderList";
 import type { CitaRow } from "@/app/data/citas";
+import type { BriefBodaRow } from "@/app/data/brief-boda";
 import type { NotaBodaRow } from "@/app/data/notas-boda";
 import type { BodaRow } from "@/app/data/weddings";
 import { groupPagosByProveedor, type PagoRow } from "@/app/data/pagos";
@@ -95,6 +97,14 @@ export default async function BodaDetailPage({ params }: PageProps) {
 
   const notas = (notasData ?? []) as NotaBodaRow[];
 
+  const { data: briefData } = await supabase
+    .from("brief_boda")
+    .select("*")
+    .eq("boda_id", id)
+    .maybeSingle();
+
+  const brief = (briefData as BriefBodaRow | null) ?? null;
+
   const { data: equipoData, error: equipoError } = await supabase
     .from("user_profiles")
     .select("id, nombre, username, telefono, email")
@@ -132,6 +142,8 @@ export default async function BodaDetailPage({ params }: PageProps) {
     username: u.username,
     email: u.email ?? null,
   }));
+
+  const canViewBrief = ["admin", "lider", "coordinadora"].includes(user.rol);
 
   return (
     <div className="min-h-full bg-bloom-canvas font-sans">
@@ -188,6 +200,10 @@ export default async function BodaDetailPage({ params }: PageProps) {
             currentUserNombre={user.nombre}
             role={user.rol}
           />
+
+          {canViewBrief && (
+            <BriefBoda bodaId={id} initialBrief={brief} />
+          )}
 
           <CitasSection
             initialCitas={(citasData ?? []) as CitaRow[]}
