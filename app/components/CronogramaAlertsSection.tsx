@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DashboardAccordionSection } from "@/app/components/DashboardAccordionSection";
 import type { CronogramaAlert } from "@/app/data/cronograma-alerts";
 import { formatShortDate } from "@/lib/format";
 
@@ -10,22 +11,12 @@ export function CronogramaAlertsSection({ alerts }: CronogramaAlertsSectionProps
   if (alerts.length === 0) return null;
 
   return (
-    <section className="mb-8 rounded-2xl border border-bloom-border bg-bloom-surface p-6 shadow-sm">
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h2 className="font-display text-xl text-bloom-ink">
-            Alertas de cronograma
-          </h2>
-          <p className="mt-1 text-sm text-bloom-muted">
-            Hitos vencidos o próximos a vencer (30 días)
-          </p>
-        </div>
-        <p className="text-sm font-medium text-bloom-ink">
-          {alerts.length} {alerts.length === 1 ? "alerta" : "alertas"}
-        </p>
-      </div>
-
-      <ul className="mt-5 space-y-3">
+    <DashboardAccordionSection
+      title="Alertas de cronograma"
+      count={alerts.length}
+      subtitle="Hitos vencidos o próximos a vencer (30 días)"
+    >
+      <ul className="space-y-3">
         {alerts.map((alert) => (
           <li key={alert.id}>
             <Link
@@ -41,6 +32,6 @@ export function CronogramaAlertsSection({ alerts }: CronogramaAlertsSectionProps
           </li>
         ))}
       </ul>
-    </section>
+    </DashboardAccordionSection>
   );
 }

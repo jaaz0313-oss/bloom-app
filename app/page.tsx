@@ -164,13 +164,13 @@ export default async function Home({ searchParams }: HomeProps) {
     <div className="min-h-full bg-bloom-canvas font-sans">
       <DashboardHeader user={user} />
 
-      <main className="mx-auto max-w-5xl px-6 py-10 sm:px-8">
-        <PaymentAlertsSection alerts={paymentAlerts} />
-        <CronogramaAlertsSection alerts={cronogramaAlerts} />
+      <main className="mx-auto max-w-5xl space-y-4 px-4 py-8 sm:px-6 sm:py-10 md:px-8">
         <CitasHoySection
           citas={citasHoy}
           context={{ bodasById, leadsById, proveedoresById }}
         />
+        <PaymentAlertsSection alerts={paymentAlerts} />
+        <CronogramaAlertsSection alerts={cronogramaAlerts} />
 
         <div className="inline-flex rounded-full border border-bloom-border bg-bloom-surface p-1">
           <Link

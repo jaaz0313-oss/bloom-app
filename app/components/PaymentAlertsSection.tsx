@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DashboardAccordionSection } from "@/app/components/DashboardAccordionSection";
 import {
   PAYMENT_ALERT_URGENCY_LABELS,
   PAYMENT_ALERT_URGENCY_STYLES,
@@ -14,22 +15,12 @@ export function PaymentAlertsSection({ alerts }: PaymentAlertsSectionProps) {
   if (alerts.length === 0) return null;
 
   return (
-    <section className="mb-8 rounded-2xl border border-bloom-border bg-bloom-surface p-6 shadow-sm">
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h2 className="font-display text-xl text-bloom-ink">
-            Alertas de pagos
-          </h2>
-          <p className="mt-1 text-sm text-bloom-muted">
-            Saldos con fecha de vencimiento en los próximos 30 días
-          </p>
-        </div>
-        <p className="text-sm font-medium text-bloom-ink">
-          {alerts.length} {alerts.length === 1 ? "alerta" : "alertas"}
-        </p>
-      </div>
-
-      <ul className="mt-5 space-y-3">
+    <DashboardAccordionSection
+      title="Alertas de pagos"
+      count={alerts.length}
+      subtitle="Saldos con fecha de vencimiento en los próximos 30 días"
+    >
+      <ul className="space-y-3">
         {alerts.map((alert) => (
           <li key={alert.proveedorId}>
             <Link
@@ -53,7 +44,7 @@ export function PaymentAlertsSection({ alerts }: PaymentAlertsSectionProps) {
                   </p>
                 </div>
 
-                <dl className="flex shrink-0 gap-6 text-sm sm:text-right">
+                <dl className="grid grid-cols-2 gap-3 text-sm sm:flex sm:shrink-0 sm:gap-6 sm:text-right">
                   <div>
                     <dt className="text-bloom-muted">Saldo pendiente</dt>
                     <dd className="font-semibold text-bloom-ink">
@@ -72,6 +63,6 @@ export function PaymentAlertsSection({ alerts }: PaymentAlertsSectionProps) {
           </li>
         ))}
       </ul>
-    </section>
+    </DashboardAccordionSection>
   );
 }
