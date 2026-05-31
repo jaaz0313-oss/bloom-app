@@ -9,10 +9,12 @@ import { PaymentProjection } from "@/app/components/bodas/PaymentProjection";
 import { CronogramaContratacion } from "@/app/components/CronogramaContratacion";
 import { CitasSection } from "@/app/components/citas/CitasSection";
 import { BriefBoda } from "@/app/components/bodas/BriefBoda";
+import { ContratoSection } from "@/app/components/bodas/ContratoSection";
 import { NotasInternas } from "@/app/components/bodas/NotasInternas";
 import { ProviderList } from "@/app/components/bodas/ProviderList";
 import type { CitaRow } from "@/app/data/citas";
 import type { BriefBodaRow } from "@/app/data/brief-boda";
+import type { ContratoRow } from "@/app/data/contratos";
 import type { NotaBodaRow } from "@/app/data/notas-boda";
 import type { BodaRow } from "@/app/data/weddings";
 import { groupPagosByProveedor, type PagoRow } from "@/app/data/pagos";
@@ -105,6 +107,14 @@ export default async function BodaDetailPage({ params }: PageProps) {
 
   const brief = (briefData as BriefBodaRow | null) ?? null;
 
+  const { data: contratoData } = await supabase
+    .from("contratos")
+    .select("*")
+    .eq("boda_id", id)
+    .maybeSingle();
+
+  const contrato = (contratoData as ContratoRow | null) ?? null;
+
   const { data: equipoData, error: equipoError } = await supabase
     .from("user_profiles")
     .select("id, nombre, username, telefono, email")
@@ -144,6 +154,7 @@ export default async function BodaDetailPage({ params }: PageProps) {
   }));
 
   const canViewBrief = ["admin", "lider", "coordinadora"].includes(user.rol);
+  const canViewContrato = user.rol === "admin" || user.rol === "lider";
 
   return (
     <div className="min-h-full bg-bloom-canvas font-sans">
@@ -203,6 +214,14 @@ export default async function BodaDetailPage({ params }: PageProps) {
 
           {canViewBrief && (
             <BriefBoda bodaId={id} initialBrief={brief} />
+          )}
+
+          {canViewContrato && (
+            <ContratoSection
+              bodaId={id}
+              boda={bodaRow}
+              initialContrato={contrato}
+            />
           )}
 
           <CitasSection

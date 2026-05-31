@@ -35,6 +35,9 @@ type LeadFormState = {
   prioridades: string;
   estado: LeadStatus;
   notas: string;
+  honorariosAcordados: string;
+  anticipoAcordado: string;
+  lugarVenue: string;
 };
 
 const emptyLeadForm: LeadFormState = {
@@ -50,6 +53,9 @@ const emptyLeadForm: LeadFormState = {
   prioridades: "",
   estado: "nuevo",
   notas: "",
+  honorariosAcordados: "",
+  anticipoAcordado: "",
+  lugarVenue: "",
 };
 
 const CEREMONY_OPTIONS = [
@@ -67,6 +73,8 @@ export function LeadsBoard({ leads, role }: LeadsBoardProps) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<LeadFormState>(emptyLeadForm);
+  const [anticipoTouched, setAnticipoTouched] = useState(false);
+  const canManageAcuerdos = role === "admin" || role === "lider";
 
   const sortedLeads = useMemo(
     () =>
@@ -80,12 +88,14 @@ export function LeadsBoard({ leads, role }: LeadsBoardProps) {
   function openCreateModal() {
     setError(null);
     setForm(emptyLeadForm);
+    setAnticipoTouched(false);
     setCreateOpen(true);
   }
 
   function openEditModal(lead: LeadRow) {
     setError(null);
     setEditingLead(lead);
+    setAnticipoTouched(true);
     setForm({
       nombrePareja: lead.nombre_pareja,
       fechaTentativa: lead.fecha_tentativa,
@@ -101,8 +111,39 @@ export function LeadsBoard({ leads, role }: LeadsBoardProps) {
       prioridades: lead.prioridades ?? "",
       estado: lead.estado,
       notas: lead.notas ?? "",
+      honorariosAcordados:
+        lead.honorarios_acordados === null
+          ? ""
+          : String(lead.honorarios_acordados),
+      anticipoAcordado:
+        lead.anticipo_acordado === null ? "" : String(lead.anticipo_acordado),
+      lugarVenue: lead.lugar_venue ?? "",
     });
     setEditOpen(true);
+  }
+
+  function parseAcuerdosFields():
+    | { honorarios: number | null; anticipo: number | null; lugarVenue: string | null }
+    | { error: string } {
+    const honorarios = form.honorariosAcordados.trim()
+      ? Number(form.honorariosAcordados)
+      : null;
+    const anticipo = form.anticipoAcordado.trim()
+      ? Number(form.anticipoAcordado)
+      : null;
+    const lugarVenue = form.lugarVenue.trim() || null;
+
+    if (
+      honorarios !== null &&
+      (!Number.isFinite(honorarios) || honorarios < 0)
+    ) {
+      return { error: "Ingresa honorarios acordados válidos (>= 0)." };
+    }
+    if (anticipo !== null && (!Number.isFinite(anticipo) || anticipo < 0)) {
+      return { error: "Ingresa un anticipo válido (>= 0)." };
+    }
+
+    return { honorarios, anticipo, lugarVenue };
   }
 
   async function handleCreate(e: React.FormEvent) {
@@ -143,6 +184,11 @@ export function LeadsBoard({ leads, role }: LeadsBoardProps) {
       return setError("Ingresa una cantidad de invitados válida (>= 0).");
     }
 
+    const acuerdos = canManageAcuerdos ? parseAcuerdosFields() : null;
+    if (acuerdos && "error" in acuerdos) {
+      return setError(acuerdos.error);
+    }
+
     setSubmitting(true);
     try {
       const { data: nuevoLead, error: insertError } = await supabase
@@ -160,6 +206,13 @@ export function LeadsBoard({ leads, role }: LeadsBoardProps) {
           prioridades: prioridades || null,
           estado: form.estado,
           notas: notas || null,
+          ...(canManageAcuerdos && acuerdos && !("error" in acuerdos)
+            ? {
+                honorarios_acordados: acuerdos.honorarios,
+                anticipo_acordado: acuerdos.anticipo,
+                lugar_venue: acuerdos.lugarVenue,
+              }
+            : {}),
         })
         .select("id")
         .single();
@@ -184,6 +237,11 @@ export function LeadsBoard({ leads, role }: LeadsBoardProps) {
     setError(null);
     if (!supabase || !editingLead) return setError("Supabase no está configurado.");
 
+    const acuerdos = canManageAcuerdos ? parseAcuerdosFields() : null;
+    if (acuerdos && "error" in acuerdos) {
+      return setError(acuerdos.error);
+    }
+
     setSubmitting(true);
     try {
       const { error: updateError } = await supabase
@@ -191,6 +249,13 @@ export function LeadsBoard({ leads, role }: LeadsBoardProps) {
         .update({
           estado: form.estado,
           notas: form.notas.trim() || null,
+          ...(canManageAcuerdos && acuerdos && !("error" in acuerdos)
+            ? {
+                honorarios_acordados: acuerdos.honorarios,
+                anticipo_acordado: acuerdos.anticipo,
+                lugar_venue: acuerdos.lugarVenue,
+              }
+            : {}),
         })
         .eq("id", editingLead.id);
       if (updateError) return setError(updateError.message);
@@ -247,6 +312,9 @@ export function LeadsBoard({ leads, role }: LeadsBoardProps) {
           ciudad: lead.ciudad,
           total_proveedores: 0,
           proveedores_contratados: 0,
+          honorarios: lead.honorarios_acordados,
+          anticipo_honorarios: lead.anticipo_acordado,
+          lugar_venue: lead.lugar_venue,
         })
         .select("id")
         .single();
@@ -458,6 +526,27 @@ export function LeadsBoard({ leads, role }: LeadsBoardProps) {
         >
           <form className="mt-5 space-y-4" onSubmit={handleCreate}>
             <LeadBaseFields form={form} setForm={setForm} submitting={submitting} />
+            {canManageAcuerdos && (
+              <LeadAcuerdosFields
+                form={form}
+                setForm={setForm}
+                submitting={submitting}
+                anticipoTouched={anticipoTouched}
+                onAnticipoTouched={() => setAnticipoTouched(true)}
+                onHonorariosChange={(value) => {
+                  if (anticipoTouched) return;
+                  const honorarios = Number(value);
+                  if (!value.trim() || !Number.isFinite(honorarios) || honorarios < 0) {
+                    setForm((s) => ({ ...s, anticipoAcordado: "" }));
+                    return;
+                  }
+                  setForm((s) => ({
+                    ...s,
+                    anticipoAcordado: String(Math.round(honorarios * 0.5)),
+                  }));
+                }}
+              />
+            )}
             <ActionRow
               submitting={submitting}
               onCancel={() => setCreateOpen(false)}
@@ -470,7 +559,11 @@ export function LeadsBoard({ leads, role }: LeadsBoardProps) {
       {editOpen && (
         <ModalShell
           title="Editar lead"
-          subtitle="Actualiza estado y notas"
+          subtitle={
+            canManageAcuerdos
+              ? "Actualiza estado, notas y acuerdos"
+              : "Actualiza estado y notas"
+          }
           onClose={() => setEditOpen(false)}
         >
           <form className="mt-5 space-y-4" onSubmit={handleEdit}>
@@ -499,6 +592,27 @@ export function LeadsBoard({ leads, role }: LeadsBoardProps) {
                 disabled={submitting}
               />
             </div>
+            {canManageAcuerdos && (
+              <LeadAcuerdosFields
+                form={form}
+                setForm={setForm}
+                submitting={submitting}
+                anticipoTouched={anticipoTouched}
+                onAnticipoTouched={() => setAnticipoTouched(true)}
+                onHonorariosChange={(value) => {
+                  if (anticipoTouched) return;
+                  const honorarios = Number(value);
+                  if (!value.trim() || !Number.isFinite(honorarios) || honorarios < 0) {
+                    setForm((s) => ({ ...s, anticipoAcordado: "" }));
+                    return;
+                  }
+                  setForm((s) => ({
+                    ...s,
+                    anticipoAcordado: String(Math.round(honorarios * 0.5)),
+                  }));
+                }}
+              />
+            )}
             <ActionRow
               submitting={submitting}
               onCancel={() => setEditOpen(false)}
@@ -508,6 +622,76 @@ export function LeadsBoard({ leads, role }: LeadsBoardProps) {
         </ModalShell>
       )}
     </section>
+  );
+}
+
+function LeadAcuerdosFields({
+  form,
+  setForm,
+  submitting,
+  anticipoTouched,
+  onAnticipoTouched,
+  onHonorariosChange,
+}: {
+  form: LeadFormState;
+  setForm: React.Dispatch<React.SetStateAction<LeadFormState>>;
+  submitting: boolean;
+  anticipoTouched: boolean;
+  onAnticipoTouched: () => void;
+  onHonorariosChange: (value: string) => void;
+}) {
+  return (
+    <fieldset className="space-y-4 rounded-xl border border-bloom-border bg-bloom-canvas/50 p-4">
+      <legend className="px-1 text-sm font-medium text-bloom-ink">
+        Acuerdos primera reunión
+      </legend>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field label="Honorarios acordados (COP)">
+          <input
+            type="number"
+            min={0}
+            step={1}
+            className={inputClass}
+            value={form.honorariosAcordados}
+            onChange={(e) => {
+              const value = e.target.value;
+              setForm((s) => ({ ...s, honorariosAcordados: value }));
+              onHonorariosChange(value);
+            }}
+            disabled={submitting}
+            placeholder="Ej. 15000000"
+          />
+        </Field>
+        <Field label="Anticipo (COP)">
+          <input
+            type="number"
+            min={0}
+            step={1}
+            className={inputClass}
+            value={form.anticipoAcordado}
+            onChange={(e) => {
+              onAnticipoTouched();
+              setForm((s) => ({ ...s, anticipoAcordado: e.target.value }));
+            }}
+            disabled={submitting}
+            placeholder={
+              anticipoTouched ? "Editable" : "50% de honorarios por defecto"
+            }
+          />
+        </Field>
+      </div>
+      <Field label="Lugar / Venue de la boda">
+        <input
+          className={inputClass}
+          value={form.lugarVenue}
+          onChange={(e) =>
+            setForm((s) => ({ ...s, lugarVenue: e.target.value }))
+          }
+          disabled={submitting}
+          placeholder="Ej. Hacienda El Paraíso"
+        />
+      </Field>
+    </fieldset>
   );
 }
 

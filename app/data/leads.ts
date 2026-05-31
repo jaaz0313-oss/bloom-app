@@ -14,6 +14,9 @@ export type LeadRow = {
   prioridades: string | null;
   estado: LeadStatus;
   notas: string | null;
+  honorarios_acordados: number | null;
+  anticipo_acordado: number | null;
+  lugar_venue: string | null;
   created_at: string;
 };
 

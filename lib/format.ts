@@ -24,6 +24,40 @@ export function formatShortDate(isoDate: string): string {
   }).format(date);
 }
 
+/** Fecha de firma: "Ciudad, 28 de mayo de 2026" */
+export function formatFechaFirmaEs(isoDate: string, ciudad: string): string {
+  const datePart = isoDate.includes("T") ? isoDate.split("T")[0] : isoDate;
+  const [year, month, day] = datePart.split("-").map(Number);
+  const monthLabels = [
+    "enero",
+    "febrero",
+    "marzo",
+    "abril",
+    "mayo",
+    "junio",
+    "julio",
+    "agosto",
+    "septiembre",
+    "octubre",
+    "noviembre",
+    "diciembre",
+  ];
+  const monthLabel = monthLabels[(month ?? 1) - 1] ?? "";
+  return `${ciudad}, ${day} de ${monthLabel} de ${year}`;
+}
+
+/** Fecha de firma: "Medellín, May 28, 2026" */
+export function formatFechaFirmaEn(isoDate: string, ciudad: string): string {
+  const datePart = isoDate.includes("T") ? isoDate.split("T")[0] : isoDate;
+  const date = new Date(`${datePart}T12:00:00`);
+  const formatted = new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  }).format(date);
+  return `${ciudad}, ${formatted}`;
+}
+
 /** Fecha larga en español, estable (evita hydration mismatch). */
 export function formatLongDateStable(isoDate: string): string {
   const datePart = isoDate.includes("T") ? isoDate.split("T")[0] : isoDate;
