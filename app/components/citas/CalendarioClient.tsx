@@ -29,6 +29,8 @@ import {
 import { formatShortDateStable } from "@/lib/format";
 import type { UserRole } from "@/lib/auth/roles";
 import { CalendarioMensual } from "./CalendarioMensual";
+import { CitaCalendarioDetalleModal } from "./CitaCalendarioDetalleModal";
+import { CitaDiaOverflowModal } from "./CitaDiaOverflowModal";
 import {
   CitaFormModal,
   type CitaLookupBoda,
@@ -76,6 +78,11 @@ export function CalendarioClient({
   const [view, setView] = useState<CalendarView>("mes");
   const [anchorDate, setAnchorDate] = useState(() => getTodayIso());
   const [modalOpen, setModalOpen] = useState(false);
+  const [selectedCita, setSelectedCita] = useState<CitaRow | null>(null);
+  const [overflowDay, setOverflowDay] = useState<{
+    fecha: string;
+    citas: CitaRow[];
+  } | null>(null);
 
   const bodasById = useMemo(
     () => Object.fromEntries(bodas.map((b) => [b.id, b])),
@@ -204,6 +211,10 @@ export function CalendarioClient({
             setAnchorDate(fechaKey);
             setView("dia");
           }}
+          onCitaClick={(cita) => setSelectedCita(cita)}
+          onVerMasClick={(fechaKey, dayCitas) =>
+            setOverflowDay({ fecha: fechaKey, citas: dayCitas })
+          }
         />
       )}
 
@@ -311,6 +322,32 @@ export function CalendarioClient({
         leads={leads}
         equipo={equipo}
         defaultFecha={anchorDate}
+      />
+
+      <CitaCalendarioDetalleModal
+        cita={selectedCita}
+        onClose={() => setSelectedCita(null)}
+        bodas={bodas}
+        leads={leads}
+        equipo={equipo}
+        role={role}
+        currentUserId={currentUserId}
+        currentUserNombre={currentUserNombre}
+        onChange={(next) => {
+          if (selectedCita) {
+            handleCitaChange(selectedCita.id, next);
+          }
+        }}
+      />
+
+      <CitaDiaOverflowModal
+        fecha={overflowDay?.fecha ?? null}
+        citas={overflowDay?.citas ?? []}
+        onClose={() => setOverflowDay(null)}
+        onSelectCita={(cita) => {
+          setOverflowDay(null);
+          setSelectedCita(cita);
+        }}
       />
     </div>
   );
