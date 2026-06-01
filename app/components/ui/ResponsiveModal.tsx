@@ -1,5 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+
 type ResponsiveModalProps = {
   open: boolean;
   onClose: () => void;
@@ -23,13 +26,19 @@ export function ResponsiveModal({
   footer,
   closeDisabled = false,
 }: ResponsiveModalProps) {
-  if (!open) return null;
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!open || !mounted) return null;
 
   const panelMaxWidth = size === "md" ? "max-w-md" : "max-w-lg";
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
       role="dialog"
       aria-modal="true"
       aria-label={ariaLabel ?? title}
@@ -38,9 +47,10 @@ export function ResponsiveModal({
       }}
     >
       <div
-        className={`flex max-h-[90vh] w-full flex-col overflow-hidden rounded-2xl border border-bloom-border bg-bloom-surface shadow-lg ${panelMaxWidth}`}
+        className={`mx-4 max-h-[90vh] w-full overflow-y-auto rounded-2xl bg-white p-6 shadow-xl ${panelMaxWidth}`}
+        onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex shrink-0 items-start justify-between gap-4 border-b border-bloom-border px-6 py-4">
+        <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <h2 className="font-display text-xl text-bloom-ink">{title}</h2>
             {subtitle && (
@@ -51,20 +61,17 @@ export function ResponsiveModal({
             type="button"
             onClick={onClose}
             disabled={closeDisabled}
-            className="bloom-btn-secondary !min-h-11 !min-w-11 shrink-0 !rounded-full !p-0 sm:!min-h-0 sm:!min-w-0 sm:!px-3"
+            className="shrink-0 rounded-full p-2 text-bloom-muted hover:bg-bloom-border"
             aria-label="Cerrar"
           >
             <XIcon />
           </button>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">{children}</div>
-        {footer ? (
-          <div className="shrink-0 border-t border-bloom-border px-6 py-4">
-            {footer}
-          </div>
-        ) : null}
+        <div className="mt-4">{children}</div>
+        {footer ? <div className="mt-6">{footer}</div> : null}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

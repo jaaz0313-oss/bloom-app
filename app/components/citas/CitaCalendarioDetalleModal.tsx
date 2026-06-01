@@ -181,11 +181,11 @@ export function CitaCalendarioDetalleModal({
 
       {cita && cancelConfirmOpen && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4"
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50"
           role="alertdialog"
           aria-modal="true"
         >
-          <div className="w-full max-w-md rounded-2xl border border-bloom-border bg-bloom-surface p-6 shadow-lg">
+          <div className="mx-4 max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
             <h4 className="font-display text-lg text-bloom-ink">
               ¿Cancelar esta cita?
             </h4>

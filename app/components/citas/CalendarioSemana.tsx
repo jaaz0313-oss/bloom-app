@@ -72,10 +72,7 @@ export function CalendarioSemana({
                 <CitaPill
                   key={cita.id}
                   cita={cita}
-                  onClick={() => {
-                    console.log("[CalendarioSemana] pill click", cita.id);
-                    onCitaClick(cita);
-                  }}
+                  onClick={() => onCitaClick(cita)}
                 />
               ))}
               {hiddenCount > 0 && (

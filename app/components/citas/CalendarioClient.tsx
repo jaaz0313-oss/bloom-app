@@ -195,10 +195,7 @@ export function CalendarioClient({
             setAnchorDate(fechaKey);
             setView("dia");
           }}
-          onCitaClick={(cita) => {
-            console.log("[Calendario] cita click", cita.id, cita.titulo);
-            setSelectedCita(cita);
-          }}
+          onCitaClick={(cita) => setSelectedCita(cita)}
           onVerMasClick={(fechaKey, dayCitas) =>
             setOverflowDay({ fecha: fechaKey, citas: dayCitas })
           }
@@ -213,10 +210,7 @@ export function CalendarioClient({
             setAnchorDate(fechaKey);
             setView("dia");
           }}
-          onCitaClick={(cita) => {
-            console.log("[Calendario] cita click", cita.id, cita.titulo);
-            setSelectedCita(cita);
-          }}
+          onCitaClick={(cita) => setSelectedCita(cita)}
           onVerMasClick={(fechaKey, dayCitas) =>
             setOverflowDay({ fecha: fechaKey, citas: dayCitas })
           }
