@@ -2,14 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { CitaRow } from "@/app/data/citas";
+import { CITA_TIPO_DOT_STYLES, CITA_TIPO_LABELS } from "@/app/data/citas";
 import {
-  CITA_TIPO_DOT_STYLES,
-  CITA_TIPO_LABELS,
-  CITA_TIPO_STYLES,
-} from "@/app/data/citas";
-import {
-  formatCitaHorario,
-  getCitaRelacionLabel,
   normalizeCitaFecha,
   normalizeCitaRow,
   sortCitasBySchedule,
@@ -21,14 +15,13 @@ import {
   getMonthLabel,
   getTodayIso,
   getWeekDays,
-  getWeekdayShort,
-  isToday,
   parseIsoDate,
   type CalendarView,
 } from "@/lib/citas-calendar";
 import { formatShortDateStable } from "@/lib/format";
 import type { UserRole } from "@/lib/auth/roles";
 import { CalendarioMensual } from "./CalendarioMensual";
+import { CalendarioSemana } from "./CalendarioSemana";
 import { CitaCalendarioDetalleModal } from "./CitaCalendarioDetalleModal";
 import { CitaDiaOverflowModal } from "./CitaDiaOverflowModal";
 import {
@@ -83,15 +76,6 @@ export function CalendarioClient({
     fecha: string;
     citas: CitaRow[];
   } | null>(null);
-
-  const bodasById = useMemo(
-    () => Object.fromEntries(bodas.map((b) => [b.id, b])),
-    [bodas],
-  );
-  const leadsById = useMemo(
-    () => Object.fromEntries(leads.map((l) => [l.id, l])),
-    [leads],
-  );
 
   const citasByDate = useMemo(() => {
     const map = new Map<string, CitaRow[]>();
@@ -219,53 +203,18 @@ export function CalendarioClient({
       )}
 
       {view === "semana" && (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-7">
-          {weekDays.map((iso) => {
-            const list = citasByDate.get(normalizeCitaFecha(iso)) ?? [];
-            return (
-              <div
-                key={iso}
-                className={`rounded-xl border border-bloom-border bg-bloom-surface p-2 ${
-                  isToday(iso) ? "ring-2 ring-bloom-accent/30" : ""
-                }`}
-              >
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAnchorDate(iso);
-                    setView("dia");
-                  }}
-                  className="w-full text-left"
-                >
-                  <p className="text-xs font-medium text-bloom-muted">
-                    {getWeekdayShort(
-                      (parseIsoDate(iso).getDay() + 6) % 7,
-                    )}
-                  </p>
-                  <p className="text-sm font-medium text-bloom-ink">
-                    {parseIsoDate(iso).getDate()}
-                  </p>
-                </button>
-                <ul className="mt-2 space-y-1.5">
-                  {list.map((c) => (
-                    <li
-                      key={c.id}
-                      className={`rounded-lg border px-2 py-1.5 text-xs ${CITA_TIPO_STYLES[c.tipo]}`}
-                    >
-                      <p className="font-medium">{c.titulo}</p>
-                      <p className="mt-0.5 opacity-80">{formatCitaHorario(c)}</p>
-                      {getCitaRelacionLabel(c, bodasById, leadsById) && (
-                        <p className="mt-0.5 truncate opacity-80">
-                          {getCitaRelacionLabel(c, bodasById, leadsById)}
-                        </p>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            );
-          })}
-        </div>
+        <CalendarioSemana
+          weekDays={weekDays}
+          citasByDate={citasByDate}
+          onDayClick={(fechaKey) => {
+            setAnchorDate(fechaKey);
+            setView("dia");
+          }}
+          onCitaClick={(cita) => setSelectedCita(cita)}
+          onVerMasClick={(fechaKey, dayCitas) =>
+            setOverflowDay({ fecha: fechaKey, citas: dayCitas })
+          }
+        />
       )}
 
       {view === "dia" && (
