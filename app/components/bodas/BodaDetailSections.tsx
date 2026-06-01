@@ -87,7 +87,9 @@ export function BodaDetailSections({
       <BodaAccordionSection
         title="Información de los clientes"
         defaultOpen={false}
-        hasContent={hasClientInfo}
+        hasContent={
+          hasClientInfo || (canViewContrato && hasContrato)
+        }
       >
         <ClientInfoSection
           embedded
@@ -98,6 +100,23 @@ export function BodaDetailSections({
           providers={providers}
           pagosByProveedor={pagosByProveedor}
         />
+
+        {canViewContrato && (
+          <div className="mt-8 border-t border-bloom-border pt-8">
+            <div className="mb-5">
+              <h3 className="font-display text-lg text-bloom-ink">Contrato</h3>
+              <p className="mt-1 text-sm text-bloom-muted">
+                Honorarios, anticipo y generación del documento para firma.
+              </p>
+            </div>
+            <ContratoSection
+              embedded
+              bodaId={bodaId}
+              boda={boda}
+              initialContrato={contrato}
+            />
+          </div>
+        )}
       </BodaAccordionSection>
 
       <BodaAccordionSection
@@ -124,21 +143,6 @@ export function BodaDetailSections({
           hasContent={hasBrief}
         >
           <BriefBoda embedded bodaId={bodaId} initialBrief={brief} />
-        </BodaAccordionSection>
-      )}
-
-      {canViewContrato && (
-        <BodaAccordionSection
-          title="Contrato"
-          defaultOpen={false}
-          hasContent={hasContrato}
-        >
-          <ContratoSection
-            embedded
-            bodaId={bodaId}
-            boda={boda}
-            initialContrato={contrato}
-          />
         </BodaAccordionSection>
       )}
 
