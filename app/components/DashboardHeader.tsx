@@ -101,7 +101,7 @@ export function DashboardHeader({ user }: DashboardHeaderProps) {
           </div>
 
           {/* Desktop: usuario, campana, nav inline, cerrar sesión */}
-          <div className="hidden min-w-0 text-right md:block">
+          <div className="hidden min-w-0 pr-6 text-right md:block">
             <p className="text-xs font-medium uppercase tracking-wider text-bloom-muted">
               {ROLE_LABELS[user.rol]}
             </p>
@@ -120,7 +120,7 @@ export function DashboardHeader({ user }: DashboardHeaderProps) {
               <button
                 type="button"
                 onClick={handleSignOut}
-                className="bloom-btn-sm border border-bloom-border bg-bloom-surface text-bloom-ink hover:bg-bloom-canvas"
+                className="rounded-full border border-bloom-border px-3 py-1 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-canvas"
               >
                 Cerrar sesión
               </button>
