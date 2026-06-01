@@ -3,6 +3,9 @@ import { notFound } from "next/navigation";
 import { DashboardHeader } from "@/app/components/DashboardHeader";
 import { CitasSection } from "@/app/components/citas/CitasSection";
 import { LeadCotizacionesSection } from "@/app/components/leads/LeadCotizacionesSection";
+import { LeadCotizacionShareActions } from "@/app/components/leads/LeadCotizacionShareActions";
+import type { CotizacionItemRow } from "@/app/data/cotizaciones";
+import { pickActiveLeadCotizacion } from "@/lib/lead-cotizacion";
 import {
   LEAD_STATUS_LABELS,
   LEAD_STATUS_STYLES,
@@ -37,11 +40,24 @@ export default async function LeadDetailPage({ params }: PageProps) {
 
   const leadRow = lead as LeadRow;
 
-  const { data: cotizaciones } = await supabase
+  const { data: cotizacionesData } = await supabase
     .from("cotizaciones")
     .select("*")
     .eq("lead_id", id)
     .order("created_at", { ascending: false });
+
+  const cotizaciones = (cotizacionesData ?? []) as CotizacionRow[];
+  const activeCotizacion = pickActiveLeadCotizacion(cotizaciones);
+
+  let cotizacionItems: CotizacionItemRow[] = [];
+  if (activeCotizacion) {
+    const { data: itemsData } = await supabase
+      .from("cotizacion_items")
+      .select("*")
+      .eq("cotizacion_id", activeCotizacion.id)
+      .order("categoria", { ascending: true });
+    cotizacionItems = (itemsData ?? []) as CotizacionItemRow[];
+  }
 
   const { data: citasData } = await supabase
     .from("citas")
@@ -111,6 +127,36 @@ export default async function LeadDetailPage({ params }: PageProps) {
                 : formatCurrency(leadRow.presupuesto_estimado)}
             </dd>
           </div>
+          <div>
+            <dt className="text-bloom-muted">Teléfono</dt>
+            <dd className="font-medium text-bloom-ink">
+              {leadRow.telefono ? (
+                <a
+                  href={`tel:${leadRow.telefono}`}
+                  className="text-bloom-accent hover:underline"
+                >
+                  {leadRow.telefono}
+                </a>
+              ) : (
+                "No registrado"
+              )}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-bloom-muted">Email</dt>
+            <dd className="font-medium text-bloom-ink">
+              {leadRow.email ? (
+                <a
+                  href={`mailto:${leadRow.email}`}
+                  className="text-bloom-accent hover:underline"
+                >
+                  {leadRow.email}
+                </a>
+              ) : (
+                "No registrado"
+              )}
+            </dd>
+          </div>
           {leadRow.tipo_ceremonia && (
             <div>
               <dt className="text-bloom-muted">Tipo de ceremonia</dt>
@@ -129,6 +175,14 @@ export default async function LeadDetailPage({ params }: PageProps) {
           )}
         </dl>
 
+        {activeCotizacion && (
+          <LeadCotizacionShareActions
+            lead={leadRow}
+            cotizacion={activeCotizacion}
+            items={cotizacionItems}
+          />
+        )}
+
         <CitasSection
           initialCitas={(citasData ?? []) as CitaRow[]}
           bodas={bodasLookup ?? []}
@@ -140,10 +194,7 @@ export default async function LeadDetailPage({ params }: PageProps) {
           defaultLeadId={id}
         />
 
-        <LeadCotizacionesSection
-          lead={leadRow}
-          cotizaciones={(cotizaciones ?? []) as CotizacionRow[]}
-        />
+        <LeadCotizacionesSection lead={leadRow} cotizaciones={cotizaciones} />
       </main>
     </div>
   );

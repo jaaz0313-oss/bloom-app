@@ -116,9 +116,10 @@ export function CotizacionEditor({
           ? Number(numeroInvitados)
           : null,
         fechaEstimada: fechaEstimada || null,
+        ciudad: ciudad.trim() || lead.ciudad,
         items,
       }),
-    [lead.nombre_pareja, numeroInvitados, fechaEstimada, items],
+    [lead.nombre_pareja, lead.ciudad, numeroInvitados, fechaEstimada, ciudad, items],
   );
 
   function updateItem(
@@ -239,6 +240,7 @@ export function CotizacionEditor({
         ? Number(numeroInvitados)
         : null,
       fechaEstimada: fechaEstimada || null,
+      ciudad: ciudad.trim() || lead.ciudad,
       items,
     });
     openCotizacionLeadEmail(email.trim(), subject, body);

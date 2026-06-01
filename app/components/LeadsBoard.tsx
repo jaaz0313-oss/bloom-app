@@ -38,6 +38,8 @@ type LeadFormState = {
   honorariosAcordados: string;
   anticipoAcordado: string;
   lugarVenue: string;
+  telefono: string;
+  email: string;
 };
 
 const emptyLeadForm: LeadFormState = {
@@ -56,6 +58,8 @@ const emptyLeadForm: LeadFormState = {
   honorariosAcordados: "",
   anticipoAcordado: "",
   lugarVenue: "",
+  telefono: "",
+  email: "",
 };
 
 const CEREMONY_OPTIONS = [
@@ -118,6 +122,8 @@ export function LeadsBoard({ leads, role }: LeadsBoardProps) {
       anticipoAcordado:
         lead.anticipo_acordado === null ? "" : String(lead.anticipo_acordado),
       lugarVenue: lead.lugar_venue ?? "",
+      telefono: lead.telefono ?? "",
+      email: lead.email ?? "",
     });
     setEditOpen(true);
   }
@@ -170,6 +176,8 @@ export function LeadsBoard({ leads, role }: LeadsBoardProps) {
     const conceptoBoda = form.conceptoBoda.trim();
     const prioridades = form.prioridades.trim();
     const notas = form.notas.trim();
+    const telefono = form.telefono.trim();
+    const email = form.email.trim();
 
     if (!nombrePareja) return setError("Ingresa el nombre de la pareja.");
     if (!fechaTentativa) return setError("Ingresa la fecha tentativa.");
@@ -206,6 +214,8 @@ export function LeadsBoard({ leads, role }: LeadsBoardProps) {
           prioridades: prioridades || null,
           estado: form.estado,
           notas: notas || null,
+          telefono: telefono || null,
+          email: email || null,
           ...(canManageAcuerdos && acuerdos && !("error" in acuerdos)
             ? {
                 honorarios_acordados: acuerdos.honorarios,
@@ -249,6 +259,8 @@ export function LeadsBoard({ leads, role }: LeadsBoardProps) {
         .update({
           estado: form.estado,
           notas: form.notas.trim() || null,
+          telefono: form.telefono.trim() || null,
+          email: form.email.trim() || null,
           ...(canManageAcuerdos && acuerdos && !("error" in acuerdos)
             ? {
                 honorarios_acordados: acuerdos.honorarios,
@@ -404,6 +416,35 @@ export function LeadsBoard({ leads, role }: LeadsBoardProps) {
                   <p className="mt-1 text-sm text-bloom-muted">
                     {lead.ciudad} · {formatShortDateStable(lead.fecha_tentativa)}
                   </p>
+                  {(lead.telefono || lead.email) && (
+                    <p className="mt-1 text-sm text-bloom-muted">
+                      {lead.telefono && (
+                        <span>
+                          Tel:{" "}
+                          <a
+                            href={`tel:${lead.telefono}`}
+                            className="text-bloom-ink hover:text-bloom-accent"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {lead.telefono}
+                          </a>
+                        </span>
+                      )}
+                      {lead.telefono && lead.email && " · "}
+                      {lead.email && (
+                        <span>
+                          Email:{" "}
+                          <a
+                            href={`mailto:${lead.email}`}
+                            className="text-bloom-ink hover:text-bloom-accent"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {lead.email}
+                          </a>
+                        </span>
+                      )}
+                    </p>
+                  )}
                   <p className="mt-1 text-sm text-bloom-ink">
                     Presupuesto:{" "}
                     {lead.presupuesto_estimado === null
@@ -577,6 +618,7 @@ export function LeadsBoard({ leads, role }: LeadsBoardProps) {
                 <option value="perdido">Perdido</option>
               </select>
             </div>
+            <LeadContactFields form={form} setForm={setForm} submitting={submitting} />
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-bloom-ink">Notas</label>
               <textarea
@@ -734,6 +776,28 @@ function LeadBaseFields({
         </Field>
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Field label="Teléfono">
+          <input
+            type="tel"
+            className={inputClass}
+            value={form.telefono}
+            onChange={(e) => setForm((s) => ({ ...s, telefono: e.target.value }))}
+            placeholder="Ej. 3001234567"
+            disabled={submitting}
+          />
+        </Field>
+        <Field label="Email">
+          <input
+            type="email"
+            className={inputClass}
+            value={form.email}
+            onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))}
+            placeholder="correo@ejemplo.com"
+            disabled={submitting}
+          />
+        </Field>
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Presupuesto estimado">
           <input
             type="number"
@@ -848,6 +912,41 @@ function LeadBaseFields({
         />
       </Field>
     </>
+  );
+}
+
+function LeadContactFields({
+  form,
+  setForm,
+  submitting,
+}: {
+  form: LeadFormState;
+  setForm: React.Dispatch<React.SetStateAction<LeadFormState>>;
+  submitting: boolean;
+}) {
+  return (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <Field label="Teléfono">
+        <input
+          type="tel"
+          className={inputClass}
+          value={form.telefono}
+          onChange={(e) => setForm((s) => ({ ...s, telefono: e.target.value }))}
+          placeholder="Ej. 3001234567"
+          disabled={submitting}
+        />
+      </Field>
+      <Field label="Email">
+        <input
+          type="email"
+          className={inputClass}
+          value={form.email}
+          onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))}
+          placeholder="correo@ejemplo.com"
+          disabled={submitting}
+        />
+      </Field>
+    </div>
   );
 }
 

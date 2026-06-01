@@ -80,9 +80,10 @@ export function buildCotizacionLeadWhatsAppMessage(params: {
   nombreLead: string;
   numeroInvitados: number | null;
   fechaEstimada: string | null;
+  ciudad: string | null;
   items: CotizacionItemRow[];
 }): string {
-  const { nombreLead, numeroInvitados, fechaEstimada, items } = params;
+  const { nombreLead, numeroInvitados, fechaEstimada, ciudad, items } = params;
   const incluidos = items.filter((i) => i.incluido);
   const totalEstimado = computeCotizacionTotal(incluidos);
 
@@ -96,24 +97,28 @@ export function buildCotizacionLeadWhatsAppMessage(params: {
   const fechaTexto = fechaEstimada
     ? formatWeddingDate(fechaEstimada)
     : "Por definir";
+  const ciudadTexto = ciudad?.trim() || "Por definir";
 
-  return `Hola ${nombreLead}, aquí está la proyección de costos para su boda:
+  return `Hola ${nombreLead}, aquí está nuestra proyección estimada para su boda:
 
-📋 COTIZACIÓN ESTIMADA
+📋 PROYECCIÓN ESTIMADA
 👥 Invitados: ${invitadosTexto}
 📅 Fecha estimada: ${fechaTexto}
+📍 Ciudad: ${ciudadTexto}
 
 ${lineas}
 
 💰 TOTAL ESTIMADO: ${formatCurrency(totalEstimado)}
 
-Esta es una proyección aproximada. Los precios finales dependen de los proveedores seleccionados. ¡Quedamos atentos para resolver sus dudas! 🌸`;
+Esta es una proyección aproximada. Los precios finales dependen de los proveedores seleccionados. ¡Quedamos atentos para resolver sus dudas! 🌸
+- Equipo Celestia`;
 }
 
 export function buildCotizacionLeadEmail(params: {
   nombreLead: string;
   numeroInvitados: number | null;
   fechaEstimada: string | null;
+  ciudad: string | null;
   items: CotizacionItemRow[];
 }): { subject: string; body: string } {
   const body = buildCotizacionLeadWhatsAppMessage(params);

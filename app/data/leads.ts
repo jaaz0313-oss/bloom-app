@@ -17,6 +17,8 @@ export type LeadRow = {
   honorarios_acordados: number | null;
   anticipo_acordado: number | null;
   lugar_venue: string | null;
+  telefono: string | null;
+  email: string | null;
   created_at: string;
 };
 
