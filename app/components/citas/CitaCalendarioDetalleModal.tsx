@@ -59,10 +59,10 @@ export function CitaCalendarioDetalleModal({
     [leads],
   );
 
-  if (!cita) return null;
-
-  const relacion = getCitaRelacionLabel(cita, bodasById, leadsById);
-  const activa = isCitaActiva(cita.estado);
+  const relacion = cita
+    ? getCitaRelacionLabel(cita, bodasById, leadsById)
+    : "";
+  const activa = cita ? isCitaActiva(cita.estado) : false;
 
   async function handleCancelConfirm() {
     if (!supabase || !cita) return;
@@ -94,86 +94,92 @@ export function CitaCalendarioDetalleModal({
   return (
     <>
       <ResponsiveModal
-        open
+        open={cita != null}
         onClose={onClose}
-        title={cita.titulo}
-        subtitle={CITA_TIPO_LABELS[cita.tipo]}
+        title={cita?.titulo ?? "Cita"}
+        subtitle={cita ? CITA_TIPO_LABELS[cita.tipo] : undefined}
         size="md"
         footer={
-          <div className="flex flex-wrap justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => setEditOpen(true)}
-              className="rounded-full border border-bloom-border bg-bloom-surface px-4 py-2 text-sm font-medium text-bloom-ink hover:bg-bloom-canvas"
-            >
-              Editar
-            </button>
-            {activa && (
+          cita ? (
+            <div className="flex flex-wrap justify-end gap-2">
               <button
                 type="button"
-                onClick={() => {
-                  setError(null);
-                  setCancelConfirmOpen(true);
-                }}
-                className="rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-900 hover:bg-amber-100"
+                onClick={() => setEditOpen(true)}
+                className="rounded-full border border-bloom-border bg-bloom-surface px-4 py-2 text-sm font-medium text-bloom-ink hover:bg-bloom-canvas"
               >
-                Cancelar cita
+                Editar
               </button>
-            )}
-          </div>
+              {activa && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError(null);
+                    setCancelConfirmOpen(true);
+                  }}
+                  className="rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-900 hover:bg-amber-100"
+                >
+                  Cancelar cita
+                </button>
+              )}
+            </div>
+          ) : undefined
         }
       >
-        <dl className="space-y-4 text-sm">
-          <DetailRow label="Tipo">{CITA_TIPO_LABELS[cita.tipo]}</DetailRow>
-          <DetailRow label="Estado">
-            <span
-              className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-medium ${CITA_ESTADO_STYLES[cita.estado]}`}
-            >
-              {CITA_ESTADO_LABELS[cita.estado]}
-            </span>
-          </DetailRow>
-          <DetailRow label="Fecha y hora">
-            {formatShortDateStable(cita.fecha)} · {formatCitaHorario(cita)}
-          </DetailRow>
-          <DetailRow label="Lugar">{cita.lugar || "—"}</DetailRow>
-          <DetailRow label="Link de Meet">
-            {cita.link_meet ? (
-              <a
-                href={cita.link_meet}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="break-all text-bloom-accent hover:underline"
+        {cita && (
+          <dl className="space-y-4 text-sm">
+            <DetailRow label="Tipo">{CITA_TIPO_LABELS[cita.tipo]}</DetailRow>
+            <DetailRow label="Estado">
+              <span
+                className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-medium ${CITA_ESTADO_STYLES[cita.estado]}`}
               >
-                {cita.link_meet}
-              </a>
-            ) : (
-              "—"
-            )}
-          </DetailRow>
-          <DetailRow label="Boda o lead">{relacion || "—"}</DetailRow>
-          <DetailRow label="Asignado a">
-            {cita.asignado_nombre || "—"}
-          </DetailRow>
-        </dl>
+                {CITA_ESTADO_LABELS[cita.estado]}
+              </span>
+            </DetailRow>
+            <DetailRow label="Fecha y hora">
+              {formatShortDateStable(cita.fecha)} · {formatCitaHorario(cita)}
+            </DetailRow>
+            <DetailRow label="Lugar">{cita.lugar || "—"}</DetailRow>
+            <DetailRow label="Link de Meet">
+              {cita.link_meet ? (
+                <a
+                  href={cita.link_meet}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="break-all text-bloom-accent hover:underline"
+                >
+                  {cita.link_meet}
+                </a>
+              ) : (
+                "—"
+              )}
+            </DetailRow>
+            <DetailRow label="Boda o lead">{relacion || "—"}</DetailRow>
+            <DetailRow label="Asignado a">
+              {cita.asignado_nombre || "—"}
+            </DetailRow>
+          </dl>
+        )}
       </ResponsiveModal>
 
-      <CitaFormModal
-        open={editOpen}
-        onClose={() => setEditOpen(false)}
-        editingCita={cita}
-        onUpdated={(updated) => {
-          onChange(updated);
-          onClose();
-        }}
-        role={role}
-        currentUserId={currentUserId}
-        currentUserNombre={currentUserNombre}
-        bodas={bodas}
-        leads={leads}
-        equipo={equipo}
-      />
+      {cita && (
+        <CitaFormModal
+          open={editOpen}
+          onClose={() => setEditOpen(false)}
+          editingCita={cita}
+          onUpdated={(updated) => {
+            onChange(updated);
+            onClose();
+          }}
+          role={role}
+          currentUserId={currentUserId}
+          currentUserNombre={currentUserNombre}
+          bodas={bodas}
+          leads={leads}
+          equipo={equipo}
+        />
+      )}
 
-      {cancelConfirmOpen && (
+      {cita && cancelConfirmOpen && (
         <div
           className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4"
           role="alertdialog"

@@ -67,12 +67,15 @@ export function CalendarioSemana({
               </button>
             </div>
 
-            <div className="mt-2 flex min-h-0 flex-1 flex-col gap-1 overflow-hidden">
+            <div className="relative z-10 mt-2 flex min-h-0 flex-1 flex-col gap-1 overflow-hidden">
               {visibleCitas.map((cita) => (
                 <CitaPill
                   key={cita.id}
                   cita={cita}
-                  onClick={() => onCitaClick(cita)}
+                  onClick={() => {
+                    console.log("[CalendarioSemana] pill click", cita.id);
+                    onCitaClick(cita);
+                  }}
                 />
               ))}
               {hiddenCount > 0 && (

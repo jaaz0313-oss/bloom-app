@@ -25,12 +25,11 @@ export function ResponsiveModal({
 }: ResponsiveModalProps) {
   if (!open) return null;
 
-  const panelSizeClass =
-    size === "md" ? "bloom-modal-panel--md" : "bloom-modal-panel--lg";
+  const panelMaxWidth = size === "md" ? "max-w-md" : "max-w-lg";
 
   return (
     <div
-      className="bloom-modal-overlay"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
       role="dialog"
       aria-modal="true"
       aria-label={ariaLabel ?? title}
@@ -38,8 +37,10 @@ export function ResponsiveModal({
         if (e.target === e.currentTarget && !closeDisabled) onClose();
       }}
     >
-      <div className={`bloom-modal-panel ${panelSizeClass}`}>
-        <div className="bloom-modal-header">
+      <div
+        className={`flex max-h-[90vh] w-full flex-col overflow-hidden rounded-2xl border border-bloom-border bg-bloom-surface shadow-lg ${panelMaxWidth}`}
+      >
+        <div className="flex shrink-0 items-start justify-between gap-4 border-b border-bloom-border px-6 py-4">
           <div className="min-w-0">
             <h2 className="font-display text-xl text-bloom-ink">{title}</h2>
             {subtitle && (
@@ -56,8 +57,12 @@ export function ResponsiveModal({
             <XIcon />
           </button>
         </div>
-        <div className="bloom-modal-body">{children}</div>
-        {footer ? <div className="bloom-modal-footer">{footer}</div> : null}
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">{children}</div>
+        {footer ? (
+          <div className="shrink-0 border-t border-bloom-border px-6 py-4">
+            {footer}
+          </div>
+        ) : null}
       </div>
     </div>
   );
