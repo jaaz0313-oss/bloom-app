@@ -19,6 +19,7 @@ import {
   type CotizacionBodaContext,
   type CotizacionMensajeTipo,
 } from "@/lib/proveedor-cotizacion";
+import { ProviderContratadoConfirmacionModal } from "./ProviderContratadoConfirmacionModal";
 import { ProviderPayments } from "./ProviderPayments";
 import { ProviderComisionFields } from "./ProviderComisionFields";
 import { AUDITORIA_ACCIONES, logAuditoria } from "@/lib/auditoria";
@@ -156,6 +157,7 @@ export function ProviderCard({
   const [editError, setEditError] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [contratadoConfirmOpen, setContratadoConfirmOpen] = useState(false);
   const [editForm, setEditForm] = useState<EditFormState>({
     nombre: provider.nombre,
     categoria: provider.categoria,
@@ -546,6 +548,11 @@ export function ProviderCard({
         detalle: `${provider.nombre}: ${nuevoEstado}`,
       });
 
+      if (nuevoEstado === "contratado") {
+        setContratadoConfirmOpen(true);
+        return;
+      }
+
       router.refresh();
     } finally {
       setUpdating(false);
@@ -932,6 +939,19 @@ export function ProviderCard({
           anticipo={provider.anticipo}
           valorTotal={provider.valor_total}
           role={role}
+        />
+      )}
+
+      {contratadoConfirmOpen && (
+        <ProviderContratadoConfirmacionModal
+          boda={boda}
+          nombreProveedor={provider.nombre}
+          categoria={provider.categoria}
+          telefonoProveedor={provider.telefono}
+          onClose={() => {
+            setContratadoConfirmOpen(false);
+            router.refresh();
+          }}
         />
       )}
 
