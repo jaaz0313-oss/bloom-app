@@ -87,6 +87,9 @@ export function ProviderCard({
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cotizacionOpen, setCotizacionOpen] = useState(false);
+  const [cotizacionModalTitle, setCotizacionModalTitle] = useState(
+    "Registrar cotización",
+  );
   const [cotizacionSubmitting, setCotizacionSubmitting] = useState(false);
   const [cotizacionError, setCotizacionError] = useState<string | null>(null);
   const [montoCotizado, setMontoCotizado] = useState(
@@ -459,6 +462,26 @@ export function ProviderCard({
     }
   }
 
+  function openCotizacionModal(
+    title: string,
+    options?: { resetFields?: boolean },
+  ) {
+    setCotizacionError(null);
+    setCotizacionModalTitle(title);
+    if (options?.resetFields) {
+      setMontoCotizado("");
+      setDescripcionCotizacion("");
+      setNotasCotizacion("");
+    } else {
+      setMontoCotizado(
+        provider.monto_cotizado != null ? String(provider.monto_cotizado) : "",
+      );
+      setDescripcionCotizacion(provider.descripcion_servicio ?? "");
+      setNotasCotizacion(provider.notas_cotizacion ?? "");
+    }
+    setCotizacionOpen(true);
+  }
+
   async function handleRegistrarCotizacion(e: React.FormEvent) {
     e.preventDefault();
     setCotizacionError(null);
@@ -650,6 +673,14 @@ export function ProviderCard({
               >
                 Solicitar cotización (post reunión)
               </button>
+              <button
+                type="button"
+                onClick={() => openCotizacionModal("Ya tengo cotización", { resetFields: true })}
+                disabled={updating || editSubmitting || deleting || cotizacionSubmitting}
+                className="inline-flex items-center justify-center rounded-lg border border-bloom-border bg-bloom-surface px-4 py-2 text-sm font-medium text-bloom-ink transition-colors hover:bg-bloom-canvas disabled:opacity-60"
+              >
+                Ya tengo cotización
+              </button>
             </div>
           )}
 
@@ -662,16 +693,7 @@ export function ProviderCard({
               />
               <button
                 type="button"
-                onClick={() => {
-                  setCotizacionError(null);
-                  setMontoCotizado(
-                    provider.monto_cotizado != null
-                      ? String(provider.monto_cotizado)
-                      : "",
-                  );
-                  setNotasCotizacion(provider.notas_cotizacion ?? "");
-                  setCotizacionOpen(true);
-                }}
+                onClick={() => openCotizacionModal("Registrar cotización")}
                 disabled={updating || editSubmitting}
                 className="rounded-full bg-bloom-accent px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-bloom-accent-hover disabled:opacity-60"
               >
@@ -960,7 +982,7 @@ export function ProviderCard({
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
           role="dialog"
           aria-modal="true"
-          aria-label="Registrar cotización"
+          aria-label={cotizacionModalTitle}
           onClick={(e) => {
             if (e.target === e.currentTarget) setCotizacionOpen(false);
           }}
@@ -969,7 +991,7 @@ export function ProviderCard({
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="font-display text-xl text-bloom-ink">
-                  Registrar cotización
+                  {cotizacionModalTitle}
                 </h2>
                 <p className="mt-1 text-sm text-bloom-muted">
                   {provider.nombre} · {provider.categoria}
