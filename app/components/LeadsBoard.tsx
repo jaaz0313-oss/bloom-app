@@ -3,10 +3,10 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  LEAD_STATUS_LABELS,
-  LEAD_STATUS_STYLES,
+  LEAD_SEGUIMIENTO_LABELS,
+  LEAD_SEGUIMIENTO_STYLES,
   type LeadRow,
-  type LeadStatus,
+  type LeadSeguimientoStatus,
 } from "@/app/data/leads";
 import Link from "next/link";
 import { formatCurrency, formatShortDateStable } from "@/lib/format";
@@ -18,7 +18,8 @@ import { supabase } from "@/lib/supabase";
 import { hasPermission, type UserRole } from "@/lib/auth/roles";
 
 type LeadsBoardProps = {
-  leads: LeadRow[];
+  activeLeads: LeadRow[];
+  discardedLeads: LeadRow[];
   role: UserRole;
 };
 
@@ -33,7 +34,7 @@ type LeadFormState = {
   ciudadResidenciaActual: string;
   conceptoBoda: string;
   prioridades: string;
-  estado: LeadStatus;
+  estadoSeguimiento: LeadSeguimientoStatus;
   notas: string;
   honorariosAcordados: string;
   anticipoAcordado: string;
@@ -53,7 +54,7 @@ const emptyLeadForm: LeadFormState = {
   ciudadResidenciaActual: "",
   conceptoBoda: "",
   prioridades: "",
-  estado: "nuevo",
+  estadoSeguimiento: "nuevo",
   notas: "",
   honorariosAcordados: "",
   anticipoAcordado: "",
@@ -69,24 +70,38 @@ const CEREMONY_OPTIONS = [
   "Civil y Religiosa",
 ] as const;
 
-export function LeadsBoard({ leads, role }: LeadsBoardProps) {
+export function LeadsBoard({
+  activeLeads,
+  discardedLeads,
+  role,
+}: LeadsBoardProps) {
   const router = useRouter();
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<LeadRow | null>(null);
+  const [discardTarget, setDiscardTarget] = useState<LeadRow | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<LeadRow | null>(null);
+  const [discardedOpen, setDiscardedOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<LeadFormState>(emptyLeadForm);
   const [anticipoTouched, setAnticipoTouched] = useState(false);
   const canManageAcuerdos = role === "admin" || role === "lider";
+  const canManageLeads = hasPermission(role, "leads.create");
 
-  const sortedLeads = useMemo(
-    () =>
-      [...leads].sort(
-        (a, b) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-      ),
-    [leads],
+  const sortByCreated = (list: LeadRow[]) =>
+    [...list].sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
+
+  const sortedActiveLeads = useMemo(
+    () => sortByCreated(activeLeads),
+    [activeLeads],
+  );
+  const sortedDiscardedLeads = useMemo(
+    () => sortByCreated(discardedLeads),
+    [discardedLeads],
   );
 
   function openCreateModal() {
@@ -113,7 +128,7 @@ export function LeadsBoard({ leads, role }: LeadsBoardProps) {
       ciudadResidenciaActual: lead.ciudad_residencia_actual ?? "",
       conceptoBoda: lead.concepto_boda ?? "",
       prioridades: lead.prioridades ?? "",
-      estado: lead.estado,
+      estadoSeguimiento: lead.estado_seguimiento,
       notas: lead.notas ?? "",
       honorariosAcordados:
         lead.honorarios_acordados === null
@@ -212,7 +227,8 @@ export function LeadsBoard({ leads, role }: LeadsBoardProps) {
           ciudad_residencia_actual: ciudadResidenciaActual || null,
           concepto_boda: conceptoBoda || null,
           prioridades: prioridades || null,
-          estado: form.estado,
+          estado: "activo",
+          estado_seguimiento: form.estadoSeguimiento,
           notas: notas || null,
           telefono: telefono || null,
           email: email || null,
@@ -257,7 +273,7 @@ export function LeadsBoard({ leads, role }: LeadsBoardProps) {
       const { error: updateError } = await supabase
         .from("leads")
         .update({
-          estado: form.estado,
+          estado_seguimiento: form.estadoSeguimiento,
           notas: form.notas.trim() || null,
           telefono: form.telefono.trim() || null,
           email: form.email.trim() || null,
@@ -301,6 +317,56 @@ export function LeadsBoard({ leads, role }: LeadsBoardProps) {
       }
 
       router.push(`/cotizaciones/${result.id}`);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleDiscardConfirm() {
+    if (!discardTarget || !supabase) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const { error: updateError } = await supabase
+        .from("leads")
+        .update({ estado: "descartado" })
+        .eq("id", discardTarget.id);
+      if (updateError) return setError(updateError.message);
+      setDiscardTarget(null);
+      router.refresh();
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleReactivate(lead: LeadRow) {
+    if (!supabase) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const { error: updateError } = await supabase
+        .from("leads")
+        .update({ estado: "activo" })
+        .eq("id", lead.id);
+      if (updateError) return setError(updateError.message);
+      router.refresh();
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleDeletePermanent() {
+    if (!deleteTarget || !supabase) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const { error: deleteError } = await supabase
+        .from("leads")
+        .delete()
+        .eq("id", deleteTarget.id);
+      if (deleteError) return setError(deleteError.message);
+      setDeleteTarget(null);
+      router.refresh();
     } finally {
       setSubmitting(false);
     }
@@ -367,7 +433,10 @@ export function LeadsBoard({ leads, role }: LeadsBoardProps) {
         <div>
           <h2 className="font-display text-3xl text-bloom-ink">Leads</h2>
           <p className="mt-1 text-bloom-muted">
-            {leads.length} {leads.length === 1 ? "lead" : "leads"} en seguimiento
+            {sortedActiveLeads.length}{" "}
+            {sortedActiveLeads.length === 1 ? "lead activo" : "leads activos"}
+            {sortedDiscardedLeads.length > 0 &&
+              ` · ${sortedDiscardedLeads.length} descartado${sortedDiscardedLeads.length === 1 ? "" : "s"}`}
           </p>
         </div>
         {hasPermission(role, "leads.create") && (
@@ -387,19 +456,19 @@ export function LeadsBoard({ leads, role }: LeadsBoardProps) {
         </p>
       )}
 
-      {sortedLeads.length === 0 ? (
+      {sortedActiveLeads.length === 0 ? (
         <p className="mt-6 rounded-2xl border border-dashed border-bloom-border bg-bloom-surface px-5 py-10 text-center text-sm text-bloom-muted">
-          No hay leads registrados.
+          No hay leads activos.
         </p>
       ) : (
         <ul className="mt-6 space-y-3">
-          {sortedLeads.map((lead) => (
+          {sortedActiveLeads.map((lead) => (
             <li
               key={lead.id}
               className="rounded-2xl border border-bloom-border bg-bloom-surface p-5 shadow-sm"
             >
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0 flex-1">
+              <div className="flex flex-col gap-4">
+                <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <Link
                       href={`/leads/${lead.id}`}
@@ -408,9 +477,9 @@ export function LeadsBoard({ leads, role }: LeadsBoardProps) {
                       {lead.nombre_pareja}
                     </Link>
                     <span
-                      className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${LEAD_STATUS_STYLES[lead.estado]}`}
+                      className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${LEAD_SEGUIMIENTO_STYLES[lead.estado_seguimiento]}`}
                     >
-                      {LEAD_STATUS_LABELS[lead.estado]}
+                      {LEAD_SEGUIMIENTO_LABELS[lead.estado_seguimiento]}
                     </span>
                   </div>
                   <p className="mt-1 text-sm text-bloom-muted">
@@ -457,7 +526,7 @@ export function LeadsBoard({ leads, role }: LeadsBoardProps) {
                     </p>
                   )}
                 </div>
-                <div className="flex flex-wrap justify-end gap-2">
+                <div className="flex flex-wrap gap-2 border-t border-bloom-border/70 pt-3">
                   <Link
                     href={`/leads/${lead.id}`}
                     className="rounded-full border border-bloom-border bg-bloom-canvas px-4 py-2 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-border"
@@ -490,6 +559,16 @@ export function LeadsBoard({ leads, role }: LeadsBoardProps) {
                       Convertir a boda
                     </button>
                   )}
+                  {canManageLeads ? (
+                    <button
+                      type="button"
+                      onClick={() => setDiscardTarget(lead)}
+                      disabled={submitting}
+                      className="rounded-full border border-red-200 bg-red-50 px-4 py-2 text-xs font-medium text-red-800 transition-colors hover:bg-red-100 disabled:opacity-60"
+                    >
+                      Descartar lead
+                    </button>
+                  ) : null}
                 </div>
               </div>
               {(lead.cantidad_invitados !== null ||
@@ -554,6 +633,93 @@ export function LeadsBoard({ leads, role }: LeadsBoardProps) {
         </ul>
       )}
 
+      {sortedDiscardedLeads.length > 0 && (
+        <div className="mt-8 border-t border-bloom-border pt-6">
+          <button
+            type="button"
+            onClick={() => setDiscardedOpen((open) => !open)}
+            className="flex w-full items-center justify-between gap-3 rounded-xl border border-bloom-border bg-bloom-canvas/80 px-4 py-3 text-left transition-colors hover:bg-bloom-canvas"
+            aria-expanded={discardedOpen}
+          >
+            <span className="font-medium text-bloom-ink">
+              Descartados ({sortedDiscardedLeads.length})
+            </span>
+            <span className="text-sm text-bloom-muted">
+              {discardedOpen ? "Ocultar" : "Mostrar"}
+            </span>
+          </button>
+
+          {discardedOpen && (
+            <ul className="mt-3 space-y-3">
+              {sortedDiscardedLeads.map((lead) => (
+                <li
+                  key={lead.id}
+                  className="rounded-2xl border border-bloom-border/80 bg-bloom-canvas/50 p-5"
+                >
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-bloom-ink">
+                        {lead.nombre_pareja}
+                      </p>
+                      <p className="mt-1 text-sm text-bloom-muted">
+                        {lead.ciudad} ·{" "}
+                        {formatShortDateStable(lead.fecha_tentativa)}
+                      </p>
+                      <p className="mt-1 text-xs text-bloom-muted">
+                        {LEAD_SEGUIMIENTO_LABELS[lead.estado_seguimiento]}
+                      </p>
+                    </div>
+                    {canManageLeads && (
+                      <div className="flex flex-wrap justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleReactivate(lead)}
+                          disabled={submitting}
+                          className="rounded-full border border-bloom-border bg-bloom-surface px-4 py-2 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-canvas disabled:opacity-60"
+                        >
+                          Reactivar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeleteTarget(lead)}
+                          disabled={submitting}
+                          className="rounded-full border border-red-200 bg-red-50 px-4 py-2 text-xs font-medium text-red-800 transition-colors hover:bg-red-100 disabled:opacity-60"
+                        >
+                          Eliminar permanentemente
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {discardTarget && (
+        <ConfirmModal
+          title="¿Descartar este lead?"
+          description="Esto indica que no contratará con Celestia."
+          confirmLabel="Sí, descartar"
+          busy={submitting}
+          onCancel={() => setDiscardTarget(null)}
+          onConfirm={handleDiscardConfirm}
+        />
+      )}
+
+      {deleteTarget && (
+        <ConfirmModal
+          title="¿Eliminar este lead permanentemente?"
+          description="Se borrarán también sus cotizaciones y citas vinculadas. Esta acción no se puede deshacer."
+          confirmLabel="Eliminar"
+          confirmDanger
+          busy={submitting}
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={handleDeletePermanent}
+        />
+      )}
+
       {createOpen && (
         <ModalShell
           title="Nuevo lead"
@@ -604,12 +770,17 @@ export function LeadsBoard({ leads, role }: LeadsBoardProps) {
         >
           <form className="mt-5 space-y-4" onSubmit={handleEdit}>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-bloom-ink">Estado</label>
+              <label className="text-sm font-medium text-bloom-ink">
+                Estado de seguimiento
+              </label>
               <select
                 className={inputClass}
-                value={form.estado}
+                value={form.estadoSeguimiento}
                 onChange={(e) =>
-                  setForm((s) => ({ ...s, estado: e.target.value as LeadStatus }))
+                  setForm((s) => ({
+                    ...s,
+                    estadoSeguimiento: e.target.value as LeadSeguimientoStatus,
+                  }))
                 }
                 disabled={submitting}
               >
@@ -843,12 +1014,15 @@ function LeadBaseFields({
             ))}
           </select>
         </Field>
-        <Field label="Estado">
+        <Field label="Estado de seguimiento">
           <select
             className={inputClass}
-            value={form.estado}
+            value={form.estadoSeguimiento}
             onChange={(e) =>
-              setForm((s) => ({ ...s, estado: e.target.value as LeadStatus }))
+              setForm((s) => ({
+                ...s,
+                estadoSeguimiento: e.target.value as LeadSeguimientoStatus,
+              }))
             }
             disabled={submitting}
           >
@@ -946,6 +1120,62 @@ function LeadContactFields({
           disabled={submitting}
         />
       </Field>
+    </div>
+  );
+}
+
+function ConfirmModal({
+  title,
+  description,
+  confirmLabel,
+  confirmDanger = false,
+  busy,
+  onCancel,
+  onConfirm,
+}: {
+  title: string;
+  description: string;
+  confirmLabel: string;
+  confirmDanger?: boolean;
+  busy: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      role="alertdialog"
+      aria-modal="true"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !busy) onCancel();
+      }}
+    >
+      <div className="w-full max-w-md rounded-2xl border border-bloom-border bg-bloom-surface p-6 shadow-xl">
+        <h3 className="font-display text-lg text-bloom-ink">{title}</h3>
+        <p className="mt-2 text-sm text-bloom-muted">{description}</p>
+        <div className="mt-6 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={busy}
+            className="rounded-full border border-bloom-border px-4 py-2 text-sm font-medium text-bloom-ink disabled:opacity-60"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={busy}
+            className={`rounded-full px-4 py-2 text-sm font-medium text-white disabled:opacity-60 ${
+              confirmDanger
+                ? "bg-red-600 hover:bg-red-700"
+                : "bg-bloom-accent hover:bg-bloom-accent-hover"
+            }`}
+          >
+            {busy ? "Procesando…" : confirmLabel}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -56,5 +56,7 @@ export function getPermissionsForRole(role: UserRole): Permission[] {
 }
 
 export function hasPermission(role: UserRole, permission: Permission): boolean {
-  return ROLE_PERMISSIONS[role].includes(permission);
+  const permissions = ROLE_PERMISSIONS[role];
+  if (!permissions) return false;
+  return permissions.includes(permission);
 }

@@ -6,9 +6,10 @@ import { LeadCotizacionesSection } from "@/app/components/leads/LeadCotizaciones
 import { LeadCotizacionShareActions } from "@/app/components/leads/LeadCotizacionShareActions";
 import type { CotizacionItemRow } from "@/app/data/cotizaciones";
 import { pickActiveLeadCotizacion } from "@/lib/lead-cotizacion";
+import { normalizeLeadRow } from "@/lib/leads-dashboard";
 import {
-  LEAD_STATUS_LABELS,
-  LEAD_STATUS_STYLES,
+  LEAD_SEGUIMIENTO_LABELS,
+  LEAD_SEGUIMIENTO_STYLES,
   type LeadRow,
 } from "@/app/data/leads";
 import type { CitaRow } from "@/app/data/citas";
@@ -38,7 +39,7 @@ export default async function LeadDetailPage({ params }: PageProps) {
     notFound();
   }
 
-  const leadRow = lead as LeadRow;
+  const leadRow = normalizeLeadRow(lead as Record<string, unknown>);
 
   const { data: cotizacionesData } = await supabase
     .from("cotizaciones")
@@ -102,9 +103,9 @@ export default async function LeadDetailPage({ params }: PageProps) {
               {leadRow.nombre_pareja}
             </h1>
             <span
-              className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${LEAD_STATUS_STYLES[leadRow.estado]}`}
+              className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${LEAD_SEGUIMIENTO_STYLES[leadRow.estado_seguimiento]}`}
             >
-              {LEAD_STATUS_LABELS[leadRow.estado]}
+              {LEAD_SEGUIMIENTO_LABELS[leadRow.estado_seguimiento]}
             </span>
           </div>
           <p className="mt-1 text-sm text-bloom-muted">

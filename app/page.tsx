@@ -9,6 +9,10 @@ import { NewWeddingModalButton } from "./components/NewWeddingModalButton";
 import { buildCronogramaAlerts } from "./data/cronograma-alerts";
 import { buildPaymentAlerts } from "./data/payment-alerts";
 import type { LeadRow } from "./data/leads";
+import {
+  normalizeLeadRow,
+  partitionLeadsForDashboard,
+} from "@/lib/leads-dashboard";
 import type { CitaRow } from "./data/citas";
 import type { ProveedorRow } from "./data/providers";
 import { mapBodaToWedding, type BodaRow } from "./data/weddings";
@@ -29,7 +33,9 @@ export default async function Home({ searchParams }: HomeProps) {
   const tab = resolvedSearchParams?.tab === "leads" ? "leads" : "bodas";
 
   let activeWeddings: ReturnType<typeof mapBodaToWedding>[] = [];
-  let leads: LeadRow[] = [];
+  let activeLeads: LeadRow[] = [];
+  let discardedLeads: LeadRow[] = [];
+  let allLeads: LeadRow[] = [];
   let paymentAlerts: ReturnType<typeof buildPaymentAlerts> = [];
   let cronogramaAlerts: ReturnType<typeof buildCronogramaAlerts> = [];
   let citasHoy: CitaRow[] = [];
@@ -53,7 +59,21 @@ export default async function Home({ searchParams }: HomeProps) {
   if (leadsError) {
     console.error(leadsError);
   } else if (leadsData) {
-    leads = leadsData as LeadRow[];
+    const { data: bodasConLead } = await supabase
+      .from("bodas")
+      .select("lead_id")
+      .not("lead_id", "is", null);
+
+    const convertedLeadIds = new Set(
+      (bodasConLead ?? [])
+        .map((b) => b.lead_id as string)
+        .filter(Boolean),
+    );
+
+    allLeads = (leadsData as Record<string, unknown>[]).map(normalizeLeadRow);
+    const partitioned = partitionLeadsForDashboard(allLeads, convertedLeadIds);
+    activeLeads = partitioned.activeLeads;
+    discardedLeads = partitioned.discardedLeads;
   }
 
   const today = new Date().toISOString().slice(0, 10);
@@ -123,7 +143,7 @@ export default async function Home({ searchParams }: HomeProps) {
     ]),
   );
   const leadsById = Object.fromEntries(
-    leads.map((l) => [l.id, { nombre_pareja: l.nombre_pareja }]),
+    allLeads.map((l) => [l.id, { nombre_pareja: l.nombre_pareja }]),
   );
 
   const proveedorIds = [
@@ -233,7 +253,11 @@ export default async function Home({ searchParams }: HomeProps) {
             </ul>
           </>
         ) : (
-          <LeadsBoard leads={leads} role={user.rol} />
+          <LeadsBoard
+            activeLeads={activeLeads}
+            discardedLeads={discardedLeads}
+            role={user.rol}
+          />
         )}
       </main>
     </div>
