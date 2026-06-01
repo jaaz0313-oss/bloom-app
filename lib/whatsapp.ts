@@ -160,7 +160,7 @@ export type PaymentReminderMessageInput = {
   nombrePareja: string;
   nombreProveedor: string;
   saldoPendiente: number;
-  fechaSaldo: string;
+  fechaSaldo: string | null;
   banco: string | null;
   numeroCuenta: string | null;
   titularCuenta: string | null;
@@ -173,7 +173,9 @@ export function buildPaymentReminderDashboardMessage(
   const nombrePareja = input.nombrePareja.trim() || "equipo";
   return `Hola ${nombrePareja}, te recordamos que tienes un pago pendiente con ${input.nombreProveedor}:
 💰 Saldo pendiente: ${formatCurrency(input.saldoPendiente)}
-📅 Fecha límite: ${formatShortDate(input.fechaSaldo)}
+📅 Fecha límite: ${
+    input.fechaSaldo ? formatShortDate(input.fechaSaldo) : formatDatoProveedor(null)
+  }
 🏦 Banco: ${formatDatoProveedor(input.banco)}
 📋 Cuenta: ${formatDatoProveedor(input.numeroCuenta)}
 👤 Titular: ${formatDatoProveedor(input.titularCuenta)}

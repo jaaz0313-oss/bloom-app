@@ -5,6 +5,8 @@ export type CotizacionBodaContext = {
   nombrePareja: string;
   fechaBoda: string;
   ciudad: string;
+  whatsappGrupoLink?: string | null;
+  telefonoNovia?: string | null;
 };
 
 export type CotizacionMensajeTipo = "primer_contacto" | "post_reunion";

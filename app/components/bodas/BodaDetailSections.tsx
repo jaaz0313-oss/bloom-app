@@ -201,6 +201,8 @@ export function BodaDetailSections({
               nombrePareja: boda.nombre_pareja,
               fechaBoda: boda.fecha_boda,
               ciudad: boda.ciudad,
+              whatsappGrupoLink: boda.whatsapp_grupo_link,
+              telefonoNovia: boda.telefono_novia,
             }}
             plannerName={plannerName}
             pagosByProveedor={pagosByProveedor}
