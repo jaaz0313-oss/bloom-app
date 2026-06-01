@@ -307,6 +307,7 @@ export function LeadsBoard({ leads, role }: LeadsBoardProps) {
       const { data: nuevaBoda, error: insertError } = await supabase
         .from("bodas")
         .insert({
+          lead_id: lead.id,
           nombre_pareja: lead.nombre_pareja,
           fecha_boda: lead.fecha_tentativa,
           ciudad: lead.ciudad,
@@ -333,12 +334,6 @@ export function LeadsBoard({ leads, role }: LeadsBoardProps) {
         nuevaBoda.id,
       );
       if (!importResult.ok) return setError(importResult.message);
-
-      const { error: deleteError } = await supabase
-        .from("leads")
-        .delete()
-        .eq("id", lead.id);
-      if (deleteError) return setError(deleteError.message);
 
       await logAuditoria({
         accion: AUDITORIA_ACCIONES.LEAD_CONVERTIDO,

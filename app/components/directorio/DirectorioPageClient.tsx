@@ -14,12 +14,25 @@ type Props = {
 type FormState = {
   nombre: string;
   categoria: string;
+  nombreContacto: string;
   telefono: string;
   email: string;
+  instagram: string;
+  paginaWeb: string;
+  especialidad: string;
+  fortalezas: string;
+  ciudadBase: string;
+  otrasCiudades: string;
   direccion: string;
+  anticipoRequerido: string;
+  incluyeIva: boolean;
+  condicionesPago: string;
   banco: string;
   tipoCuenta: string;
   numeroCuenta: string;
+  codigoSwift: string;
+  cuentaUsa: string;
+  paypal: string;
   titular: string;
   documentoNit: string;
   notas: string;
@@ -30,12 +43,25 @@ type FormState = {
 const emptyForm: FormState = {
   nombre: "",
   categoria: "",
+  nombreContacto: "",
   telefono: "",
   email: "",
+  instagram: "",
+  paginaWeb: "",
+  especialidad: "",
+  fortalezas: "",
+  ciudadBase: "",
+  otrasCiudades: "",
   direccion: "",
+  anticipoRequerido: "",
+  incluyeIva: false,
+  condicionesPago: "",
   banco: "",
   tipoCuenta: "",
   numeroCuenta: "",
+  codigoSwift: "",
+  cuentaUsa: "",
+  paypal: "",
   titular: "",
   documentoNit: "",
   notas: "",
@@ -82,12 +108,26 @@ export function DirectorioPageClient({ initialRows }: Props) {
     setForm({
       nombre: row.nombre,
       categoria: row.categoria,
+      nombreContacto: row.nombre_contacto ?? "",
       telefono: row.telefono ?? "",
       email: row.email ?? "",
+      instagram: row.instagram ?? "",
+      paginaWeb: row.pagina_web ?? "",
+      especialidad: row.especialidad ?? "",
+      fortalezas: row.fortalezas ?? "",
+      ciudadBase: row.ciudad_base ?? "",
+      otrasCiudades: row.otras_ciudades ?? "",
       direccion: row.direccion ?? "",
+      anticipoRequerido:
+        row.anticipo_requerido != null ? String(row.anticipo_requerido) : "",
+      incluyeIva: row.incluye_iva ?? false,
+      condicionesPago: row.condiciones_pago ?? "",
       banco: row.banco ?? "",
       tipoCuenta: row.tipo_cuenta ?? "",
       numeroCuenta: row.numero_cuenta ?? "",
+      codigoSwift: row.codigo_swift ?? "",
+      cuentaUsa: row.cuenta_usa ?? "",
+      paypal: row.paypal ?? "",
       titular: row.titular ?? "",
       documentoNit: row.documento_nit ?? "",
       notas: row.notas ?? "",
@@ -108,15 +148,40 @@ export function DirectorioPageClient({ initialRows }: Props) {
       return;
     }
 
+    const anticipoRequeridoValue = form.anticipoRequerido.trim()
+      ? Number(form.anticipoRequerido)
+      : null;
+
+    if (
+      anticipoRequeridoValue != null &&
+      (!Number.isFinite(anticipoRequeridoValue) || anticipoRequeridoValue < 0)
+    ) {
+      setError("Ingresa un anticipo requerido válido.");
+      return;
+    }
+
     const payload = {
       nombre: form.nombre.trim(),
       categoria: form.categoria.trim(),
+      nombre_contacto: form.nombreContacto.trim() || null,
       telefono: form.telefono.trim() || null,
       email: form.email.trim() || null,
+      instagram: form.instagram.trim() || null,
+      pagina_web: form.paginaWeb.trim() || null,
+      especialidad: form.especialidad.trim() || null,
+      fortalezas: form.fortalezas.trim() || null,
+      ciudad_base: form.ciudadBase.trim() || null,
+      otras_ciudades: form.otrasCiudades.trim() || null,
       direccion: form.direccion.trim() || null,
+      anticipo_requerido: anticipoRequeridoValue,
+      incluye_iva: form.incluyeIva,
+      condiciones_pago: form.condicionesPago.trim() || null,
       banco: form.banco.trim() || null,
       tipo_cuenta: form.tipoCuenta.trim() || null,
       numero_cuenta: form.numeroCuenta.trim() || null,
+      codigo_swift: form.codigoSwift.trim() || null,
+      cuenta_usa: form.cuentaUsa.trim() || null,
+      paypal: form.paypal.trim() || null,
       titular: form.titular.trim() || null,
       documento_nit: form.documentoNit.trim() || null,
       notas: form.notas.trim() || null,
@@ -269,8 +334,15 @@ export function DirectorioPageClient({ initialRows }: Props) {
                       <div className="min-w-0">
                         <p className="font-medium text-bloom-ink">{row.nombre}</p>
                         <p className="text-sm text-bloom-muted">
+                          {(row.nombre_contacto || "Sin contacto")} ·{" "}
                           {row.telefono || "Sin teléfono"} · {row.email || "Sin email"}
                         </p>
+                        {(row.instagram || row.pagina_web) && (
+                          <p className="mt-1 text-xs text-bloom-muted">
+                            {row.instagram || "Sin Instagram"} ·{" "}
+                            {row.pagina_web || "Sin página web"}
+                          </p>
+                        )}
                         {(row.banco || row.tipo_cuenta || row.numero_cuenta) && (
                           <p className="mt-1 text-xs text-bloom-muted">
                             {row.banco || "Sin banco"} · {row.tipo_cuenta || "Sin tipo"} ·{" "}
@@ -339,103 +411,260 @@ export function DirectorioPageClient({ initialRows }: Props) {
               </button>
             </div>
 
-            <form className="mt-5 space-y-4" onSubmit={onSubmit}>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="Nombre">
-                  <input
-                    className={inputClass}
-                    value={form.nombre}
-                    onChange={(e) => setForm((s) => ({ ...s, nombre: e.target.value }))}
-                    required
-                  />
-                </Field>
-                <Field label="Categoría">
-                  <select
-                    className={inputClass}
-                    value={form.categoria}
-                    onChange={(e) => setForm((s) => ({ ...s, categoria: e.target.value }))}
-                    required
-                  >
-                    <option value="">Seleccionar</option>
-                    {PROVIDER_CATEGORIES.map((category) => (
-                      <option key={category} value={category}>
-                        {category}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-              </div>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="Teléfono">
-                  <input
-                    className={inputClass}
-                    value={form.telefono}
-                    onChange={(e) => setForm((s) => ({ ...s, telefono: e.target.value }))}
-                  />
-                </Field>
-                <Field label="Email">
-                  <input
-                    type="email"
-                    className={inputClass}
-                    value={form.email}
-                    onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))}
-                  />
-                </Field>
-              </div>
-              <Field label="Dirección">
-                <input
-                  className={inputClass}
-                  value={form.direccion}
-                  onChange={(e) => setForm((s) => ({ ...s, direccion: e.target.value }))}
-                />
-              </Field>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="Banco">
-                  <input
-                    className={inputClass}
-                    value={form.banco}
-                    onChange={(e) => setForm((s) => ({ ...s, banco: e.target.value }))}
-                  />
-                </Field>
-                <Field label="Tipo de cuenta">
-                  <select
-                    className={inputClass}
-                    value={form.tipoCuenta}
-                    onChange={(e) => setForm((s) => ({ ...s, tipoCuenta: e.target.value }))}
-                  >
-                    <option value="">Seleccionar</option>
-                    <option value="Ahorros">Ahorros</option>
-                    <option value="Corriente">Corriente</option>
-                  </select>
-                </Field>
-              </div>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="Número de cuenta">
-                  <input
-                    className={inputClass}
-                    value={form.numeroCuenta}
+            <form className="mt-5 space-y-6" onSubmit={onSubmit}>
+              <FormSection title="Información general">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field label="Nombre del proveedor / empresa">
+                    <input
+                      className={inputClass}
+                      value={form.nombre}
+                      onChange={(e) => setForm((s) => ({ ...s, nombre: e.target.value }))}
+                      required
+                    />
+                  </Field>
+                  <Field label="Categoría">
+                    <select
+                      className={inputClass}
+                      value={form.categoria}
+                      onChange={(e) =>
+                        setForm((s) => ({ ...s, categoria: e.target.value }))
+                      }
+                      required
+                    >
+                      <option value="">Seleccionar</option>
+                      {PROVIDER_CATEGORIES.map((category) => (
+                        <option key={category} value={category}>
+                          {category}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field label="Especialidad">
+                    <input
+                      className={inputClass}
+                      value={form.especialidad}
+                      onChange={(e) =>
+                        setForm((s) => ({ ...s, especialidad: e.target.value }))
+                      }
+                    />
+                  </Field>
+                  <Field label="Ciudad base">
+                    <input
+                      className={inputClass}
+                      value={form.ciudadBase}
+                      onChange={(e) =>
+                        setForm((s) => ({ ...s, ciudadBase: e.target.value }))
+                      }
+                    />
+                  </Field>
+                </div>
+                <Field label="Fortalezas principales">
+                  <textarea
+                    className={textareaClass}
+                    value={form.fortalezas}
                     onChange={(e) =>
-                      setForm((s) => ({ ...s, numeroCuenta: e.target.value }))
+                      setForm((s) => ({ ...s, fortalezas: e.target.value }))
+                    }
+                    rows={3}
+                  />
+                </Field>
+                <Field label="Otras ciudades donde opera">
+                  <input
+                    className={inputClass}
+                    value={form.otrasCiudades}
+                    onChange={(e) =>
+                      setForm((s) => ({ ...s, otrasCiudades: e.target.value }))
                     }
                   />
                 </Field>
-                <Field label="Titular">
-                  <input
-                    className={inputClass}
-                    value={form.titular}
-                    onChange={(e) => setForm((s) => ({ ...s, titular: e.target.value }))}
+              </FormSection>
+
+              <FormSection title="Contacto">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field label="Nombre de contacto principal">
+                    <input
+                      className={inputClass}
+                      value={form.nombreContacto}
+                      onChange={(e) =>
+                        setForm((s) => ({ ...s, nombreContacto: e.target.value }))
+                      }
+                    />
+                  </Field>
+                  <Field label="Teléfono">
+                    <input
+                      className={inputClass}
+                      value={form.telefono}
+                      onChange={(e) =>
+                        setForm((s) => ({ ...s, telefono: e.target.value }))
+                      }
+                    />
+                  </Field>
+                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field label="Email">
+                    <input
+                      type="email"
+                      className={inputClass}
+                      value={form.email}
+                      onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))}
+                    />
+                  </Field>
+                  <Field label="Dirección">
+                    <input
+                      className={inputClass}
+                      value={form.direccion}
+                      onChange={(e) =>
+                        setForm((s) => ({ ...s, direccion: e.target.value }))
+                      }
+                    />
+                  </Field>
+                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field label="Instagram">
+                    <input
+                      className={inputClass}
+                      value={form.instagram}
+                      onChange={(e) =>
+                        setForm((s) => ({ ...s, instagram: e.target.value }))
+                      }
+                    />
+                  </Field>
+                  <Field label="Página web">
+                    <input
+                      className={inputClass}
+                      value={form.paginaWeb}
+                      onChange={(e) =>
+                        setForm((s) => ({ ...s, paginaWeb: e.target.value }))
+                      }
+                    />
+                  </Field>
+                </div>
+              </FormSection>
+
+              <FormSection title="Información financiera">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field label="Anticipo requerido">
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      className={inputClass}
+                      value={form.anticipoRequerido}
+                      onChange={(e) =>
+                        setForm((s) => ({ ...s, anticipoRequerido: e.target.value }))
+                      }
+                    />
+                  </Field>
+                  <Field label="Incluye IVA">
+                    <label className="flex h-10 items-center gap-2 rounded-xl border border-bloom-border bg-bloom-canvas px-3 text-sm text-bloom-ink">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-bloom-border text-bloom-accent focus:ring-bloom-accent/30"
+                        checked={form.incluyeIva}
+                        onChange={(e) =>
+                          setForm((s) => ({ ...s, incluyeIva: e.target.checked }))
+                        }
+                      />
+                      Sí, este proveedor incluye IVA
+                    </label>
+                  </Field>
+                </div>
+                <Field label="Condiciones de pago">
+                  <textarea
+                    className={textareaClass}
+                    value={form.condicionesPago}
+                    onChange={(e) =>
+                      setForm((s) => ({ ...s, condicionesPago: e.target.value }))
+                    }
+                    rows={2}
                   />
                 </Field>
-              </div>
-              <Field label="Documento / NIT">
-                <input
-                  className={inputClass}
-                  value={form.documentoNit}
-                  onChange={(e) =>
-                    setForm((s) => ({ ...s, documentoNit: e.target.value }))
-                  }
-                />
-              </Field>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field label="Banco">
+                    <input
+                      className={inputClass}
+                      value={form.banco}
+                      onChange={(e) => setForm((s) => ({ ...s, banco: e.target.value }))}
+                    />
+                  </Field>
+                  <Field label="Tipo de cuenta">
+                    <select
+                      className={inputClass}
+                      value={form.tipoCuenta}
+                      onChange={(e) =>
+                        setForm((s) => ({ ...s, tipoCuenta: e.target.value }))
+                      }
+                    >
+                      <option value="">Seleccionar</option>
+                      <option value="Ahorros">Ahorros</option>
+                      <option value="Corriente">Corriente</option>
+                    </select>
+                  </Field>
+                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field label="Número de cuenta">
+                    <input
+                      className={inputClass}
+                      value={form.numeroCuenta}
+                      onChange={(e) =>
+                        setForm((s) => ({ ...s, numeroCuenta: e.target.value }))
+                      }
+                    />
+                  </Field>
+                  <Field label="Titular">
+                    <input
+                      className={inputClass}
+                      value={form.titular}
+                      onChange={(e) =>
+                        setForm((s) => ({ ...s, titular: e.target.value }))
+                      }
+                    />
+                  </Field>
+                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field label="Código SWIFT">
+                    <input
+                      className={inputClass}
+                      value={form.codigoSwift}
+                      onChange={(e) =>
+                        setForm((s) => ({ ...s, codigoSwift: e.target.value }))
+                      }
+                    />
+                  </Field>
+                  <Field label="Cuenta USA">
+                    <input
+                      className={inputClass}
+                      value={form.cuentaUsa}
+                      onChange={(e) =>
+                        setForm((s) => ({ ...s, cuentaUsa: e.target.value }))
+                      }
+                    />
+                  </Field>
+                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <Field label="PayPal">
+                    <input
+                      className={inputClass}
+                      value={form.paypal}
+                      onChange={(e) =>
+                        setForm((s) => ({ ...s, paypal: e.target.value }))
+                      }
+                    />
+                  </Field>
+                  <Field label="Documento / NIT">
+                    <input
+                      className={inputClass}
+                      value={form.documentoNit}
+                      onChange={(e) =>
+                        setForm((s) => ({ ...s, documentoNit: e.target.value }))
+                      }
+                    />
+                  </Field>
+                </div>
+              </FormSection>
+
               <ProviderComisionFields
                 daComision={form.daComision}
                 porcentajeComision={form.porcentajeComision}
@@ -495,6 +724,21 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <label className="text-sm font-medium text-bloom-ink">{label}</label>
       {children}
     </div>
+  );
+}
+
+function FormSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="space-y-4 rounded-xl border border-bloom-border/80 bg-bloom-canvas/40 p-4 sm:p-5">
+      <h4 className="font-display text-lg text-bloom-ink">{title}</h4>
+      {children}
+    </section>
   );
 }
 

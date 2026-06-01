@@ -9,6 +9,7 @@ export type Wedding = {
 
 export type BodaRow = {
   id: string;
+  lead_id: string | null;
   nombre_pareja: string;
   fecha_boda: string;
   ciudad: string;

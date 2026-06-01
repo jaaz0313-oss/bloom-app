@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { ClienteDescargarCotizacionButton } from "@/app/components/cliente/ClienteDescargarCotizacionButton";
 import { ClienteBodaEstado } from "@/app/components/cliente/ClienteBodaEstado";
 import { ClienteCronograma } from "@/app/components/cliente/ClienteCronograma";
 import { ClientePageFooter } from "@/app/components/cliente/ClientePageFooter";
@@ -20,6 +21,10 @@ import {
   buildClienteCronogramaResumen,
   type ClienteCronogramaProveedor,
 } from "@/lib/cliente-cronograma";
+import {
+  getClienteCotizacionContext,
+  hasClienteCotizacionDisponible,
+} from "@/lib/cliente-cotizacion";
 import { formatWeddingDate } from "@/lib/format";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 
@@ -123,6 +128,8 @@ export default async function ClienteBodaPage({ params }: PageProps) {
     cronogramaItems,
     proveedoresCronograma,
   );
+  const cotizacionContext = await getClienteCotizacionContext(supabase, id);
+  const cotizacionDisponible = hasClienteCotizacionDisponible(cotizacionContext);
 
   return (
     <div className="flex min-h-full flex-col bg-bloom-canvas">
@@ -131,6 +138,12 @@ export default async function ClienteBodaPage({ params }: PageProps) {
         fechaFormateada={formatWeddingDate(bodaRow.fecha_boda)}
         ciudad={bodaRow.ciudad}
       />
+
+      {cotizacionDisponible && (
+        <div className="-mt-2 border-b border-bloom-border/40 bg-gradient-to-b from-[#efe8df] to-bloom-canvas px-5 pb-6 pt-2 sm:px-8">
+          <ClienteDescargarCotizacionButton bodaId={id} />
+        </div>
+      )}
 
       <main className="mx-auto w-full max-w-3xl flex-1 space-y-12 px-5 py-12 sm:space-y-14 sm:px-8 sm:py-16">
         <ClienteBodaEstado estado={estadoBoda} />
