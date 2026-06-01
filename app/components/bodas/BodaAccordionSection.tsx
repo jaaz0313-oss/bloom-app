@@ -1,9 +1,11 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 
 type BodaAccordionSectionProps = {
   title: string;
+  sectionKey?: string;
+  openSection?: string | null;
   defaultOpen?: boolean;
   hasContent?: boolean;
   children: React.ReactNode;
@@ -11,12 +13,22 @@ type BodaAccordionSectionProps = {
 
 export function BodaAccordionSection({
   title,
+  sectionKey,
+  openSection = null,
   defaultOpen = false,
   hasContent = false,
   children,
 }: BodaAccordionSectionProps) {
-  const [open, setOpen] = useState(defaultOpen);
+  const forceOpen =
+    sectionKey != null && openSection != null && openSection === sectionKey;
+  const [open, setOpen] = useState(defaultOpen || forceOpen);
   const panelId = useId();
+
+  useEffect(() => {
+    if (forceOpen) {
+      setOpen(true);
+    }
+  }, [forceOpen]);
 
   return (
     <section className="overflow-hidden rounded-2xl border border-bloom-border bg-bloom-surface shadow-sm">

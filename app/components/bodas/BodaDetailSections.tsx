@@ -23,6 +23,7 @@ import type { BodaRow } from "@/app/data/weddings";
 import { hasPermission, type UserRole } from "@/lib/auth/roles";
 import type { EquipoUsuarioMencion } from "@/lib/notas-menciones";
 import type { CitaLookupBoda, CitaLookupEquipo, CitaLookupLead } from "@/app/components/citas/CitaFormModal";
+import { BODA_SECTION_PROVEEDORES } from "@/lib/boda-url";
 
 type BodaDetailSectionsProps = {
   bodaId: string;
@@ -46,6 +47,8 @@ type BodaDetailSectionsProps = {
   hasClientInfo: boolean;
   hasBrief: boolean;
   hasContrato: boolean;
+  openSection?: string | null;
+  highlightProveedorId?: string | null;
 };
 
 export function BodaDetailSections({
@@ -70,6 +73,8 @@ export function BodaDetailSections({
   hasClientInfo,
   hasBrief,
   hasContrato,
+  openSection = null,
+  highlightProveedorId = null,
 }: BodaDetailSectionsProps) {
   const projection = computePaymentProjection(providers, pagosByProveedor);
   const hasPaymentContent =
@@ -170,6 +175,8 @@ export function BodaDetailSections({
 
       <BodaAccordionSection
         title="Proveedores"
+        sectionKey={BODA_SECTION_PROVEEDORES}
+        openSection={openSection}
         defaultOpen
         hasContent={providers.length > 0}
       >
@@ -199,6 +206,7 @@ export function BodaDetailSections({
             pagosByProveedor={pagosByProveedor}
             role={role}
             whatsappGrupoLink={boda.whatsapp_grupo_link}
+            highlightProveedorId={highlightProveedorId}
           />
         </div>
       </BodaAccordionSection>

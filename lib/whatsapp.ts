@@ -156,6 +156,59 @@ function formatDatoProveedor(value: string | null | undefined): string {
   return trimmed || "No registrado";
 }
 
+export type PaymentReminderMessageInput = {
+  nombrePareja: string;
+  nombreProveedor: string;
+  saldoPendiente: number;
+  fechaSaldo: string;
+  banco: string | null;
+  numeroCuenta: string | null;
+  titularCuenta: string | null;
+};
+
+/** Recordatorio de saldo pendiente para el dashboard (grupo o novia). */
+export function buildPaymentReminderDashboardMessage(
+  input: PaymentReminderMessageInput,
+): string {
+  const nombrePareja = input.nombrePareja.trim() || "equipo";
+  return `Hola ${nombrePareja}, te recordamos que tienes un pago pendiente con ${input.nombreProveedor}:
+💰 Saldo pendiente: ${formatCurrency(input.saldoPendiente)}
+📅 Fecha límite: ${formatShortDate(input.fechaSaldo)}
+🏦 Banco: ${formatDatoProveedor(input.banco)}
+📋 Cuenta: ${formatDatoProveedor(input.numeroCuenta)}
+👤 Titular: ${formatDatoProveedor(input.titularCuenta)}
+Quedamos atentos para confirmar el pago 🌸`;
+}
+
+export function openPaymentReminderWhatsApp(options: {
+  message: string;
+  whatsappGrupoLink: string | null;
+  telefonoNovia: string | null;
+}): boolean {
+  const message = options.message.trim();
+  if (!message) return false;
+
+  const grupoLink = options.whatsappGrupoLink?.trim();
+  if (grupoLink) {
+    const url = buildGrupoWhatsAppUrl(grupoLink, message);
+    if (url) {
+      window.open(url, "_blank", "noopener,noreferrer");
+      return true;
+    }
+  }
+
+  const telefono = options.telefonoNovia?.trim();
+  if (telefono) {
+    const url = buildWhatsAppUrl(telefono, message);
+    if (url) {
+      window.open(url, "_blank", "noopener,noreferrer");
+      return true;
+    }
+  }
+
+  return false;
+}
+
 function buildRecordatorioConTarjetaMessage(
   nombre: string,
   proveedor: ProveedorRow,

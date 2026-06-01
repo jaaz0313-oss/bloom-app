@@ -11,6 +11,11 @@ export type PaymentAlert = {
   fechaSaldo: string;
   diasRestantes: number;
   urgency: PaymentAlertUrgency;
+  banco: string | null;
+  numeroCuenta: string | null;
+  titularCuenta: string | null;
+  whatsappGrupoLink: string | null;
+  telefonoNovia: string | null;
 };
 
 export const PAYMENT_ALERT_URGENCY_LABELS: Record<PaymentAlertUrgency, string> = {
@@ -46,7 +51,18 @@ function addDays(date: Date, days: number): string {
 }
 
 type ProveedorWithBoda = ProveedorRow & {
-  bodas: { nombre_pareja: string } | { nombre_pareja: string }[] | null;
+  bodas:
+    | {
+        nombre_pareja: string;
+        whatsapp_grupo_link: string | null;
+        telefono_novia: string | null;
+      }
+    | {
+        nombre_pareja: string;
+        whatsapp_grupo_link: string | null;
+        telefono_novia: string | null;
+      }[]
+    | null;
 };
 
 export function buildPaymentAlerts(
@@ -85,6 +101,11 @@ export function buildPaymentAlerts(
       fechaSaldo,
       diasRestantes,
       urgency: getPaymentAlertUrgency(diasRestantes),
+      banco: proveedor.banco,
+      numeroCuenta: proveedor.numero_cuenta,
+      titularCuenta: proveedor.titular_cuenta,
+      whatsappGrupoLink: boda.whatsapp_grupo_link,
+      telefonoNovia: boda.telefono_novia,
     });
   }
 

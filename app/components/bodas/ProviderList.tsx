@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import type { PagoRow } from "@/app/data/pagos";
 import type { ProveedorRow } from "@/app/data/providers";
 import type { UserRole } from "@/lib/auth/roles";
@@ -16,6 +16,7 @@ type ProviderListProps = {
   pagosByProveedor: Record<string, PagoRow[]>;
   role: UserRole;
   whatsappGrupoLink?: string | null;
+  highlightProveedorId?: string | null;
 };
 
 export function ProviderList({
@@ -26,7 +27,17 @@ export function ProviderList({
   pagosByProveedor,
   role,
   whatsappGrupoLink = null,
+  highlightProveedorId = null,
 }: ProviderListProps) {
+  useEffect(() => {
+    if (!highlightProveedorId) return;
+    const el = document.getElementById(`proveedor-${highlightProveedorId}`);
+    if (!el) return;
+    const timer = window.setTimeout(() => {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 150);
+    return () => window.clearTimeout(timer);
+  }, [highlightProveedorId, providers]);
   const visibleProviders = useMemo(
     () => providers.filter((p) => p.estado !== "descartado"),
     [providers],
@@ -80,7 +91,15 @@ export function ProviderList({
             )}
             <ul className="space-y-3">
               {categoriaProviders.map((provider) => (
-                <li key={provider.id}>
+                <li
+                  key={provider.id}
+                  id={`proveedor-${provider.id}`}
+                  className={
+                    highlightProveedorId === provider.id
+                      ? "scroll-mt-24 rounded-2xl ring-2 ring-bloom-accent/40 ring-offset-2"
+                      : "scroll-mt-24"
+                  }
+                >
                   <ProviderCard
                     provider={provider}
                     bodaId={bodaId}

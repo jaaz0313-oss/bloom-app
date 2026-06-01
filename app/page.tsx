@@ -63,7 +63,7 @@ export default async function Home({ searchParams }: HomeProps) {
 
   const { data: proveedoresData, error: proveedoresError } = await supabase
     .from("proveedores")
-    .select("*, bodas(nombre_pareja)")
+    .select("*, bodas(nombre_pareja, whatsapp_grupo_link, telefono_novia)")
     .not("fecha_saldo", "is", null)
     .gte("fecha_saldo", today)
     .lte("fecha_saldo", maxDate);
@@ -72,9 +72,7 @@ export default async function Home({ searchParams }: HomeProps) {
     console.error(proveedoresError);
   } else if (proveedoresData) {
     paymentAlerts = buildPaymentAlerts(
-      proveedoresData as (ProveedorRow & {
-        bodas: { nombre_pareja: string } | null;
-      })[],
+      proveedoresData as Parameters<typeof buildPaymentAlerts>[0],
     );
   }
 
@@ -169,7 +167,10 @@ export default async function Home({ searchParams }: HomeProps) {
           citas={citasHoy}
           context={{ bodasById, leadsById, proveedoresById }}
         />
-        <PaymentAlertsSection alerts={paymentAlerts} />
+        <PaymentAlertsSection
+          alerts={paymentAlerts}
+          canSendWhatsApp={hasPermission(user.rol, "whatsapp.send")}
+        />
         <CronogramaAlertsSection alerts={cronogramaAlerts} />
 
         <div className="inline-flex rounded-full border border-bloom-border bg-bloom-surface p-1">

@@ -26,12 +26,16 @@ export const dynamic = "force-dynamic";
 
 type PageProps = {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{ section?: string; proveedor?: string }>;
 };
 
-export default async function BodaDetailPage({ params }: PageProps) {
+export default async function BodaDetailPage({ params, searchParams }: PageProps) {
   const user = await requireAuthUser();
   const supabase = await createServerSupabaseClient();
   const { id } = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const openSection = resolvedSearchParams?.section ?? null;
+  const highlightProveedorId = resolvedSearchParams?.proveedor ?? null;
 
   const { data: boda, error: bodaError } = await supabase
     .from("bodas")
@@ -211,6 +215,8 @@ export default async function BodaDetailPage({ params }: PageProps) {
           hasClientInfo={hasClientInfoContent(bodaRow)}
           hasBrief={hasBriefContent(brief)}
           hasContrato={hasContratoContent(contrato, bodaRow)}
+          openSection={openSection}
+          highlightProveedorId={highlightProveedorId}
         />
 
         {hasPermission(user.rol, "weddings.delete") && (
