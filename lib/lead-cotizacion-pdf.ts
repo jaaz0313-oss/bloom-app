@@ -12,6 +12,13 @@ import { formatCurrency, formatWeddingDate } from "@/lib/format";
 const CELESTIA_EMAIL = "celestiaandevents@gmail.com";
 const CELESTIA_PHONE = "+57 319 553 8654";
 
+/** Dimensiones naturales de public/logo.png (px). */
+const LOGO_NATURAL_WIDTH_PX = 4500;
+const LOGO_NATURAL_HEIGHT_PX = 4421;
+const LOGO_WIDTH_MM = 80;
+const LOGO_HEIGHT_MM =
+  LOGO_WIDTH_MM * (LOGO_NATURAL_HEIGHT_PX / LOGO_NATURAL_WIDTH_PX);
+
 const COLORS = {
   canvas: [247, 244, 239] as [number, number, number],
   ink: [42, 38, 34] as [number, number, number],
@@ -86,32 +93,39 @@ export function generateLeadCotizacionPdf(
   const fechaEstimada = cotizacion.fecha_estimada ?? lead.fecha_tentativa;
   const ciudad = cotizacion.ciudad?.trim() || lead.ciudad;
 
-  doc.setFillColor(...COLORS.canvas);
-  doc.rect(0, 0, pageWidth, 58, "F");
-
+  const logoY = 10;
   const logoBase64 = loadLogoBase64();
+  const titleY = logoBase64
+    ? logoY + LOGO_HEIGHT_MM + 10
+    : 28;
+  const subtitleY = titleY + 10;
+  const invitadosY = subtitleY + 8;
+  const tableStartY = invitadosY + 10;
+  const headerHeight = tableStartY - 4;
+
+  doc.setFillColor(...COLORS.canvas);
+  doc.rect(0, 0, pageWidth, headerHeight, "F");
+
   if (logoBase64) {
-    const logoWidth = 36;
-    const logoHeight = 18;
     doc.addImage(
       `data:image/png;base64,${logoBase64}`,
       "PNG",
-      (pageWidth - logoWidth) / 2,
-      10,
-      logoWidth,
-      logoHeight,
+      (pageWidth - LOGO_WIDTH_MM) / 2,
+      logoY,
+      LOGO_WIDTH_MM,
+      LOGO_HEIGHT_MM,
     );
   } else {
     doc.setFont("times", "bold");
     doc.setFontSize(18);
     doc.setTextColor(...COLORS.accent);
-    doc.text("Celestia", pageWidth / 2, 22, { align: "center" });
+    doc.text("Celestia", pageWidth / 2, logoY + 12, { align: "center" });
   }
 
   doc.setFont("times", "bold");
   doc.setFontSize(20);
   doc.setTextColor(...COLORS.ink);
-  doc.text("Proyección Estimada de Inversión", pageWidth / 2, 38, {
+  doc.text("Proyección Estimada de Inversión", pageWidth / 2, titleY, {
     align: "center",
   });
 
@@ -126,7 +140,7 @@ export function generateLeadCotizacionPdf(
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   doc.setTextColor(...COLORS.muted);
-  doc.text(subtitulo, pageWidth / 2, 46, { align: "center" });
+  doc.text(subtitulo, pageWidth / 2, subtitleY, { align: "center" });
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
@@ -134,7 +148,7 @@ export function generateLeadCotizacionPdf(
   doc.text(
     `Número de invitados: ${numeroInvitados != null ? numeroInvitados : "Por definir"}`,
     20,
-    56,
+    invitadosY,
   );
 
   const tableBody = items.map((item) => [
@@ -143,7 +157,7 @@ export function generateLeadCotizacionPdf(
   ]);
 
   autoTable(doc, {
-    startY: 64,
+    startY: tableStartY,
     head: [["Categoría incluida", "Precio estimado"]],
     body: tableBody,
     foot: [["Total estimado", formatCurrency(totalEstimado)]],
@@ -179,7 +193,7 @@ export function generateLeadCotizacionPdf(
 
   const disclaimerY =
     (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable
-      ?.finalY ?? 64;
+      ?.finalY ?? tableStartY;
   doc.setFont("helvetica", "italic");
   doc.setFontSize(8);
   doc.setTextColor(...COLORS.muted);
