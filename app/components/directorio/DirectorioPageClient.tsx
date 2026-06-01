@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { DirectorioProveedorRow } from "@/app/data/directorio";
 import { ProviderComisionFields } from "@/app/components/bodas/ProviderComisionFields";
@@ -69,9 +69,43 @@ const emptyForm: FormState = {
   porcentajeComision: "10",
 };
 
+function groupProvidersByCategory(
+  providers: DirectorioProveedorRow[],
+): { category: string; providers: DirectorioProveedorRow[] }[] {
+  const grouped = new Map<string, DirectorioProveedorRow[]>();
+
+  for (const row of providers) {
+    const category = row.categoria?.trim() || "Sin categoría";
+    const list = grouped.get(category) ?? [];
+    list.push(row);
+    grouped.set(category, list);
+  }
+
+  for (const list of grouped.values()) {
+    list.sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+  }
+
+  const knownCategories = PROVIDER_CATEGORIES as readonly string[];
+  const orderedKeys = [
+    ...PROVIDER_CATEGORIES.filter((c) => grouped.has(c)),
+    ...[...grouped.keys()]
+      .filter((c) => !knownCategories.includes(c))
+      .sort((a, b) => a.localeCompare(b, "es")),
+  ];
+
+  return orderedKeys.map((category) => ({
+    category,
+    providers: grouped.get(category) ?? [],
+  }));
+}
+
 export function DirectorioPageClient({ initialRows }: Props) {
   const router = useRouter();
   const [rows, setRows] = useState(initialRows);
+
+  useEffect(() => {
+    setRows(initialRows);
+  }, [initialRows]);
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<DirectorioProveedorRow | null>(null);
@@ -79,22 +113,58 @@ export function DirectorioPageClient({ initialRows }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rowUpdatingId, setRowUpdatingId] = useState<string | null>(null);
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
+    new Set(),
+  );
+
+  const searchTerm = query.trim().toLowerCase();
 
   const filteredRows = useMemo(() => {
-    const term = query.trim().toLowerCase();
-    if (!term) return rows;
-    return rows.filter((row) => row.nombre.toLowerCase().includes(term));
-  }, [rows, query]);
+    if (!searchTerm) return rows;
+    return rows.filter((row) => {
+      const haystack = [
+        row.nombre,
+        row.ciudad_base,
+        row.telefono,
+        row.email,
+        row.nombre_contacto,
+        row.categoria,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(searchTerm);
+    });
+  }, [rows, searchTerm]);
 
-  const groupedByCategory = useMemo(() => {
-    const grouped = new Map<string, DirectorioProveedorRow[]>();
-    for (const category of PROVIDER_CATEGORIES) grouped.set(category, []);
-    for (const row of filteredRows) {
-      if (!grouped.has(row.categoria)) grouped.set(row.categoria, []);
-      grouped.get(row.categoria)!.push(row);
-    }
-    return grouped;
-  }, [filteredRows]);
+  const categorySections = useMemo(
+    () => groupProvidersByCategory(filteredRows),
+    [filteredRows],
+  );
+
+  useEffect(() => {
+    if (!searchTerm) return;
+    setExpandedCategories(
+      new Set(categorySections.map((section) => section.category)),
+    );
+  }, [searchTerm, categorySections]);
+
+  useEffect(() => {
+    if (searchTerm) return;
+    setExpandedCategories(new Set());
+  }, [searchTerm]);
+
+  const toggleCategoryExpanded = (category: string) => {
+    setExpandedCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(category)) {
+        next.delete(category);
+      } else {
+        next.add(category);
+      }
+      return next;
+    });
+  };
 
   function openCreateModal() {
     setEditing(null);
@@ -301,7 +371,7 @@ export function DirectorioPageClient({ initialRows }: Props) {
           className={inputClass}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Buscar por nombre"
+          placeholder="Buscar por nombre, ciudad, teléfono o contacto"
         />
       </div>
 
@@ -311,79 +381,93 @@ export function DirectorioPageClient({ initialRows }: Props) {
         </p>
       )}
 
-      <div className="space-y-5">
-        {Array.from(groupedByCategory.entries()).map(([category, categoryRows]) => {
-          if (categoryRows.length === 0) return null;
-          return (
-            <div
-              key={category}
-              className="rounded-2xl border border-bloom-border bg-bloom-surface p-5 shadow-sm"
-            >
-              <h2 className="font-display text-lg text-bloom-ink">{category}</h2>
-              <ul className="mt-4 space-y-3">
-                {categoryRows.map((row) => (
-                  <li
-                    key={row.id}
-                    className={`rounded-xl border px-4 py-3 ${
-                      row.activo
-                        ? "border-bloom-border bg-bloom-canvas/40"
-                        : "border-gray-200 bg-gray-100 opacity-80"
+      {categorySections.length === 0 ? (
+        <p className="rounded-2xl border border-dashed border-bloom-border bg-bloom-surface px-5 py-10 text-center text-sm text-bloom-muted">
+          {searchTerm
+            ? "No hay proveedores que coincidan con tu búsqueda."
+            : "Aún no hay proveedores en el directorio."}
+        </p>
+      ) : (
+        <div className="space-y-4">
+          <p className="text-sm text-bloom-muted">
+            {searchTerm
+              ? `${categorySections.length} categorías con resultados — haz clic para ver proveedores`
+              : `${categorySections.length} categorías — haz clic en cada una para expandir`}
+          </p>
+          {categorySections.map(({ category, providers }) => {
+            const isOpen = expandedCategories.has(category);
+            return (
+              <div
+                key={category}
+                className="overflow-hidden rounded-2xl border border-bloom-border bg-bloom-surface shadow-sm"
+              >
+                <button
+                  type="button"
+                  onClick={() => toggleCategoryExpanded(category)}
+                  aria-expanded={isOpen}
+                  className="flex w-full touch-manipulation items-center justify-between gap-4 px-5 py-4 text-left transition-colors hover:bg-bloom-canvas/60"
+                >
+                  <span className="font-display text-lg text-bloom-ink">
+                    {category} ({providers.length})
+                  </span>
+                  <ChevronDownIcon
+                    className={`h-5 w-5 shrink-0 text-bloom-muted transition-transform duration-200 ${
+                      isOpen ? "rotate-180" : ""
                     }`}
-                  >
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="min-w-0">
-                        <p className="font-medium text-bloom-ink">{row.nombre}</p>
-                        <p className="text-sm text-bloom-muted">
-                          {(row.nombre_contacto || "Sin contacto")} ·{" "}
-                          {row.telefono || "Sin teléfono"} · {row.email || "Sin email"}
-                        </p>
-                        {(row.instagram || row.pagina_web) && (
-                          <p className="mt-1 text-xs text-bloom-muted">
-                            {row.instagram || "Sin Instagram"} ·{" "}
-                            {row.pagina_web || "Sin página web"}
-                          </p>
-                        )}
-                        {(row.banco || row.tipo_cuenta || row.numero_cuenta) && (
-                          <p className="mt-1 text-xs text-bloom-muted">
-                            {row.banco || "Sin banco"} · {row.tipo_cuenta || "Sin tipo"} ·{" "}
-                            {row.numero_cuenta || "Sin cuenta"}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span
-                          className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
+                  />
+                </button>
+                {isOpen && (
+                  <div className="border-t border-bloom-border px-5 pb-4">
+                    <ul className="space-y-3 pt-3">
+                      {providers.map((row) => (
+                        <li
+                          key={row.id}
+                          className={`rounded-xl border px-4 py-3 sm:px-5 ${
                             row.activo
-                              ? "bg-green-100 text-green-800"
-                              : "bg-gray-200 text-gray-700"
+                              ? "border-bloom-border bg-bloom-canvas/40"
+                              : "border-gray-200 bg-gray-100/80 opacity-80"
                           }`}
                         >
-                          {row.activo ? "Activo" : "Inactivo"}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => openEditModal(row)}
-                          className="rounded-full border border-bloom-border bg-bloom-surface px-3 py-1 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-border"
-                        >
-                          Editar
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => toggleActive(row)}
-                          disabled={rowUpdatingId === row.id}
-                          className="rounded-full border border-bloom-border bg-bloom-surface px-3 py-1 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-border disabled:opacity-60"
-                        >
-                          {row.activo ? "Desactivar" : "Activar"}
-                        </button>
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          );
-        })}
-      </div>
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="min-w-0 space-y-1">
+                              <p className="font-medium text-bloom-ink">
+                                {row.nombre}
+                              </p>
+                              <p className="text-sm text-bloom-muted">
+                                {row.ciudad_base || "Sin ciudad base"}
+                              </p>
+                              <p className="text-sm text-bloom-muted">
+                                {row.telefono || "Sin teléfono"}
+                              </p>
+                            </div>
+                            <div className="flex shrink-0 flex-wrap items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => openEditModal(row)}
+                                className="rounded-full border border-bloom-border bg-bloom-surface px-3 py-1.5 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-border"
+                              >
+                                Editar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => toggleActive(row)}
+                                disabled={rowUpdatingId === row.id}
+                                className="rounded-full border border-bloom-border bg-bloom-surface px-3 py-1.5 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-border disabled:opacity-60"
+                              >
+                                {row.activo ? "Desactivar" : "Activar"}
+                              </button>
+                            </div>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {open && (
         <div
@@ -739,6 +823,24 @@ function FormSection({
       <h4 className="font-display text-lg text-bloom-ink">{title}</h4>
       {children}
     </section>
+  );
+}
+
+function ChevronDownIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      className={className}
+      aria-hidden
+    >
+      <path
+        fillRule="evenodd"
+        d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z"
+        clipRule="evenodd"
+      />
+    </svg>
   );
 }
 
