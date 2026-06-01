@@ -2,6 +2,89 @@
 
 import { useEffect, useId, useState } from "react";
 
+type BodaCollapsiblePanelProps = {
+  title: string;
+  defaultOpen?: boolean;
+  hasContent?: boolean;
+  variant?: "card" | "nested";
+  children: React.ReactNode;
+};
+
+export function BodaCollapsiblePanel({
+  title,
+  defaultOpen = false,
+  hasContent = false,
+  variant = "card",
+  children,
+}: BodaCollapsiblePanelProps) {
+  const [open, setOpen] = useState(defaultOpen);
+  const panelId = useId();
+  const isNested = variant === "nested";
+
+  const shellClass = isNested
+    ? "mt-6 border-t border-bloom-border"
+    : "overflow-hidden rounded-2xl border border-bloom-border bg-bloom-surface shadow-sm";
+
+  const triggerClass = isNested
+    ? "flex w-full items-center justify-between gap-4 py-4 text-left transition-colors hover:bg-bloom-canvas/60"
+    : "flex w-full items-center justify-between gap-4 px-5 py-4 text-left transition-colors hover:bg-bloom-canvas/60 sm:px-6";
+
+  const contentClass = isNested
+    ? "border-t border-bloom-border/70 pb-1 pt-4"
+    : "border-t border-bloom-border/70 px-5 pb-5 pt-4 sm:px-6 sm:pb-6";
+
+  const Shell = isNested ? "div" : "section";
+
+  return (
+    <Shell className={shellClass}>
+      <button
+        type="button"
+        id={`${panelId}-trigger`}
+        aria-expanded={open}
+        aria-controls={panelId}
+        onClick={() => setOpen((value) => !value)}
+        className={triggerClass}
+      >
+        <span className="flex min-w-0 items-center gap-3">
+          {hasContent ? (
+            <span
+              className="h-2 w-2 shrink-0 rounded-full bg-bloom-success"
+              title="Tiene contenido"
+              aria-hidden
+            />
+          ) : (
+            <span
+              className="h-2 w-2 shrink-0 rounded-full bg-transparent"
+              aria-hidden
+            />
+          )}
+          <span
+            className={`font-display text-bloom-ink ${
+              isNested ? "text-lg" : "text-xl"
+            }`}
+          >
+            {title}
+          </span>
+        </span>
+        <AccordionChevron open={open} />
+      </button>
+
+      <div
+        id={panelId}
+        role="region"
+        aria-labelledby={`${panelId}-trigger`}
+        className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${
+          open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+        }`}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div className={contentClass}>{children}</div>
+        </div>
+      </div>
+    </Shell>
+  );
+}
+
 type BodaAccordionSectionProps = {
   title: string;
   sectionKey?: string;
@@ -48,7 +131,10 @@ export function BodaAccordionSection({
               aria-hidden
             />
           ) : (
-            <span className="h-2 w-2 shrink-0 rounded-full bg-transparent" aria-hidden />
+            <span
+              className="h-2 w-2 shrink-0 rounded-full bg-transparent"
+              aria-hidden
+            />
           )}
           <span className="font-display text-xl text-bloom-ink">{title}</span>
         </span>

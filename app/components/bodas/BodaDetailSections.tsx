@@ -2,7 +2,10 @@
 
 import { AddProviderModalButton } from "@/app/components/bodas/AddProviderModalButton";
 import { BriefBoda } from "@/app/components/bodas/BriefBoda";
-import { BodaAccordionSection } from "@/app/components/bodas/BodaAccordionSection";
+import {
+  BodaAccordionSection,
+  BodaCollapsiblePanel,
+} from "@/app/components/bodas/BodaAccordionSection";
 import { ClientInfoSection } from "@/app/components/bodas/ClientInfoSection";
 import { ContratoSection } from "@/app/components/bodas/ContratoSection";
 import { NotasInternas } from "@/app/components/bodas/NotasInternas";
@@ -102,20 +105,22 @@ export function BodaDetailSections({
         />
 
         {canViewContrato && (
-          <div className="mt-8 border-t border-bloom-border pt-8">
-            <div className="mb-5">
-              <h3 className="font-display text-lg text-bloom-ink">Contrato</h3>
-              <p className="mt-1 text-sm text-bloom-muted">
-                Honorarios, anticipo y generación del documento para firma.
-              </p>
-            </div>
+          <BodaCollapsiblePanel
+            variant="nested"
+            title="Contrato"
+            defaultOpen={false}
+            hasContent={hasContrato}
+          >
+            <p className="mb-5 text-sm text-bloom-muted">
+              Honorarios, anticipo y generación del documento para firma.
+            </p>
             <ContratoSection
               embedded
               bodaId={bodaId}
               boda={boda}
               initialContrato={contrato}
             />
-          </div>
+          </BodaCollapsiblePanel>
         )}
       </BodaAccordionSection>
 
