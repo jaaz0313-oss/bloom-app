@@ -728,6 +728,27 @@ export function ProviderCard({
             </div>
           )}
 
+          {provider.estado === "en_negociacion" && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => handleEstadoChange("contratado")}
+                disabled={updating || editSubmitting || deleting}
+                className="inline-flex items-center justify-center rounded-full bg-green-500 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-green-600 disabled:opacity-60"
+              >
+                {updating ? "Actualizando..." : "Contratar"}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleEstadoChange("descartado")}
+                disabled={updating || editSubmitting || deleting}
+                className="rounded-full border border-red-200 bg-red-50 px-4 py-2 text-xs font-medium text-red-700 transition-colors hover:bg-red-100 disabled:opacity-60"
+              >
+                Descartar
+              </button>
+            </div>
+          )}
+
           {(provider.banco ||
             provider.tipo_cuenta ||
             provider.numero_cuenta ||
@@ -823,27 +844,6 @@ export function ProviderCard({
           </div>
 
           <div className="mt-4 flex flex-wrap gap-2">
-            {canManage && provider.estado === "en_negociacion" && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => handleEstadoChange("contratado")}
-                  disabled={updating || editSubmitting}
-                  className="rounded-full bg-bloom-accent px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-bloom-accent-hover disabled:opacity-60"
-                >
-                  {updating ? "Actualizando..." : "Contratar"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleEstadoChange("descartado")}
-                  disabled={updating || editSubmitting}
-                  className="rounded-full border border-red-200 bg-red-50 px-4 py-2 text-xs font-medium text-red-700 transition-colors hover:bg-red-100 disabled:opacity-60"
-                >
-                  Descartar
-                </button>
-              </>
-            )}
-
             {canManage && (
               <button
                 type="button"
