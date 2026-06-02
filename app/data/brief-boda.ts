@@ -41,6 +41,9 @@ export type BriefBodaRow = {
   extras_hora_loca: string | null;
   extras_cafe: string | null;
   extras_otros: string | null;
+  comunicacion_website: string | null;
+  comunicacion_save_the_date: string | null;
+  comunicacion_invitaciones: string | null;
   logistica_transporte_novios: string | null;
   logistica_transporte_invitados: string | null;
   logistica_hotel: string | null;
@@ -95,6 +98,9 @@ export const EMPTY_BRIEF_FORM: BriefBodaFormData = {
   extras_hora_loca: null,
   extras_cafe: null,
   extras_otros: null,
+  comunicacion_website: null,
+  comunicacion_save_the_date: null,
+  comunicacion_invitaciones: null,
   logistica_transporte_novios: null,
   logistica_transporte_invitados: null,
   logistica_hotel: null,

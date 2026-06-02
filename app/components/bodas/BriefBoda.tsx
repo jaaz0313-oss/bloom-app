@@ -21,6 +21,7 @@ type FieldDef = {
   label: string;
   type?: "textarea" | "text" | "checkbox";
   rows?: number;
+  placeholder?: string;
 };
 
 type SectionDef = {
@@ -38,7 +39,12 @@ const BRIEF_SECTIONS: SectionDef[] = [
       { key: "vision_colores", label: "Colores", rows: 2 },
       { key: "vision_ambiente", label: "Ambiente", rows: 2 },
       { key: "vision_inspiraciones", label: "Inspiraciones", rows: 3 },
-      { key: "vision_palabras_clave", label: "Palabras clave", rows: 2 },
+      {
+        key: "vision_palabras_clave",
+        label: "Nombre de la boda",
+        type: "text",
+        placeholder: "Ej: María y Juan",
+      },
     ],
   },
   {
@@ -47,15 +53,12 @@ const BRIEF_SECTIONS: SectionDef[] = [
     fields: [
       { key: "ceremonia_tipo", label: "Tipo de ceremonia", type: "text" },
       { key: "ceremonia_musica", label: "Música", rows: 2 },
-      { key: "ceremonia_inspiracion", label: "Inspiración", rows: 3 },
     ],
   },
   {
     id: "coctel",
     title: "Cóctel",
     fields: [
-      { key: "coctel_duracion", label: "Duración", type: "text" },
-      { key: "coctel_ambiente", label: "Ambiente", rows: 2 },
       { key: "coctel_musica", label: "Música", rows: 2 },
       { key: "coctel_estaciones", label: "Estaciones", rows: 2 },
     ],
@@ -74,7 +77,11 @@ const BRIEF_SECTIONS: SectionDef[] = [
     fields: [
       { key: "catering_tipo_servicio", label: "Tipo de servicio", rows: 2 },
       { key: "catering_menu", label: "Menú", rows: 3 },
-      { key: "catering_restricciones", label: "Restricciones alimentarias", rows: 2 },
+      {
+        key: "catering_restricciones",
+        label: "Restricciones alimentarias",
+        rows: 2,
+      },
       { key: "catering_torta", label: "Torta", rows: 2 },
       { key: "catering_cocteleria", label: "Coctelería", rows: 2 },
     ],
@@ -110,10 +117,23 @@ const BRIEF_SECTIONS: SectionDef[] = [
     ],
   },
   {
+    id: "comunicacion",
+    title: "Comunicación",
+    fields: [
+      { key: "comunicacion_website", label: "Website de la boda", rows: 2 },
+      { key: "comunicacion_save_the_date", label: "Save the date", rows: 2 },
+      { key: "comunicacion_invitaciones", label: "Invitaciones", rows: 2 },
+    ],
+  },
+  {
     id: "logistica",
     title: "Logística",
     fields: [
-      { key: "logistica_transporte_novios", label: "Transporte novios", rows: 2 },
+      {
+        key: "logistica_transporte_novios",
+        label: "Transporte novios",
+        rows: 2,
+      },
       {
         key: "logistica_transporte_invitados",
         label: "Transporte invitados",
@@ -125,12 +145,18 @@ const BRIEF_SECTIONS: SectionDef[] = [
   {
     id: "restricciones",
     title: "Restricciones",
-    fields: [{ key: "restricciones", label: "Restricciones generales", rows: 4 }],
+    fields: [
+      { key: "restricciones", label: "Restricciones generales", rows: 4 },
+    ],
   },
 ];
 
+const CHECKLIST_FIELD_KEYS = BRIEF_SECTIONS.flatMap((section) =>
+  section.fields.filter((f) => f.type !== "checkbox").map((f) => f.key),
+);
+
 const inputClass =
-  "w-full rounded-xl border border-bloom-border bg-bloom-canvas px-3 py-2 text-sm text-bloom-ink outline-none focus:border-bloom-accent focus:ring-2 focus:ring-bloom-accent/20 disabled:cursor-default disabled:bg-bloom-canvas/60 disabled:text-bloom-ink";
+  "w-full rounded-xl border border-bloom-border bg-bloom-surface px-3 py-2 text-sm text-bloom-ink outline-none focus:border-bloom-accent focus:ring-2 focus:ring-bloom-accent/20";
 
 const textareaClass = `${inputClass} resize-y min-h-[72px]`;
 
@@ -151,6 +177,27 @@ function formPayload(data: BriefBodaFormData): BriefBodaFormData {
   return payload as BriefBodaFormData;
 }
 
+function fieldHasStoredValue(
+  key: keyof BriefBodaFormData,
+  data: BriefBodaFormData,
+): boolean {
+  const val = data[key];
+  if (typeof val === "boolean") return val;
+  return Boolean(val?.toString().trim());
+}
+
+function buildUncheckedFields(): Record<string, boolean> {
+  const checked: Record<string, boolean> = {};
+  for (const key of CHECKLIST_FIELD_KEYS) {
+    checked[key] = false;
+  }
+  return checked;
+}
+
+function formsEqual(a: BriefBodaFormData, b: BriefBodaFormData): boolean {
+  return JSON.stringify(formPayload(a)) === JSON.stringify(formPayload(b));
+}
+
 export function BriefBoda({
   bodaId,
   initialBrief,
@@ -164,22 +211,20 @@ export function BriefBoda({
   const [savedForm, setSavedForm] = useState<BriefBodaFormData>(() =>
     initialBrief ? briefRowToFormData(initialBrief) : { ...EMPTY_BRIEF_FORM },
   );
+  const [checkedFields, setCheckedFields] = useState<Record<string, boolean>>(
+    buildUncheckedFields,
+  );
   const [expanded, setExpanded] = useState<Record<string, boolean>>({
     vision: true,
   });
-  const [editingSection, setEditingSection] = useState<string | null>(null);
-  const [savingSection, setSavingSection] = useState<string | null>(null);
-  const [savingAll, setSavingAll] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [savedSection, setSavedSection] = useState<string | null>(null);
+  const [justSaved, setJustSaved] = useState(false);
 
-  const sectionFieldKeys = useMemo(() => {
-    const map: Record<string, (keyof BriefBodaFormData)[]> = {};
-    for (const section of BRIEF_SECTIONS) {
-      map[section.id] = section.fields.map((f) => f.key);
-    }
-    return map;
-  }, []);
+  const hasPendingChanges = useMemo(
+    () => !formsEqual(form, savedForm),
+    [form, savedForm],
+  );
 
   const persistBrief = useCallback(
     async (payload: BriefBodaFormData) => {
@@ -220,67 +265,44 @@ export function BriefBoda({
     setExpanded((prev) => ({ ...prev, [sectionId]: !prev[sectionId] }));
   }
 
-  function startEditing(sectionId: string) {
-    setError(null);
-    setEditingSection(sectionId);
-    setExpanded((prev) => ({ ...prev, [sectionId]: true }));
+  function toggleFieldChecked(fieldKey: string) {
+    setCheckedFields((prev) => ({
+      ...prev,
+      [fieldKey]: !prev[fieldKey],
+    }));
   }
 
-  function cancelEditing(sectionId: string) {
+  function handleDiscardChanges() {
     setForm({ ...savedForm });
-    setEditingSection(null);
+    setCheckedFields(buildUncheckedFields());
     setError(null);
   }
 
-  async function handleSaveSection(sectionId: string) {
+  async function handleSave() {
     setError(null);
-    setSavingSection(sectionId);
+    setSaving(true);
     try {
       const row = await persistBrief(form);
       setBriefId(row.id);
       const nextForm = briefRowToFormData(row);
       setForm(nextForm);
       setSavedForm(nextForm);
-      setEditingSection(null);
-      setSavedSection(sectionId);
-      window.setTimeout(() => setSavedSection(null), 2000);
+      setJustSaved(true);
+      window.setTimeout(() => setJustSaved(false), 2000);
       router.refresh();
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "No se pudo guardar la sección.",
+        err instanceof Error ? err.message : "No se pudo guardar el brief.",
       );
     } finally {
-      setSavingSection(null);
-    }
-  }
-
-  async function handleSaveAll() {
-    setError(null);
-    setSavingAll(true);
-    try {
-      const row = await persistBrief(form);
-      setBriefId(row.id);
-      const nextForm = briefRowToFormData(row);
-      setForm(nextForm);
-      setSavedForm(nextForm);
-      setEditingSection(null);
-      setSavedSection("all");
-      window.setTimeout(() => setSavedSection(null), 2000);
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo guardar el brief.");
-    } finally {
-      setSavingAll(false);
+      setSaving(false);
     }
   }
 
   function sectionHasContent(sectionId: string): boolean {
-    const keys = sectionFieldKeys[sectionId] ?? [];
-    return keys.some((key) => {
-      const val = form[key];
-      if (typeof val === "boolean") return val;
-      return Boolean(val?.toString().trim());
-    });
+    const section = BRIEF_SECTIONS.find((s) => s.id === sectionId);
+    if (!section) return false;
+    return section.fields.some((field) => fieldHasStoredValue(field.key, form));
   }
 
   const shellClass = embedded
@@ -324,11 +346,9 @@ export function BriefBoda({
         )}
       </div>
 
-      <div className={`space-y-3 ${embedded ? "" : "mt-5"}`}>
+      <div className={`space-y-3 ${embedded ? "" : "mt-5"} ${hasPendingChanges ? "pb-24" : ""}`}>
         {BRIEF_SECTIONS.map((section) => {
           const isOpen = expanded[section.id] ?? false;
-          const isEditing = editingSection === section.id;
-          const isSaving = savingSection === section.id;
           const hasContent = sectionHasContent(section.id);
 
           return (
@@ -355,51 +375,25 @@ export function BriefBoda({
 
               {isOpen && (
                 <div className="border-t border-bloom-border px-4 py-4">
-                  <div className="space-y-4">
-                    {section.fields.map((field) => (
-                      <FieldControl
-                        key={field.key}
-                        field={field}
-                        value={form[field.key]}
-                        disabled={!isEditing}
-                        onChange={(value) => updateField(field.key, value)}
-                      />
-                    ))}
-                  </div>
-
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {isEditing ? (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => handleSaveSection(section.id)}
-                          disabled={isSaving}
-                          className="rounded-full bg-bloom-accent px-4 py-2 text-sm font-medium text-white hover:bg-bloom-accent-hover disabled:opacity-60"
-                        >
-                          {isSaving ? "Guardando…" : "Guardar sección"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => cancelEditing(section.id)}
-                          disabled={isSaving}
-                          className="rounded-full border border-bloom-border px-4 py-2 text-sm font-medium text-bloom-ink hover:bg-bloom-canvas disabled:opacity-60"
-                        >
-                          Cancelar
-                        </button>
-                      </>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => startEditing(section.id)}
-                        className="rounded-full border border-bloom-border px-4 py-2 text-sm font-medium text-bloom-ink hover:bg-bloom-surface"
-                      >
-                        Editar sección
-                      </button>
-                    )}
-                    {savedSection === section.id && (
-                      <span className="self-center text-xs text-green-700">
-                        Guardado
-                      </span>
+                  <div className="space-y-3">
+                    {section.fields.map((field) =>
+                      field.type === "checkbox" ? (
+                        <BooleanFieldControl
+                          key={field.key}
+                          field={field}
+                          value={form[field.key]}
+                          onChange={(value) => updateField(field.key, value)}
+                        />
+                      ) : (
+                        <BriefChecklistItem
+                          key={field.key}
+                          field={field}
+                          checked={Boolean(checkedFields[field.key])}
+                          value={form[field.key]}
+                          onToggle={() => toggleFieldChecked(field.key)}
+                          onChange={(value) => updateField(field.key, value)}
+                        />
+                      ),
                     )}
                   </div>
                 </div>
@@ -415,76 +409,123 @@ export function BriefBoda({
         </p>
       )}
 
-      <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-bloom-border pt-4">
-        <button
-          type="button"
-          onClick={handleSaveAll}
-          disabled={savingAll}
-          className="rounded-full bg-bloom-accent px-5 py-2.5 text-sm font-medium text-white hover:bg-bloom-accent-hover disabled:opacity-60"
+      {hasPendingChanges && (
+        <div
+          className="fixed bottom-6 left-1/2 z-40 flex w-[min(100%,28rem)] -translate-x-1/2 flex-wrap items-center justify-center gap-2 rounded-2xl border border-bloom-border bg-bloom-surface px-4 py-3 shadow-lg"
+          role="status"
         >
-          {savingAll ? "Guardando…" : "Guardar todo el brief"}
-        </button>
-        {savedSection === "all" && (
-          <span className="text-sm text-green-700">Brief guardado</span>
-        )}
-      </div>
+          <span className="text-sm text-bloom-muted">Cambios sin guardar</span>
+          <button
+            type="button"
+            onClick={handleDiscardChanges}
+            disabled={saving}
+            className="rounded-full border border-bloom-border px-4 py-2 text-sm font-medium text-bloom-ink transition-colors hover:bg-bloom-canvas disabled:opacity-60"
+          >
+            Descartar
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            className="rounded-full bg-bloom-accent px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-bloom-accent-hover disabled:opacity-60"
+          >
+            {saving ? "Guardando…" : "Guardar"}
+          </button>
+        </div>
+      )}
+
+      {!hasPendingChanges && justSaved && (
+        <p className="mt-4 text-center text-sm text-green-700" role="status">
+          Brief guardado
+        </p>
+      )}
     </Shell>
   );
 }
 
-function FieldControl({
+function BriefChecklistItem({
+  field,
+  checked,
+  value,
+  onToggle,
+  onChange,
+}: {
+  field: FieldDef;
+  checked: boolean;
+  value: string | boolean | null;
+  onToggle: () => void;
+  onChange: (value: string) => void;
+}) {
+  const stringValue =
+    typeof value === "string" ? value : value ? String(value) : "";
+
+  return (
+    <div
+      className={`rounded-xl border px-3 py-2.5 transition-colors ${
+        checked
+          ? "border-green-200 bg-green-50/50"
+          : "border-bloom-border bg-bloom-surface/60"
+      }`}
+    >
+      <label className="flex cursor-pointer items-start gap-3">
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={onToggle}
+          className="mt-0.5 h-4 w-4 shrink-0 rounded border-bloom-border text-green-600 focus:ring-green-500/30"
+        />
+        <span
+          className={`text-sm ${
+            checked ? "font-semibold text-bloom-ink" : "font-medium text-bloom-muted"
+          }`}
+        >
+          {field.label}
+        </span>
+      </label>
+
+      {checked && (
+        <div className="mt-3 pl-7">
+          {field.type === "text" ? (
+            <input
+              type="text"
+              className={inputClass}
+              value={stringValue}
+              placeholder={field.placeholder}
+              onChange={(e) => onChange(e.target.value)}
+            />
+          ) : (
+            <textarea
+              className={textareaClass}
+              rows={field.rows ?? 3}
+              value={stringValue}
+              placeholder={`Notas sobre ${field.label.toLowerCase()}…`}
+              onChange={(e) => onChange(e.target.value)}
+            />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BooleanFieldControl({
   field,
   value,
-  disabled,
   onChange,
 }: {
   field: FieldDef;
   value: string | boolean | null;
-  disabled: boolean;
-  onChange: (value: string | boolean) => void;
+  onChange: (value: boolean) => void;
 }) {
-  if (field.type === "checkbox") {
-    return (
-      <label className="flex cursor-pointer items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={Boolean(value)}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.checked)}
-          className="h-4 w-4 rounded border-bloom-border text-bloom-accent focus:ring-bloom-accent/30 disabled:opacity-60"
-        />
-        <span className="font-medium text-bloom-ink">{field.label}</span>
-      </label>
-    );
-  }
-
-  const stringValue = typeof value === "string" ? value : value ? String(value) : "";
-
-  if (field.type === "text") {
-    return (
-      <div className="space-y-1.5">
-        <label className="text-sm font-medium text-bloom-ink">{field.label}</label>
-        <input
-          type="text"
-          className={inputClass}
-          value={stringValue}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-1.5">
-      <label className="text-sm font-medium text-bloom-ink">{field.label}</label>
-      <textarea
-        className={textareaClass}
-        rows={field.rows ?? 3}
-        value={stringValue}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.value)}
+    <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-bloom-border bg-bloom-surface/60 px-3 py-2.5 text-sm">
+      <input
+        type="checkbox"
+        checked={Boolean(value)}
+        onChange={(e) => onChange(e.target.checked)}
+        className="h-4 w-4 rounded border-bloom-border text-green-600 focus:ring-green-500/30"
       />
-    </div>
+      <span className="font-medium text-bloom-ink">{field.label}</span>
+    </label>
   );
 }
