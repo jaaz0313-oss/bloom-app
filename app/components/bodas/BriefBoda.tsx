@@ -48,6 +48,15 @@ const BRIEF_SECTIONS: SectionDef[] = [
     ],
   },
   {
+    id: "comunicacion",
+    title: "Comunicación",
+    fields: [
+      { key: "comunicacion_website", label: "Website de la boda", rows: 2 },
+      { key: "comunicacion_save_the_date", label: "Save the date", rows: 2 },
+      { key: "comunicacion_invitaciones", label: "Invitaciones", rows: 2 },
+    ],
+  },
+  {
     id: "ceremonia",
     title: "Ceremonia",
     fields: [
@@ -114,15 +123,6 @@ const BRIEF_SECTIONS: SectionDef[] = [
       { key: "extras_hora_loca", label: "Hora loca", rows: 2 },
       { key: "extras_cafe", label: "Café / postre", rows: 2 },
       { key: "extras_otros", label: "Otros", rows: 2 },
-    ],
-  },
-  {
-    id: "comunicacion",
-    title: "Comunicación",
-    fields: [
-      { key: "comunicacion_website", label: "Website de la boda", rows: 2 },
-      { key: "comunicacion_save_the_date", label: "Save the date", rows: 2 },
-      { key: "comunicacion_invitaciones", label: "Invitaciones", rows: 2 },
     ],
   },
   {
