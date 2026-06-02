@@ -1,5 +1,6 @@
-import { formatCurrency, formatShortDate, formatWeddingDate } from "@/lib/format";
 import type { CotizacionItemRow } from "@/app/data/cotizaciones";
+import { getBaseCategoria } from "@/lib/provider-categories";
+import { formatCurrency, formatShortDate, formatWeddingDate } from "@/lib/format";
 import { buildWhatsAppUrl } from "@/lib/whatsapp";
 
 export type HistoricoPrecioCategoria = {
@@ -27,7 +28,10 @@ export function suggestPrecioFromHistory(
   numeroInvitados: number | null,
   historico: HistoricoPrecioCategoria[],
 ): PrecioSugerido | null {
-  let pool = historico.filter((h) => h.categoria === categoria && h.valor > 0);
+  const baseCategoria = getBaseCategoria(categoria);
+  let pool = historico.filter(
+    (h) => getBaseCategoria(h.categoria) === baseCategoria && h.valor > 0,
+  );
 
   if (numeroInvitados != null && numeroInvitados > 0) {
     const low = numeroInvitados * 0.8;

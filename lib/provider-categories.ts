@@ -1,4 +1,5 @@
 export const PROVIDER_CATEGORIES = [
+  "Wedding Planner",
   "Lugar del evento",
   "Lugar de ceremonia",
   "Fotografía y video",
@@ -20,7 +21,22 @@ export const PROVIDER_CATEGORIES = [
   "Estación de café",
   "Oficiante",
   "Save the date",
-  "Coordinadora",
 ] as const;
 
 export type ProviderCategory = (typeof PROVIDER_CATEGORIES)[number];
+
+/** Etiqueta legacy → categoría actual del catálogo. */
+export function normalizeProviderCategory(categoria: string): string {
+  const base = getBaseCategoria(categoria);
+  if (base === "Coordinadora") {
+    return categoria.replace(/^Coordinadora/, "Wedding Planner");
+  }
+  return categoria;
+}
+
+/** Categoría base sin sufijo numérico ("Fotografía y video 2" → "Fotografía y video"). */
+export function getBaseCategoria(categoria: string): string {
+  const normalized = normalizeProviderCategory(categoria);
+  const match = normalized.match(/^(.+?)\s+\d+$/);
+  return match ? match[1] : normalized;
+}

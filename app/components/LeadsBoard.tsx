@@ -14,6 +14,7 @@ import { importarCotizacionLeadABoda } from "@/lib/import-cotizacion-to-boda";
 import { insertarCronograma } from "@/lib/cronograma";
 import { createCotizacionForLead } from "@/lib/create-lead-cotizacion";
 import { AUDITORIA_ACCIONES, logAuditoria } from "@/lib/auditoria";
+import { insertLeadRow, updateLeadSeguimiento } from "@/lib/leads-mutations";
 import { supabase } from "@/lib/supabase";
 import { hasPermission, type UserRole } from "@/lib/auth/roles";
 
@@ -214,9 +215,9 @@ export function LeadsBoard({
 
     setSubmitting(true);
     try {
-      const { data: nuevoLead, error: insertError } = await supabase
-        .from("leads")
-        .insert({
+      const { data: nuevoLead, error: insertError } = await insertLeadRow(
+        supabase,
+        {
           nombre_pareja: nombrePareja,
           fecha_tentativa: fechaTentativa,
           ciudad,
@@ -227,7 +228,6 @@ export function LeadsBoard({
           ciudad_residencia_actual: ciudadResidenciaActual || null,
           concepto_boda: conceptoBoda || null,
           prioridades: prioridades || null,
-          estado: "activo",
           estado_seguimiento: form.estadoSeguimiento,
           notas: notas || null,
           telefono: telefono || null,
@@ -239,9 +239,8 @@ export function LeadsBoard({
                 lugar_venue: acuerdos.lugarVenue,
               }
             : {}),
-        })
-        .select("id")
-        .single();
+        },
+      );
       if (insertError) return setError(insertError.message);
 
       await logAuditoria({
@@ -270,10 +269,11 @@ export function LeadsBoard({
 
     setSubmitting(true);
     try {
-      const { error: updateError } = await supabase
-        .from("leads")
-        .update({
-          estado_seguimiento: form.estadoSeguimiento,
+      const { error: updateError } = await updateLeadSeguimiento(
+        supabase,
+        editingLead.id,
+        form.estadoSeguimiento,
+        {
           notas: form.notas.trim() || null,
           telefono: form.telefono.trim() || null,
           email: form.email.trim() || null,
@@ -284,8 +284,8 @@ export function LeadsBoard({
                 lugar_venue: acuerdos.lugarVenue,
               }
             : {}),
-        })
-        .eq("id", editingLead.id);
+        },
+      );
       if (updateError) return setError(updateError.message);
       setEditOpen(false);
       setEditingLead(null);

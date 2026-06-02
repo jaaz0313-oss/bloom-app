@@ -10,7 +10,11 @@ import type {
 import { COTIZACION_ESTADO_LABELS } from "@/app/data/cotizaciones";
 import type { DirectorioProveedorRow } from "@/app/data/directorio";
 import type { LeadRow } from "@/app/data/leads";
-import { PROVIDER_CATEGORIES } from "@/lib/provider-categories";
+import {
+  getBaseCategoria,
+  normalizeProviderCategory,
+  PROVIDER_CATEGORIES,
+} from "@/lib/provider-categories";
 import {
   formatCurrency,
   formatShortDateStable,
@@ -42,24 +46,100 @@ const inputClass =
 const textareaClass =
   "w-full resize-y rounded-xl border border-bloom-border bg-bloom-canvas px-3 py-2 text-sm text-bloom-ink outline-none ring-0 focus:border-bloom-accent focus:ring-2 focus:ring-bloom-accent/30";
 
+function createTempItem(
+  cotizacionId: string,
+  categoria: string,
+): CotizacionItemRow {
+  return {
+    id: `temp-${categoria}-${Math.random().toString(36).slice(2, 9)}`,
+    cotizacion_id: cotizacionId,
+    categoria,
+    descripcion: null,
+    precio_estimado: null,
+    proveedor_sugerido_id: null,
+    notas_internas: null,
+    incluido: true,
+  };
+}
+
 function buildDefaultItems(
   cotizacionId: string,
   initialItems: CotizacionItemRow[],
 ): CotizacionItemRow[] {
-  const byCategoria = new Map(initialItems.map((i) => [i.categoria, i]));
-  return PROVIDER_CATEGORIES.map(
-    (categoria) =>
-      byCategoria.get(categoria) ?? {
-        id: `temp-${categoria}`,
-        cotizacion_id: cotizacionId,
-        categoria,
-        descripcion: null,
-        precio_estimado: null,
-        proveedor_sugerido_id: null,
-        notas_internas: null,
-        incluido: true,
-      },
+  const usedIds = new Set<string>();
+  const items: CotizacionItemRow[] = [];
+
+  for (const categoria of PROVIDER_CATEGORIES) {
+    const matching = initialItems.filter(
+      (item) => getBaseCategoria(item.categoria) === categoria,
+    );
+
+    if (matching.length > 0) {
+      for (const item of matching) {
+        items.push(item);
+        usedIds.add(item.id);
+      }
+    } else {
+      items.push(createTempItem(cotizacionId, categoria));
+    }
+  }
+
+  for (const item of initialItems) {
+    if (!usedIds.has(item.id)) {
+      items.push(item);
+    }
+  }
+
+  return items;
+}
+
+function getSiblingItems(
+  items: CotizacionItemRow[],
+  baseCategoria: string,
+): CotizacionItemRow[] {
+  return items.filter(
+    (item) => getBaseCategoria(item.categoria) === baseCategoria,
   );
+}
+
+function getNextDuplicateLabel(
+  baseCategoria: string,
+  siblings: CotizacionItemRow[],
+): string {
+  const numbers = siblings.map((item) => {
+    if (item.categoria === baseCategoria) return 1;
+    const match = item.categoria.match(/\s+(\d+)$/);
+    return match ? Number(match[1]) : 1;
+  });
+  const next = Math.max(...numbers, 0) + 1;
+  return `${baseCategoria} ${next}`;
+}
+
+function duplicateCategoryItem(
+  items: CotizacionItemRow[],
+  sourceItem: CotizacionItemRow,
+): CotizacionItemRow[] {
+  const baseCategoria = getBaseCategoria(sourceItem.categoria);
+  const siblings = getSiblingItems(items, baseCategoria);
+
+  let nextItems = [...items];
+
+  if (siblings.length === 1 && siblings[0].categoria === baseCategoria) {
+    nextItems = nextItems.map((item) =>
+      item.id === siblings[0].id
+        ? { ...item, categoria: `${baseCategoria} 1` }
+        : item,
+    );
+  }
+
+  const updatedSiblings = getSiblingItems(nextItems, baseCategoria);
+  const newLabel = getNextDuplicateLabel(baseCategoria, updatedSiblings);
+
+  nextItems.push(
+    createTempItem(sourceItem.cotizacion_id, newLabel),
+  );
+
+  return nextItems;
 }
 
 export function CotizacionEditor({
@@ -99,9 +179,10 @@ export function CotizacionEditor({
   const directorioByCategoria = useMemo(() => {
     const map = new Map<string, DirectorioProveedorRow[]>();
     for (const p of directorio) {
-      const list = map.get(p.categoria) ?? [];
+      const key = getBaseCategoria(normalizeProviderCategory(p.categoria));
+      const list = map.get(key) ?? [];
       list.push(p);
-      map.set(p.categoria, list);
+      map.set(key, list);
     }
     return map;
   }, [directorio]);
@@ -123,14 +204,18 @@ export function CotizacionEditor({
   );
 
   function updateItem(
-    categoria: string,
+    itemId: string,
     patch: Partial<CotizacionItemRow>,
   ) {
     setItems((current) =>
       current.map((item) =>
-        item.categoria === categoria ? { ...item, ...patch } : item,
+        item.id === itemId ? { ...item, ...patch } : item,
       ),
     );
+  }
+
+  function handleDuplicateItem(sourceItem: CotizacionItemRow) {
+    setItems((current) => duplicateCategoryItem(current, sourceItem));
   }
 
   async function handleSave(markEnviada = false) {
@@ -192,7 +277,7 @@ export function CotizacionEditor({
           if (inserted) {
             setItems((current) =>
               current.map((i) =>
-                i.categoria === categoria ? (inserted as CotizacionItemRow) : i,
+                i.id === item.id ? (inserted as CotizacionItemRow) : i,
               ),
             );
           }
@@ -246,11 +331,11 @@ export function CotizacionEditor({
     openCotizacionLeadEmail(email.trim(), subject, body);
   }
 
-  function applySugerencia(categoria: string) {
+  function applySugerencia(itemId: string, categoria: string) {
     const invitados = numeroInvitados.trim() ? Number(numeroInvitados) : null;
     const sugerencia = suggestPrecioFromHistory(categoria, invitados, historico);
     if (!sugerencia) return;
-    updateItem(categoria, { precio_estimado: sugerencia.precio });
+    updateItem(itemId, { precio_estimado: sugerencia.precio });
   }
 
   return (
@@ -365,7 +450,8 @@ export function CotizacionEditor({
         </h2>
         {items.map((item) => {
           const categoria = item.categoria;
-          const proveedoresDir = directorioByCategoria.get(categoria) ?? [];
+          const baseCategoria = getBaseCategoria(categoria);
+          const proveedoresDir = directorioByCategoria.get(baseCategoria) ?? [];
           const invitados = numeroInvitados.trim()
             ? Number(numeroInvitados)
             : null;
@@ -377,14 +463,15 @@ export function CotizacionEditor({
 
           return (
             <CategoriaItemCard
-              key={categoria}
+              key={item.id}
               categoria={categoria}
               item={item}
               proveedoresDir={proveedoresDir}
               sugerencia={sugerencia}
               saving={saving}
-              onUpdate={(patch) => updateItem(categoria, patch)}
-              onApplySugerencia={() => applySugerencia(categoria)}
+              onUpdate={(patch) => updateItem(item.id, patch)}
+              onApplySugerencia={() => applySugerencia(item.id, categoria)}
+              onDuplicate={() => handleDuplicateItem(item)}
             />
           );
         })}
@@ -425,6 +512,7 @@ function CategoriaItemCard({
   saving,
   onUpdate,
   onApplySugerencia,
+  onDuplicate,
 }: {
   categoria: string;
   item: CotizacionItemRow;
@@ -433,6 +521,7 @@ function CategoriaItemCard({
   saving: boolean;
   onUpdate: (patch: Partial<CotizacionItemRow>) => void;
   onApplySugerencia: () => void;
+  onDuplicate: () => void;
 }) {
   const proveedorInterno = item.proveedor_sugerido_id
     ? proveedoresDir.find((p) => p.id === item.proveedor_sugerido_id)
@@ -463,16 +552,28 @@ function CategoriaItemCard({
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="font-medium text-bloom-ink">{categoria}</h3>
-        <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-bloom-ink">
-          <input
-            type="checkbox"
-            checked={item.incluido}
-            onChange={(e) => onUpdate({ incluido: e.target.checked })}
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={onDuplicate}
             disabled={saving}
-            className="h-4 w-4 rounded border-bloom-border text-bloom-accent focus:ring-bloom-accent/30"
-          />
-          Incluir
-        </label>
+            title={`Agregar otra línea de ${getBaseCategoria(categoria)}`}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-bloom-border bg-bloom-surface text-lg font-medium leading-none text-bloom-ink transition-colors hover:bg-bloom-canvas disabled:opacity-60"
+            aria-label={`Agregar ${getBaseCategoria(categoria)}`}
+          >
+            +
+          </button>
+          <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-bloom-ink">
+            <input
+              type="checkbox"
+              checked={item.incluido}
+              onChange={(e) => onUpdate({ incluido: e.target.checked })}
+              disabled={saving}
+              className="h-4 w-4 rounded border-bloom-border text-bloom-accent focus:ring-bloom-accent/30"
+            />
+            Incluir
+          </label>
+        </div>
       </div>
 
       {item.incluido && (
