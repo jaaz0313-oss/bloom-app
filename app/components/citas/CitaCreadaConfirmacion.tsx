@@ -53,7 +53,7 @@ function copiarMensaje(texto: string): boolean {
     document.body.removeChild(textArea);
     return result;
   } catch (e) {
-    console.error("Error copiando:", e);
+    console.log("Error al copiar:", e);
     return false;
   }
 }
@@ -362,11 +362,23 @@ function WhatsAppMessageSection({
   const [copiado, setCopiado] = useState(false);
 
   function handleAbrirGrupo() {
-    if (!whatsappTarget || !message) return;
+    if (!whatsappTarget) return;
 
-    if (copiarMensaje(message)) {
-      setCopiado(true);
-      setTimeout(() => setCopiado(false), 2000);
+    const mensajeTexto = message;
+    console.log("Intentando copiar:", mensajeTexto);
+
+    if (!mensajeTexto?.trim()) {
+      console.log("Error: mensajeTexto está vacío o undefined");
+    } else {
+      try {
+        if (copiarMensaje(mensajeTexto)) {
+          console.log("Copiado exitosamente");
+          setCopiado(true);
+          setTimeout(() => setCopiado(false), 2000);
+        }
+      } catch (e) {
+        console.log("Error al copiar:", e);
+      }
     }
 
     setTimeout(() => {
