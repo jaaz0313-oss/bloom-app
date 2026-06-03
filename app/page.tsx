@@ -4,6 +4,7 @@ import { LeadsBoard } from "./components/LeadsBoard";
 import { CitasHoySection } from "./components/citas/CitasHoySection";
 import { PaymentAlertsSection } from "./components/PaymentAlertsSection";
 import { DashboardHeader } from "./components/DashboardHeader";
+import { ExportarDatosButton } from "./components/ExportarDatosButton";
 import { WeddingCard } from "./components/WeddingCard";
 import { NewWeddingModalButton } from "./components/NewWeddingModalButton";
 import { buildCronogramaAlerts } from "./data/cronograma-alerts";
@@ -183,6 +184,12 @@ export default async function Home({ searchParams }: HomeProps) {
       <DashboardHeader user={user} />
 
       <main className="mx-auto max-w-5xl space-y-4 px-4 py-8 sm:px-6 sm:py-10 md:px-8">
+        {user.rol === "admin" && (
+          <div className="flex justify-end">
+            <ExportarDatosButton />
+          </div>
+        )}
+
         <CitasHoySection
           citas={citasHoy}
           context={{ bodasById, leadsById, proveedoresById }}
