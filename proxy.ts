@@ -2,13 +2,27 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
 const LOGIN_PATH = "/login";
+const CLIENTE_PATH_PREFIX = "/cliente/";
 
 function isLoginPath(pathname: string): boolean {
   return pathname === LOGIN_PATH || pathname.startsWith(`${LOGIN_PATH}/`);
 }
 
+function isClientePath(pathname: string): boolean {
+  return pathname === "/cliente" || pathname.startsWith(CLIENTE_PATH_PREFIX);
+}
+
+/** Rutas accesibles sin sesión (link compartido o login). */
+function isPublicPath(pathname: string): boolean {
+  return isLoginPath(pathname) || isClientePath(pathname);
+}
+
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
+
+  if (isClientePath(pathname)) {
+    return NextResponse.next({ request });
+  }
 
   let response = NextResponse.next({ request });
 
@@ -37,7 +51,7 @@ export async function proxy(request: NextRequest) {
     data: { session },
   } = await supabase.auth.getSession();
 
-  if (!session && !isLoginPath(pathname)) {
+  if (!session && !isPublicPath(pathname)) {
     const loginUrl = new URL(LOGIN_PATH, request.url);
     loginUrl.searchParams.set("next", pathname);
     return NextResponse.redirect(loginUrl);
@@ -53,9 +67,9 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Solo páginas de la app; todas las rutas /api/* quedan fuera del proxy.
-     * El control de acceso en APIs es responsabilidad de cada route handler.
+     * Excluye estáticos, /api/* (auth en cada handler), /cliente/* (vista pública)
+     * y deja /login dentro del proxy solo para redirigir usuarios ya autenticados.
      */
-    "/((?!_next/static|_next/image|favicon.ico|api/).*)",
+    "/((?!_next/static|_next/image|favicon.ico|api/|cliente/).*)",
   ],
 };
