@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import type { DraggableAttributes } from "@dnd-kit/core";
+import type { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
 import {
   getProviderSaldoPendienteConPagos,
   PROVIDER_STATUS_LABELS,
@@ -36,6 +38,13 @@ type ProviderCardProps = {
   plannerName: string;
   pagos: PagoRow[];
   role: UserRole;
+  dragHandle?: ProviderDragHandleProps;
+};
+
+export type ProviderDragHandleProps = {
+  setActivatorNodeRef: (element: HTMLElement | null) => void;
+  attributes: DraggableAttributes;
+  listeners: SyntheticListenerMap | undefined;
 };
 
 const cotizacionPrimerContactoButtonClass =
@@ -82,6 +91,7 @@ export function ProviderCard({
   plannerName,
   pagos,
   role,
+  dragHandle,
 }: ProviderCardProps) {
   const router = useRouter();
   const [updating, setUpdating] = useState(false);
@@ -583,7 +593,21 @@ export function ProviderCard({
   }
 
   return (
-    <div className="rounded-2xl border border-bloom-border bg-bloom-surface p-5 shadow-sm">
+    <div className="relative rounded-2xl border border-bloom-border bg-bloom-surface p-5 shadow-sm">
+      {dragHandle && (
+        <button
+          type="button"
+          ref={dragHandle.setActivatorNodeRef}
+          {...dragHandle.attributes}
+          {...dragHandle.listeners}
+          className="absolute left-2 top-2 z-10 inline-flex h-7 w-7 cursor-grab items-center justify-center rounded-lg text-bloom-muted transition-colors hover:bg-bloom-canvas hover:text-bloom-ink active:cursor-grabbing"
+          aria-label="Reordenar proveedor"
+          title="Arrastrar para reordenar"
+        >
+          <DragHandleIcon />
+        </button>
+      )}
+      <div className={dragHandle ? "pl-7" : undefined}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -963,6 +987,7 @@ export function ProviderCard({
           role={role}
         />
       )}
+      </div>
 
       {contratadoConfirmOpen && (
         <ProviderContratadoConfirmacionModal
@@ -1460,6 +1485,20 @@ export function ProviderCard({
         </div>
       )}
     </div>
+  );
+}
+
+function DragHandleIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      className="h-4 w-4"
+      aria-hidden
+    >
+      <path d="M7 4.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0ZM7 10a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0ZM7 15.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0ZM16 4.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0ZM16 10a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0ZM16 15.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Z" />
+    </svg>
   );
 }
 

@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 
@@ -13,7 +14,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
 const resolvedSupabaseUrl = supabaseUrl as string;
 const resolvedSupabaseAnonKey = supabaseAnonKey as string;
 
-export async function createServerSupabaseClient() {
+export const createServerSupabaseClient = cache(async () => {
   const cookieStore = await cookies();
 
   return createServerClient(resolvedSupabaseUrl, resolvedSupabaseAnonKey, {
@@ -22,10 +23,14 @@ export async function createServerSupabaseClient() {
         return cookieStore.getAll();
       },
       setAll(cookieList) {
-        cookieList.forEach(({ name, value, options }) =>
-          cookieStore.set(name, value, options),
-        );
+        try {
+          cookieList.forEach(({ name, value, options }) =>
+            cookieStore.set(name, value, options),
+          );
+        } catch {
+          // Server Components no pueden escribir cookies; el proxy refresca la sesión.
+        }
       },
     },
   });
-}
+});
