@@ -339,19 +339,30 @@ function WhatsAppMessageSection({
   missingContactHint: string;
   emptyHint?: string;
 }) {
-  const [openedWithCopy, setOpenedWithCopy] = useState(false);
+  const [copiado, setCopiado] = useState(false);
 
-  async function handleOpenWhatsApp() {
+  async function handleAbrirGrupo() {
+    if (!whatsappTarget || !message) return;
+
+    try {
+      await navigator.clipboard.writeText(message);
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2000);
+    } catch (e) {
+      console.error("Error copiando:", e);
+    }
+
+    setTimeout(() => {
+      window.open(whatsappTarget.url, "_blank");
+    }, 500);
+  }
+
+  function handleOpenWhatsApp() {
     if (!whatsappTarget || !message) return;
 
     if (whatsappTarget.copyMessageBeforeOpen) {
-      try {
-        await navigator.clipboard.writeText(message);
-        setOpenedWithCopy(true);
-        window.setTimeout(() => setOpenedWithCopy(false), 2000);
-      } catch {
-        /* clipboard no disponible */
-      }
+      void handleAbrirGrupo();
+      return;
     }
 
     window.open(whatsappTarget.url, "_blank", "noopener,noreferrer");
@@ -376,10 +387,12 @@ function WhatsAppMessageSection({
             {whatsappTarget ? (
               <button
                 type="button"
-                onClick={() => void handleOpenWhatsApp()}
+                onClick={handleOpenWhatsApp}
                 className="inline-flex rounded-full bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
               >
-                {openedWithCopy ? "Mensaje copiado — abrir WhatsApp" : openButtonLabel}
+                {copiado && whatsappTarget.copyMessageBeforeOpen
+                  ? "✓ Copiado - abriendo grupo..."
+                  : openButtonLabel}
               </button>
             ) : (
               <p className="self-center text-xs text-bloom-muted">{missingContactHint}</p>
