@@ -4,16 +4,17 @@ import {
   buildLeadCotizacionPdfFilename,
   generateLeadCotizacionPdf,
 } from "@/lib/lead-cotizacion-pdf";
-import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { createPublicSupabaseClient } from "@/lib/supabase-public";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
+/** PDF público por link (WhatsApp). Sin sesión ni cookies. */
 export async function GET(_request: Request, { params }: RouteContext) {
   try {
     const { id } = await params;
-    const supabase = await createServerSupabaseClient();
+    const supabase = createPublicSupabaseClient();
     const context = await getLeadCotizacionPdfContext(supabase, id);
 
     if (!context) {
