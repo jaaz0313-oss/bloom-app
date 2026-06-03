@@ -1,17 +1,19 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { CitaRow } from "@/app/data/citas";
 import type { CitaInvolvedEmail } from "@/lib/cita-emails";
 import {
   buildCitaGrupoConfirmacionWhatsAppMessageFromCita,
   buildCitaModificacionWhatsAppMessageFromCita,
   buildCitaProveedorConfirmacionWhatsAppMessageFromCita,
+  CITA_WHATSAPP_LOCALE_SESSION_KEY,
   formatCitaHorario,
-  getCitaClienteWhatsAppUrl,
+  getCitaClienteWhatsAppTarget,
   getCitaWhatsAppUrl,
   getProveedorTelefonoForCita,
   normalizeCitaFecha,
+  type CitaWhatsAppLocale,
 } from "@/lib/citas";
 import { formatLongDateStable } from "@/lib/format";
 import type { CitaLookupBoda, CitaLookupLead } from "./cita-lookup";
@@ -28,6 +30,11 @@ type CitaCreadaConfirmacionProps = {
   proveedorTelefono?: string | null;
 };
 
+function readStoredLocale(): CitaWhatsAppLocale {
+  if (typeof window === "undefined") return "es";
+  return sessionStorage.getItem(CITA_WHATSAPP_LOCALE_SESSION_KEY) === "en" ? "en" : "es";
+}
+
 export function CitaCreadaConfirmacion({
   cita,
   involvedEmails,
@@ -37,10 +44,20 @@ export function CitaCreadaConfirmacion({
   variant = "created",
   proveedorTelefono = null,
 }: CitaCreadaConfirmacionProps) {
+  const [locale, setLocale] = useState<CitaWhatsAppLocale>("es");
   const [copiedGrupo, setCopiedGrupo] = useState(false);
   const [copiedProveedor, setCopiedProveedor] = useState(false);
   const [copiedModificacion, setCopiedModificacion] = useState(false);
   const [copiedEmails, setCopiedEmails] = useState(false);
+
+  useEffect(() => {
+    setLocale(readStoredLocale());
+  }, []);
+
+  function handleLocaleChange(next: CitaWhatsAppLocale) {
+    setLocale(next);
+    sessionStorage.setItem(CITA_WHATSAPP_LOCALE_SESSION_KEY, next);
+  }
 
   const context = useMemo(
     () => ({ bodasById, leadsById }),
@@ -51,38 +68,41 @@ export function CitaCreadaConfirmacion({
   const horarioLabel = formatCitaHorario(cita);
   const meetLink = cita.link_meet?.trim() || null;
   const esReunionProveedor = cita.tipo === "reunion_proveedor";
+  const showWhatsAppSections = variant === "created" || variant === "modified";
 
   const grupoMessage = useMemo(() => {
     if (variant !== "created") return null;
-    return buildCitaGrupoConfirmacionWhatsAppMessageFromCita(cita, context);
-  }, [variant, cita, context]);
+    return buildCitaGrupoConfirmacionWhatsAppMessageFromCita(cita, context, locale);
+  }, [variant, cita, context, locale]);
 
   const proveedorMessage = useMemo(() => {
     if (variant !== "created" || !esReunionProveedor) return null;
-    return buildCitaProveedorConfirmacionWhatsAppMessageFromCita(cita, context);
-  }, [variant, cita, context, esReunionProveedor]);
+    return buildCitaProveedorConfirmacionWhatsAppMessageFromCita(cita, context, locale);
+  }, [variant, cita, context, esReunionProveedor, locale]);
 
   const modificacionMessage = useMemo(() => {
     if (variant !== "modified") return null;
-    return buildCitaModificacionWhatsAppMessageFromCita(cita, context);
-  }, [variant, cita, context]);
+    return buildCitaModificacionWhatsAppMessageFromCita(cita, context, locale);
+  }, [variant, cita, context, locale]);
 
-  const grupoWhatsappUrl = useMemo(() => {
+  const grupoWhatsappTarget = useMemo(() => {
     if (!grupoMessage) return null;
-    return getCitaClienteWhatsAppUrl(cita, grupoMessage, bodasById);
+    return getCitaClienteWhatsAppTarget(cita, grupoMessage, bodasById);
   }, [cita, grupoMessage, bodasById]);
 
-  const proveedorWhatsappUrl = useMemo(() => {
+  const proveedorWhatsappTarget = useMemo(() => {
     if (!proveedorMessage) return null;
     const telefono =
       proveedorTelefono?.trim() ||
       getProveedorTelefonoForCita(cita, undefined);
-    return getCitaWhatsAppUrl(telefono, proveedorMessage);
+    const url = getCitaWhatsAppUrl(telefono, proveedorMessage);
+    if (!url) return null;
+    return { url, copyMessageBeforeOpen: false };
   }, [cita, proveedorMessage, proveedorTelefono]);
 
-  const modificacionWhatsappUrl = useMemo(() => {
+  const modificacionWhatsappTarget = useMemo(() => {
     if (!modificacionMessage) return null;
-    return getCitaClienteWhatsAppUrl(cita, modificacionMessage, bodasById);
+    return getCitaClienteWhatsAppTarget(cita, modificacionMessage, bodasById);
   }, [cita, modificacionMessage, bodasById]);
 
   async function handleCopy(text: string, target: "grupo" | "proveedor" | "modificacion") {
@@ -160,6 +180,36 @@ export function CitaCreadaConfirmacion({
         </dl>
       </section>
 
+      {showWhatsAppSections && (
+        <section className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-bloom-muted">Idioma del mensaje</span>
+          <div className="inline-flex rounded-full border border-bloom-border p-0.5">
+            <button
+              type="button"
+              onClick={() => handleLocaleChange("es")}
+              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                locale === "es"
+                  ? "bg-bloom-accent text-white"
+                  : "text-bloom-ink hover:bg-bloom-canvas"
+              }`}
+            >
+              Español
+            </button>
+            <button
+              type="button"
+              onClick={() => handleLocaleChange("en")}
+              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                locale === "en"
+                  ? "bg-bloom-accent text-white"
+                  : "text-bloom-ink hover:bg-bloom-canvas"
+              }`}
+            >
+              English
+            </button>
+          </div>
+        </section>
+      )}
+
       {/* 2. Grupo WhatsApp (creación) */}
       {variant === "created" && grupoMessage && (
         <WhatsAppMessageSection
@@ -167,7 +217,7 @@ export function CitaCreadaConfirmacion({
           message={grupoMessage}
           copied={copiedGrupo}
           onCopy={() => handleCopy(grupoMessage, "grupo")}
-          whatsappUrl={grupoWhatsappUrl}
+          whatsappTarget={grupoWhatsappTarget}
           openButtonLabel="Abrir grupo WhatsApp"
           missingContactHint="Sin grupo de WhatsApp ni teléfono de la novia registrado en la boda"
         />
@@ -180,7 +230,7 @@ export function CitaCreadaConfirmacion({
           message={proveedorMessage}
           copied={copiedProveedor}
           onCopy={() => handleCopy(proveedorMessage, "proveedor")}
-          whatsappUrl={proveedorWhatsappUrl}
+          whatsappTarget={proveedorWhatsappTarget}
           openButtonLabel="Abrir WhatsApp proveedor"
           missingContactHint="Sin teléfono del proveedor registrado"
         />
@@ -195,7 +245,7 @@ export function CitaCreadaConfirmacion({
           onCopy={() =>
             modificacionMessage && handleCopy(modificacionMessage, "modificacion")
           }
-          whatsappUrl={modificacionWhatsappUrl}
+          whatsappTarget={modificacionWhatsappTarget}
           openButtonLabel="Abrir WhatsApp"
           missingContactHint="Sin grupo de WhatsApp ni teléfono de la novia registrado"
           emptyHint="Vincula la cita a una boda para generar el aviso de cambios."
@@ -265,12 +315,17 @@ export function CitaCreadaConfirmacion({
   );
 }
 
+type WhatsAppTarget = {
+  url: string;
+  copyMessageBeforeOpen: boolean;
+};
+
 function WhatsAppMessageSection({
   title,
   message,
   copied,
   onCopy,
-  whatsappUrl,
+  whatsappTarget,
   openButtonLabel,
   missingContactHint,
   emptyHint = "No hay mensaje disponible.",
@@ -279,11 +334,29 @@ function WhatsAppMessageSection({
   message: string | null;
   copied: boolean;
   onCopy: () => void;
-  whatsappUrl: string | null;
+  whatsappTarget: WhatsAppTarget | null;
   openButtonLabel: string;
   missingContactHint: string;
   emptyHint?: string;
 }) {
+  const [openedWithCopy, setOpenedWithCopy] = useState(false);
+
+  async function handleOpenWhatsApp() {
+    if (!whatsappTarget || !message) return;
+
+    if (whatsappTarget.copyMessageBeforeOpen) {
+      try {
+        await navigator.clipboard.writeText(message);
+        setOpenedWithCopy(true);
+        window.setTimeout(() => setOpenedWithCopy(false), 2000);
+      } catch {
+        /* clipboard no disponible */
+      }
+    }
+
+    window.open(whatsappTarget.url, "_blank", "noopener,noreferrer");
+  }
+
   return (
     <section>
       <h4 className="text-sm font-semibold text-bloom-ink">{title}</h4>
@@ -300,19 +373,23 @@ function WhatsAppMessageSection({
             >
               {copied ? "Copiado" : "Copiar mensaje"}
             </button>
-            {whatsappUrl ? (
-              <a
-                href={whatsappUrl}
-                target="_blank"
-                rel="noopener noreferrer"
+            {whatsappTarget ? (
+              <button
+                type="button"
+                onClick={() => void handleOpenWhatsApp()}
                 className="inline-flex rounded-full bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
               >
-                {openButtonLabel}
-              </a>
+                {openedWithCopy ? "Mensaje copiado — abrir WhatsApp" : openButtonLabel}
+              </button>
             ) : (
               <p className="self-center text-xs text-bloom-muted">{missingContactHint}</p>
             )}
           </div>
+          {whatsappTarget?.copyMessageBeforeOpen && (
+            <p className="mt-2 text-xs text-bloom-muted">
+              Al abrir el grupo, el mensaje se copia al portapapeles para que lo pegues en el chat.
+            </p>
+          )}
         </>
       ) : (
         <p className="mt-2 text-sm text-bloom-muted">{emptyHint}</p>

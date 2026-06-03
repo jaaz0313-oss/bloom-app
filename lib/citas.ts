@@ -8,8 +8,8 @@ import {
 import type { BodaRow } from "@/app/data/weddings";
 import type { LeadRow } from "@/app/data/leads";
 import { parseProveedorFromCitaTitulo } from "@/lib/cita-titulo";
-import { formatLongDateStable } from "@/lib/format";
-import { buildGrupoWhatsAppUrl, buildWhatsAppUrl } from "@/lib/whatsapp";
+import { formatLongDateStable, formatLongDateEnglishStable, formatTimeEnglishStable } from "@/lib/format";
+import { buildWhatsAppUrl, normalizeWhatsAppGroupLink } from "@/lib/whatsapp";
 import type { UserRole } from "@/lib/auth/roles";
 
 export type CitaProveedorLookup = {
@@ -27,6 +27,10 @@ export type CitaWhatsAppLookupContext = {
   leadsById: Record<string, Pick<LeadRow, "nombre_pareja">>;
   proveedoresById?: Record<string, CitaProveedorLookup>;
 };
+
+export type CitaWhatsAppLocale = "es" | "en";
+
+export const CITA_WHATSAPP_LOCALE_SESSION_KEY = "celestia-cita-whatsapp-locale";
 
 type CitaWhatsAppFields = Pick<
   CitaRow,
@@ -46,6 +50,13 @@ function formatCitaHoraTexto(horaInicio: string, horaFin?: string | null): strin
   const horaInicioFmt = formatTimeStable(horaInicio);
   return horaFin?.trim() ?
       `${horaInicioFmt} - ${formatTimeStable(horaFin)}`
+    : horaInicioFmt;
+}
+
+function formatCitaHoraTextoEnglish(horaInicio: string, horaFin?: string | null): string {
+  const horaInicioFmt = formatTimeEnglishStable(horaInicio);
+  return horaFin?.trim() ?
+      `${horaInicioFmt} - ${formatTimeEnglishStable(horaFin)}`
     : horaInicioFmt;
 }
 
@@ -176,23 +187,34 @@ export function buildCitaRecordatorioProveedorWhatsAppMessageFromCita(
   });
 }
 
-function buildCitaWhatsAppDetalleLines(params: {
-  fecha: string;
-  horaInicio: string;
-  horaFin?: string | null;
-  tipo: CitaTipo;
-  proveedorNombre?: string | null;
-  lugar?: string | null;
-  linkMeet?: string | null;
-}): string[] {
+function buildCitaWhatsAppDetalleLines(
+  params: {
+    fecha: string;
+    horaInicio: string;
+    horaFin?: string | null;
+    tipo: CitaTipo;
+    proveedorNombre?: string | null;
+    lugar?: string | null;
+    linkMeet?: string | null;
+  },
+  locale: CitaWhatsAppLocale = "es",
+): string[] {
   const fechaNorm = normalizeCitaFecha(params.fecha);
   const lines = [
-    `📅 ${formatLongDateStable(fechaNorm)}`,
-    `🕐 ${formatCitaHoraTexto(params.horaInicio, params.horaFin)}`,
+    locale === "en"
+      ? `📅 ${formatLongDateEnglishStable(fechaNorm)}`
+      : `📅 ${formatLongDateStable(fechaNorm)}`,
+    locale === "en"
+      ? `🕐 ${formatCitaHoraTextoEnglish(params.horaInicio, params.horaFin)}`
+      : `🕐 ${formatCitaHoraTexto(params.horaInicio, params.horaFin)}`,
   ];
 
   if (params.tipo === "reunion_proveedor" && params.proveedorNombre?.trim()) {
-    lines.push(`👤 Proveedor: ${params.proveedorNombre.trim()}`);
+    lines.push(
+      locale === "en"
+        ? `👤 Provider: ${params.proveedorNombre.trim()}`
+        : `👤 Proveedor: ${params.proveedorNombre.trim()}`,
+    );
   }
   if (params.lugar?.trim()) {
     lines.push(`📍 ${params.lugar.trim()}`);
@@ -306,23 +328,55 @@ export function buildCitaConfirmacionWhatsAppMessage(params: {
   proveedorNombre?: string | null;
   lugar?: string | null;
   linkMeet?: string | null;
+  locale?: CitaWhatsAppLocale;
 }): string {
-  const { nombreCliente, fecha, horaInicio, horaFin, tipo, proveedorNombre, lugar, linkMeet } =
-    params;
+  const {
+    nombreCliente,
+    fecha,
+    horaInicio,
+    horaFin,
+    tipo,
+    proveedorNombre,
+    lugar,
+    linkMeet,
+    locale = "es",
+  } = params;
 
-  const lines = [
-    `Hola ${nombreCliente.trim()}, confirmamos tu cita con Celestia:`,
-    ...buildCitaWhatsAppDetalleLines({
-      fecha,
-      horaInicio,
-      horaFin,
-      tipo: tipo ?? "reunion_seguimiento",
-      proveedorNombre,
-      lugar,
-      linkMeet,
-    }),
-    "¡Te esperamos! Cualquier duda estamos atentos 🌸",
-  ];
+  const lines =
+    locale === "en"
+      ? [
+          `Hi ${nombreCliente.trim()}, we confirm your appointment with Celestia:`,
+          ...buildCitaWhatsAppDetalleLines(
+            {
+              fecha,
+              horaInicio,
+              horaFin,
+              tipo: tipo ?? "reunion_seguimiento",
+              proveedorNombre,
+              lugar,
+              linkMeet,
+            },
+            locale,
+          ),
+          "We look forward to seeing you! Feel free to reach out with any questions 🌸",
+          "- Celestia Team",
+        ]
+      : [
+          `Hola ${nombreCliente.trim()}, confirmamos tu cita con Celestia:`,
+          ...buildCitaWhatsAppDetalleLines(
+            {
+              fecha,
+              horaInicio,
+              horaFin,
+              tipo: tipo ?? "reunion_seguimiento",
+              proveedorNombre,
+              lugar,
+              linkMeet,
+            },
+            locale,
+          ),
+          "¡Te esperamos! Cualquier duda estamos atentos 🌸",
+        ];
 
   return lines.join("\n");
 }
@@ -355,18 +409,22 @@ export function buildCitaGrupoConfirmacionWhatsAppMessage(params: {
   proveedorNombre?: string | null;
   lugar?: string | null;
   linkMeet?: string | null;
+  locale?: CitaWhatsAppLocale;
 }): string {
-  const { nombrePareja, fecha, horaInicio, horaFin, tipo, proveedorNombre, lugar, linkMeet } =
-    params;
+  const {
+    nombrePareja,
+    fecha,
+    horaInicio,
+    horaFin,
+    tipo,
+    proveedorNombre,
+    lugar,
+    linkMeet,
+    locale = "es",
+  } = params;
 
-  const saludo =
-    nombrePareja?.trim() ?
-      `Hola ${nombrePareja.trim()}, agendamos una nueva cita con Celestia:`
-    : "Hola, agendamos una nueva cita con Celestia:";
-
-  const lines = [
-    saludo,
-    ...buildCitaWhatsAppDetalleLines({
+  const detalle = buildCitaWhatsAppDetalleLines(
+    {
       fecha,
       horaInicio,
       horaFin,
@@ -374,16 +432,35 @@ export function buildCitaGrupoConfirmacionWhatsAppMessage(params: {
       proveedorNombre,
       lugar,
       linkMeet,
-    }),
-    "¡Los esperamos! 🌸",
-  ];
+    },
+    locale,
+  );
 
-  return lines.join("\n");
+  if (locale === "en") {
+    const saludo =
+      nombrePareja?.trim()
+        ? `Hi ${nombrePareja.trim()}, we confirm your appointment with Celestia:`
+        : "Hi, we confirm your appointment with Celestia:";
+    return [
+      saludo,
+      ...detalle,
+      "We look forward to seeing you! Feel free to reach out with any questions 🌸",
+      "- Celestia Team",
+    ].join("\n");
+  }
+
+  const saludo =
+    nombrePareja?.trim()
+      ? `Hola ${nombrePareja.trim()}, agendamos una nueva cita con Celestia:`
+      : "Hola, agendamos una nueva cita con Celestia:";
+
+  return [saludo, ...detalle, "¡Los esperamos! 🌸"].join("\n");
 }
 
 export function buildCitaGrupoConfirmacionWhatsAppMessageFromCita(
   cita: CitaWhatsAppFields,
   context: CitaWhatsAppLookupContext,
+  locale: CitaWhatsAppLocale = "es",
 ): string {
   const cliente = getClienteInfoForCita(cita, context.bodasById, context.leadsById);
 
@@ -396,6 +473,7 @@ export function buildCitaGrupoConfirmacionWhatsAppMessageFromCita(
     proveedorNombre: getProveedorNombreForCita(cita, context.proveedoresById),
     lugar: cita.lugar,
     linkMeet: cita.link_meet,
+    locale,
   });
 }
 
@@ -407,13 +485,36 @@ export function buildCitaProveedorConfirmacionWhatsAppMessage(params: {
   horaFin?: string | null;
   lugar?: string | null;
   linkMeet?: string | null;
+  locale?: CitaWhatsAppLocale;
 }): string {
-  const fechaNorm = normalizeCitaFecha(params.fecha);
+  const {
+    nombreProveedor,
+    nombrePareja,
+    fecha,
+    horaInicio,
+    horaFin,
+    lugar,
+    linkMeet,
+    locale = "es",
+  } = params;
+  const fechaNorm = normalizeCitaFecha(fecha);
+
+  if (locale === "en") {
+    const lines = [
+      `Hi ${nombreProveedor.trim()}, we confirm our meeting with the couple ${nombrePareja.trim()}:`,
+      `📅 ${formatLongDateEnglishStable(fechaNorm)}`,
+      `🕐 ${formatCitaHoraTextoEnglish(horaInicio, horaFin)}`,
+      ...buildCitaWhatsAppLugarMeetLines(lugar, linkMeet),
+      "See you soon! 🌸",
+    ];
+    return lines.join("\n");
+  }
+
   const lines = [
-    `Hola ${params.nombreProveedor.trim()}, confirmamos nuestra reunión con los novios ${params.nombrePareja.trim()}:`,
+    `Hola ${nombreProveedor.trim()}, confirmamos nuestra reunión con los novios ${nombrePareja.trim()}:`,
     `📅 ${formatLongDateStable(fechaNorm)}`,
-    `🕐 ${formatCitaHoraTexto(params.horaInicio, params.horaFin)}`,
-    ...buildCitaWhatsAppLugarMeetLines(params.lugar, params.linkMeet),
+    `🕐 ${formatCitaHoraTexto(horaInicio, horaFin)}`,
+    ...buildCitaWhatsAppLugarMeetLines(lugar, linkMeet),
     "¡Hasta pronto! 🌸",
   ];
   return lines.join("\n");
@@ -422,6 +523,7 @@ export function buildCitaProveedorConfirmacionWhatsAppMessage(params: {
 export function buildCitaProveedorConfirmacionWhatsAppMessageFromCita(
   cita: CitaWhatsAppFields,
   context: CitaWhatsAppLookupContext,
+  locale: CitaWhatsAppLocale = "es",
 ): string | null {
   if (cita.tipo !== "reunion_proveedor") return null;
 
@@ -440,6 +542,7 @@ export function buildCitaProveedorConfirmacionWhatsAppMessageFromCita(
     horaFin: cita.hora_fin,
     lugar: cita.lugar,
     linkMeet: cita.link_meet,
+    locale,
   });
 }
 
@@ -451,12 +554,18 @@ export function getCitaWhatsAppUrl(
   return buildWhatsAppUrl(telefono, message);
 }
 
-/** WhatsApp al cliente: grupo de la boda con mensaje prellenado, o teléfono de la novia. */
-export function getCitaClienteWhatsAppUrl(
+export type CitaClienteWhatsAppTarget = {
+  url: string;
+  /** Grupo de WhatsApp: abrir link sin ?text= y copiar mensaje manualmente. */
+  copyMessageBeforeOpen: boolean;
+};
+
+/** WhatsApp al cliente: grupo (sin ?text=) o teléfono de la novia con mensaje prellenado. */
+export function getCitaClienteWhatsAppTarget(
   cita: Pick<CitaRow, "boda_id" | "lead_id">,
   message: string,
   bodasById: Record<string, CitaBodaWhatsAppLookup>,
-): string | null {
+): CitaClienteWhatsAppTarget | null {
   if (!message.trim() || !cita.boda_id) return null;
 
   const boda = bodasById[cita.boda_id];
@@ -464,10 +573,23 @@ export function getCitaClienteWhatsAppUrl(
 
   const grupoLink = boda.whatsapp_grupo_link?.trim();
   if (grupoLink) {
-    return buildGrupoWhatsAppUrl(grupoLink, message);
+    const url = normalizeWhatsAppGroupLink(grupoLink);
+    if (!url) return null;
+    return { url, copyMessageBeforeOpen: true };
   }
 
-  return getCitaWhatsAppUrl(boda.telefono_novia, message);
+  const phoneUrl = getCitaWhatsAppUrl(boda.telefono_novia, message);
+  if (!phoneUrl) return null;
+  return { url: phoneUrl, copyMessageBeforeOpen: false };
+}
+
+/** WhatsApp al cliente: grupo de la boda o teléfono de la novia. */
+export function getCitaClienteWhatsAppUrl(
+  cita: Pick<CitaRow, "boda_id" | "lead_id">,
+  message: string,
+  bodasById: Record<string, CitaBodaWhatsAppLookup>,
+): string | null {
+  return getCitaClienteWhatsAppTarget(cita, message, bodasById)?.url ?? null;
 }
 
 export function getCitaRelacionLabel(
@@ -551,13 +673,22 @@ export function buildCitaModificacionWhatsAppMessage(params: {
   proveedorNombre?: string | null;
   lugar?: string | null;
   linkMeet?: string | null;
+  locale?: CitaWhatsAppLocale;
 }): string {
-  const { nombreCliente, fecha, horaInicio, horaFin, tipo, proveedorNombre, lugar, linkMeet } =
-    params;
+  const {
+    nombreCliente,
+    fecha,
+    horaInicio,
+    horaFin,
+    tipo,
+    proveedorNombre,
+    lugar,
+    linkMeet,
+    locale = "es",
+  } = params;
 
-  const lines = [
-    `Hola ${nombreCliente.trim()}, te confirmamos los cambios en tu cita con Celestia:`,
-    ...buildCitaWhatsAppDetalleLines({
+  const detalle = buildCitaWhatsAppDetalleLines(
+    {
       fecha,
       horaInicio,
       horaFin,
@@ -565,16 +696,30 @@ export function buildCitaModificacionWhatsAppMessage(params: {
       proveedorNombre,
       lugar,
       linkMeet,
-    }),
-    "¡Te esperamos! Cualquier duda estamos atentos 🌸",
-  ];
+    },
+    locale,
+  );
 
-  return lines.join("\n");
+  if (locale === "en") {
+    return [
+      `Hi ${nombreCliente.trim()}, we confirm the changes to your appointment with Celestia:`,
+      ...detalle,
+      "We look forward to seeing you! Feel free to reach out with any questions 🌸",
+      "- Celestia Team",
+    ].join("\n");
+  }
+
+  return [
+    `Hola ${nombreCliente.trim()}, te confirmamos los cambios en tu cita con Celestia:`,
+    ...detalle,
+    "¡Te esperamos! Cualquier duda estamos atentos 🌸",
+  ].join("\n");
 }
 
 export function buildCitaModificacionWhatsAppMessageFromCita(
   cita: CitaWhatsAppFields,
   context: CitaWhatsAppLookupContext,
+  locale: CitaWhatsAppLocale = "es",
 ): string | null {
   const cliente = getClienteInfoForCita(cita, context.bodasById, context.leadsById);
   if (!cliente?.nombre?.trim()) return null;
@@ -588,6 +733,7 @@ export function buildCitaModificacionWhatsAppMessageFromCita(
     proveedorNombre: getProveedorNombreForCita(cita, context.proveedoresById),
     lugar: cita.lugar,
     linkMeet: cita.link_meet,
+    locale,
   });
 }
 

@@ -383,7 +383,21 @@ export function buildWhatsAppUrl(phone: string, message: string): string | null 
   return `https://wa.me/${normalized}?text=${encodeURIComponent(message)}`;
 }
 
-/** Abre el link del grupo con el mensaje prellenado (?text=). */
+/** Normaliza el link de grupo sin parámetro text (WhatsApp no lo soporta en chat.whatsapp.com). */
+export function normalizeWhatsAppGroupLink(groupLink: string): string | null {
+  const link = groupLink.trim();
+  if (!link) return null;
+
+  try {
+    const url = new URL(link.startsWith("http") ? link : `https://${link}`);
+    url.searchParams.delete("text");
+    return url.toString();
+  } catch {
+    return link.split("?")[0]?.trim() || link;
+  }
+}
+
+/** @deprecated Los links de grupo no soportan ?text=; usa normalizeWhatsAppGroupLink y copia el mensaje. */
 export function buildGrupoWhatsAppUrl(
   groupLink: string,
   message: string,

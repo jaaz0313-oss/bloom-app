@@ -80,6 +80,39 @@ export function formatLongDateStable(isoDate: string): string {
   return `${day} de ${monthLabel} de ${year}`;
 }
 
+/** Fecha larga en inglés, estable (evita hydration mismatch). */
+export function formatLongDateEnglishStable(isoDate: string): string {
+  const datePart = isoDate.includes("T") ? isoDate.split("T")[0] : isoDate;
+  const [year, month, day] = datePart.split("-").map(Number);
+  const monthLabels = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
+  const monthLabel = monthLabels[(month ?? 1) - 1] ?? "";
+  return `${monthLabel} ${day}, ${year}`;
+}
+
+/** Hora en formato 12 h en inglés, estable (evita hydration mismatch). */
+export function formatTimeEnglishStable(time: string): string {
+  const match = time.match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return time;
+  const hours = Number(match[1]);
+  const minutes = match[2];
+  const period = hours >= 12 ? "PM" : "AM";
+  const hour12 = hours % 12 === 0 ? 12 : hours % 12;
+  return `${hour12}:${minutes} ${period}`;
+}
+
 /** Fecha corta con abreviaturas fijas (evita hydration mismatch entre servidor y cliente). */
 export function formatShortDateStable(isoDate: string): string {
   const [year, month, day] = isoDate.split("-").map(Number);
