@@ -6,7 +6,7 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { CotizacionItemRow } from "@/app/data/cotizaciones";
 import type { LeadCotizacionPdfContext } from "@/lib/lead-cotizacion";
-import { computeCotizacionTotal } from "@/lib/cotizacion-lead";
+import { computeCotizacionTotal, getItemDisplayName } from "@/lib/cotizacion-lead";
 import { formatCurrency, formatWeddingDate } from "@/lib/format";
 
 const CELESTIA_EMAIL = "celestiaandevents@gmail.com";
@@ -152,7 +152,7 @@ export function generateLeadCotizacionPdf(
   );
 
   const tableBody = items.map((item) => [
-    item.categoria,
+    getItemDisplayName(item.categoria),
     formatPrecioItem(item),
   ]);
 

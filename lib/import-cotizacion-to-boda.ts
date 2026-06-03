@@ -1,5 +1,6 @@
 import type { CotizacionItemRow } from "@/app/data/cotizaciones";
 import type { DirectorioProveedorRow } from "@/app/data/directorio";
+import { sortCotizacionItemsForDisplay } from "@/lib/cotizacion-lead";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type ImportCotizacionResult =
@@ -68,7 +69,9 @@ export async function importarCotizacionLeadABoda(
     }
   }
 
-  const proveedoresPayload = typedItems.map((item) => {
+  const sortedItems = sortCotizacionItemsForDisplay(typedItems);
+
+  const proveedoresPayload = sortedItems.map((item, index) => {
     const dir = item.proveedor_sugerido_id
       ? directorioMap.get(item.proveedor_sugerido_id)
       : null;
@@ -87,6 +90,7 @@ export async function importarCotizacionLeadABoda(
       anticipo: 0,
       estado: "pendiente" as const,
       notas: item.notas_internas?.trim() || null,
+      orden: index,
     };
 
     if (!dir) {

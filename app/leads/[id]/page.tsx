@@ -3,10 +3,12 @@ import { notFound } from "next/navigation";
 import { DashboardHeader } from "@/app/components/DashboardHeader";
 import { CitasSection } from "@/app/components/citas/CitasSection";
 import { LeadCotizacionesSection } from "@/app/components/leads/LeadCotizacionesSection";
-import { LeadCotizacionShareActions } from "@/app/components/leads/LeadCotizacionShareActions";
+import { LeadCotizacionPanel } from "@/app/components/leads/LeadCotizacionPanel";
 import type { CotizacionItemRow } from "@/app/data/cotizaciones";
 import { pickActiveLeadCotizacion } from "@/lib/lead-cotizacion";
+import { buildHistoricoPrecios } from "@/lib/cotizacion-historico";
 import { normalizeLeadRow } from "@/lib/leads-dashboard";
+import type { DirectorioProveedorRow } from "@/app/data/directorio";
 import {
   LEAD_SEGUIMIENTO_LABELS,
   LEAD_SEGUIMIENTO_STYLES,
@@ -51,13 +53,42 @@ export default async function LeadDetailPage({ params }: PageProps) {
   const activeCotizacion = pickActiveLeadCotizacion(cotizaciones);
 
   let cotizacionItems: CotizacionItemRow[] = [];
+  let directorio: DirectorioProveedorRow[] = [];
+  let historico: ReturnType<typeof buildHistoricoPrecios> = [];
+
   if (activeCotizacion) {
-    const { data: itemsData } = await supabase
-      .from("cotizacion_items")
-      .select("*")
-      .eq("cotizacion_id", activeCotizacion.id)
-      .order("categoria", { ascending: true });
+    const [{ data: itemsData }, { data: directorioData }, { data: proveedoresHistorico }, { data: itemsHistorico }] =
+      await Promise.all([
+        supabase
+          .from("cotizacion_items")
+          .select("*")
+          .eq("cotizacion_id", activeCotizacion.id)
+          .order("categoria", { ascending: true }),
+        supabase
+          .from("directorio_proveedores")
+          .select("*")
+          .eq("activo", true)
+          .order("nombre", { ascending: true }),
+        supabase
+          .from("proveedores")
+          .select("categoria, valor_total")
+          .eq("estado", "contratado")
+          .gt("valor_total", 0),
+        supabase
+          .from("cotizacion_items")
+          .select(
+            "categoria, precio_estimado, incluido, cotizaciones(numero_invitados)",
+          )
+          .eq("incluido", true)
+          .neq("cotizacion_id", activeCotizacion.id),
+      ]);
+
     cotizacionItems = (itemsData ?? []) as CotizacionItemRow[];
+    directorio = (directorioData ?? []) as DirectorioProveedorRow[];
+    historico = buildHistoricoPrecios(
+      (proveedoresHistorico ?? []) as { categoria: string; valor_total: number }[],
+      (itemsHistorico ?? []) as Parameters<typeof buildHistoricoPrecios>[1],
+    );
   }
 
   const { data: citasData } = await supabase
@@ -177,10 +208,12 @@ export default async function LeadDetailPage({ params }: PageProps) {
         </dl>
 
         {activeCotizacion && (
-          <LeadCotizacionShareActions
+          <LeadCotizacionPanel
             lead={leadRow}
             cotizacion={activeCotizacion}
             items={cotizacionItems}
+            directorio={directorio}
+            historico={historico}
           />
         )}
 

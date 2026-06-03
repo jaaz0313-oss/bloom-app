@@ -10,7 +10,7 @@ import {
   type PaymentAlert,
 } from "@/app/data/payment-alerts";
 import { bodaProveedoresHref } from "@/lib/boda-url";
-import { formatCurrency, formatShortDate } from "@/lib/format";
+import { formatCurrency, formatShortDateStable } from "@/lib/format";
 import {
   buildPaymentReminderDashboardMessage,
   openPaymentReminderWhatsApp,
@@ -127,7 +127,7 @@ function PaymentAlertItem({
             <div>
               <dt className="text-bloom-muted">Vence</dt>
               <dd className="font-medium text-bloom-ink">
-                {formatShortDate(alert.fechaSaldo)}
+                {formatShortDateStable(alert.fechaSaldo)}
               </dd>
             </div>
           </dl>

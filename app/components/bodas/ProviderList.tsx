@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, type ReactNode } from "react";
 import type { PagoRow } from "@/app/data/pagos";
 import type { ProveedorRow } from "@/app/data/providers";
 import type { UserRole } from "@/lib/auth/roles";
@@ -18,6 +18,13 @@ type ProviderListProps = {
   whatsappGrupoLink?: string | null;
   highlightProveedorId?: string | null;
 };
+
+function compareProvidersByOrden(a: ProveedorRow, b: ProveedorRow): number {
+  const ao = a.orden ?? Number.MAX_SAFE_INTEGER;
+  const bo = b.orden ?? Number.MAX_SAFE_INTEGER;
+  if (ao !== bo) return ao - bo;
+  return a.created_at.localeCompare(b.created_at);
+}
 
 export function ProviderList({
   providers,
@@ -38,12 +45,23 @@ export function ProviderList({
     }, 150);
     return () => window.clearTimeout(timer);
   }, [highlightProveedorId, providers]);
+
   const visibleProviders = useMemo(
     () => providers.filter((p) => p.estado !== "descartado"),
     [providers],
   );
 
   const descartadosCount = providers.length - visibleProviders.length;
+
+  const usesOrden = useMemo(
+    () => visibleProviders.some((provider) => provider.orden != null),
+    [visibleProviders],
+  );
+
+  const orderedProviders = useMemo(() => {
+    if (!usesOrden) return visibleProviders;
+    return [...visibleProviders].sort(compareProvidersByOrden);
+  }, [usesOrden, visibleProviders]);
 
   const providersByCategoria = useMemo(() => {
     const map = new Map<string, ProveedorRow[]>();
@@ -63,6 +81,68 @@ export function ProviderList({
     );
   }
 
+  function renderProviderItem(provider: ProveedorRow, extra?: ReactNode) {
+    return (
+      <li
+        key={provider.id}
+        id={`proveedor-${provider.id}`}
+        className={
+          highlightProveedorId === provider.id
+            ? "scroll-mt-24 space-y-3 rounded-2xl ring-2 ring-bloom-accent/40 ring-offset-2"
+            : "scroll-mt-24 space-y-3"
+        }
+      >
+        {extra}
+        <ProviderCard
+          provider={provider}
+          bodaId={bodaId}
+          boda={boda}
+          plannerName={plannerName}
+          pagos={pagosByProveedor[provider.id] ?? []}
+          role={role}
+        />
+      </li>
+    );
+  }
+
+  function renderOrderedList() {
+    const enNegociacionByCategoria = new Map<string, ProveedorRow[]>();
+    for (const provider of orderedProviders) {
+      if (provider.estado !== "en_negociacion") continue;
+      const list = enNegociacionByCategoria.get(provider.categoria) ?? [];
+      list.push(provider);
+      enNegociacionByCategoria.set(provider.categoria, list);
+    }
+
+    const compareShown = new Set<string>();
+
+    return (
+      <ul className="space-y-3">
+        {orderedProviders.map((provider) => {
+          const enNegociacion =
+            enNegociacionByCategoria.get(provider.categoria) ?? [];
+          const showCompare =
+            enNegociacion.length >= 2 && !compareShown.has(provider.categoria);
+
+          if (showCompare) {
+            compareShown.add(provider.categoria);
+          }
+
+          return renderProviderItem(
+            provider,
+            showCompare ? (
+              <CompararCotizacionesBar
+                categoria={provider.categoria}
+                proveedores={enNegociacion}
+                grupoLink={whatsappGrupoLink}
+              />
+            ) : null,
+          );
+        })}
+      </ul>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {descartadosCount > 0 && (
@@ -74,46 +154,33 @@ export function ProviderList({
         </p>
       )}
 
-      {providersByCategoria.map(([categoria, categoriaProviders]) => {
-        const enNegociacion = categoriaProviders.filter(
-          (p) => p.estado === "en_negociacion",
-        );
-        const showCompare = enNegociacion.length >= 2;
+      {usesOrden ? (
+        renderOrderedList()
+      ) : (
+        providersByCategoria.map(([categoria, categoriaProviders]) => {
+          const enNegociacion = categoriaProviders.filter(
+            (p) => p.estado === "en_negociacion",
+          );
+          const showCompare = enNegociacion.length >= 2;
 
-        return (
-          <section key={categoria}>
-            {showCompare && (
-              <CompararCotizacionesBar
-                categoria={categoria}
-                proveedores={enNegociacion}
-                grupoLink={whatsappGrupoLink}
-              />
-            )}
-            <ul className="space-y-3">
-              {categoriaProviders.map((provider) => (
-                <li
-                  key={provider.id}
-                  id={`proveedor-${provider.id}`}
-                  className={
-                    highlightProveedorId === provider.id
-                      ? "scroll-mt-24 rounded-2xl ring-2 ring-bloom-accent/40 ring-offset-2"
-                      : "scroll-mt-24"
-                  }
-                >
-                  <ProviderCard
-                    provider={provider}
-                    bodaId={bodaId}
-                    boda={boda}
-                    plannerName={plannerName}
-                    pagos={pagosByProveedor[provider.id] ?? []}
-                    role={role}
-                  />
-                </li>
-              ))}
-            </ul>
-          </section>
-        );
-      })}
+          return (
+            <section key={categoria}>
+              {showCompare && (
+                <CompararCotizacionesBar
+                  categoria={categoria}
+                  proveedores={enNegociacion}
+                  grupoLink={whatsappGrupoLink}
+                />
+              )}
+              <ul className="space-y-3">
+                {categoriaProviders.map((provider) =>
+                  renderProviderItem(provider),
+                )}
+              </ul>
+            </section>
+          );
+        })
+      )}
     </div>
   );
 }

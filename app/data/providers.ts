@@ -33,6 +33,7 @@ export type ProveedorRow = {
   porcentaje_comision: number | null;
   comision_recibida: boolean;
   comision_recibida_at: string | null;
+  orden: number | null;
   created_at: string;
 };
 

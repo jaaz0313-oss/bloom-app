@@ -5,7 +5,6 @@ import {
   generateLeadCotizacionPdf,
 } from "@/lib/lead-cotizacion-pdf";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
-import { requireAuthUser } from "@/lib/auth/user-profiles";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -13,7 +12,6 @@ type RouteContext = {
 
 export async function GET(_request: Request, { params }: RouteContext) {
   try {
-    await requireAuthUser();
     const { id } = await params;
     const supabase = await createServerSupabaseClient();
     const context = await getLeadCotizacionPdfContext(supabase, id);

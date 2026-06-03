@@ -30,6 +30,13 @@ export const COTIZACION_ESTADO_LABELS: Record<CotizacionEstado, string> = {
   rechazada: "Rechazada",
 };
 
+export const COTIZACION_ESTADOS: CotizacionEstado[] = [
+  "borrador",
+  "enviada",
+  "aceptada",
+  "rechazada",
+];
+
 export type CotizacionWithLead = CotizacionRow & {
   leads: {
     nombre_pareja: string;

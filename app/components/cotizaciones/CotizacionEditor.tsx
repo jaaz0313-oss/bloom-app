@@ -2,16 +2,16 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import type {
-  CotizacionEstado,
-  CotizacionItemRow,
-  CotizacionRow,
+import {
+  COTIZACION_ESTADO_LABELS,
+  COTIZACION_ESTADOS,
+  type CotizacionEstado,
+  type CotizacionItemRow,
+  type CotizacionRow,
 } from "@/app/data/cotizaciones";
-import { COTIZACION_ESTADO_LABELS } from "@/app/data/cotizaciones";
 import type { DirectorioProveedorRow } from "@/app/data/directorio";
 import type { LeadRow } from "@/app/data/leads";
 import {
-  getBaseCategoria,
   normalizeProviderCategory,
   PROVIDER_CATEGORIES,
 } from "@/lib/provider-categories";
@@ -21,13 +21,20 @@ import {
   formatWeddingDate,
 } from "@/lib/format";
 import {
+  canRemoveCotizacionItem,
+  createEmptyExtraItemCategoria,
+  COTIZACION_ITEM_DISPLAY_PLACEHOLDER,
+  formatItemCategoria,
+  getItemBaseCategoria,
+  getItemDisplayLabel,
+  parseItemCategoria,
+  suggestPrecioFromHistory,
+  parsePrecioFromNotas,
   buildCotizacionLeadEmail,
   buildCotizacionLeadWhatsAppMessage,
   computeCotizacionTotal,
   openCotizacionLeadEmail,
   openCotizacionLeadWhatsApp,
-  parsePrecioFromNotas,
-  suggestPrecioFromHistory,
   type HistoricoPrecioCategoria,
 } from "@/lib/cotizacion-lead";
 import { supabase } from "@/lib/supabase";
@@ -38,6 +45,8 @@ type CotizacionEditorProps = {
   initialItems: CotizacionItemRow[];
   directorio: DirectorioProveedorRow[];
   historico: HistoricoPrecioCategoria[];
+  embedded?: boolean;
+  onClose?: () => void;
 };
 
 const inputClass =
@@ -71,7 +80,7 @@ function buildDefaultItems(
 
   for (const categoria of PROVIDER_CATEGORIES) {
     const matching = initialItems.filter(
-      (item) => getBaseCategoria(item.categoria) === categoria,
+      (item) => getItemBaseCategoria(item.categoria) === categoria,
     );
 
     if (matching.length > 0) {
@@ -93,53 +102,19 @@ function buildDefaultItems(
   return items;
 }
 
-function getSiblingItems(
-  items: CotizacionItemRow[],
-  baseCategoria: string,
-): CotizacionItemRow[] {
-  return items.filter(
-    (item) => getBaseCategoria(item.categoria) === baseCategoria,
-  );
-}
-
-function getNextDuplicateLabel(
-  baseCategoria: string,
-  siblings: CotizacionItemRow[],
-): string {
-  const numbers = siblings.map((item) => {
-    if (item.categoria === baseCategoria) return 1;
-    const match = item.categoria.match(/\s+(\d+)$/);
-    return match ? Number(match[1]) : 1;
-  });
-  const next = Math.max(...numbers, 0) + 1;
-  return `${baseCategoria} ${next}`;
-}
-
-function duplicateCategoryItem(
+function insertItemBelow(
   items: CotizacionItemRow[],
   sourceItem: CotizacionItemRow,
-): CotizacionItemRow[] {
-  const baseCategoria = getBaseCategoria(sourceItem.categoria);
-  const siblings = getSiblingItems(items, baseCategoria);
-
-  let nextItems = [...items];
-
-  if (siblings.length === 1 && siblings[0].categoria === baseCategoria) {
-    nextItems = nextItems.map((item) =>
-      item.id === siblings[0].id
-        ? { ...item, categoria: `${baseCategoria} 1` }
-        : item,
-    );
-  }
-
-  const updatedSiblings = getSiblingItems(nextItems, baseCategoria);
-  const newLabel = getNextDuplicateLabel(baseCategoria, updatedSiblings);
-
-  nextItems.push(
-    createTempItem(sourceItem.cotizacion_id, newLabel),
+): { items: CotizacionItemRow[]; newItemId: string } {
+  const parentBase = getItemBaseCategoria(sourceItem.categoria);
+  const newItem = createTempItem(
+    sourceItem.cotizacion_id,
+    createEmptyExtraItemCategoria(parentBase),
   );
-
-  return nextItems;
+  const sourceIndex = items.findIndex((item) => item.id === sourceItem.id);
+  const next = [...items];
+  next.splice(sourceIndex + 1, 0, newItem);
+  return { items: next, newItemId: newItem.id };
 }
 
 export function CotizacionEditor({
@@ -148,6 +123,8 @@ export function CotizacionEditor({
   initialItems,
   directorio,
   historico,
+  embedded = false,
+  onClose,
 }: CotizacionEditorProps) {
   const router = useRouter();
   const normalizedInitial = useMemo(
@@ -175,11 +152,21 @@ export function CotizacionEditor({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [whatsappWarning, setWhatsappWarning] = useState<string | null>(null);
+  const [emailWarning, setEmailWarning] = useState<string | null>(null);
+  const [focusItemId, setFocusItemId] = useState<string | null>(null);
+  const initialPersistedIds = useMemo(
+    () =>
+      normalizedInitial
+        .filter((item) => !item.id.startsWith("temp-"))
+        .map((item) => item.id),
+    [normalizedInitial],
+  );
 
   const directorioByCategoria = useMemo(() => {
     const map = new Map<string, DirectorioProveedorRow[]>();
     for (const p of directorio) {
-      const key = getBaseCategoria(normalizeProviderCategory(p.categoria));
+      const key = getItemBaseCategoria(normalizeProviderCategory(p.categoria));
       const list = map.get(key) ?? [];
       list.push(p);
       map.set(key, list);
@@ -192,6 +179,7 @@ export function CotizacionEditor({
   const whatsappMessage = useMemo(
     () =>
       buildCotizacionLeadWhatsAppMessage({
+        leadId: lead.id,
         nombreLead: lead.nombre_pareja,
         numeroInvitados: numeroInvitados.trim()
           ? Number(numeroInvitados)
@@ -215,21 +203,29 @@ export function CotizacionEditor({
   }
 
   function handleDuplicateItem(sourceItem: CotizacionItemRow) {
-    setItems((current) => duplicateCategoryItem(current, sourceItem));
+    const { items: nextItems, newItemId } = insertItemBelow(items, sourceItem);
+    setItems(nextItems);
+    setFocusItemId(newItemId);
   }
 
-  async function handleSave(markEnviada = false) {
+  function handleRemoveItem(itemId: string) {
+    setItems((current) => current.filter((item) => item.id !== itemId));
+  }
+
+  async function handleSave(markEnviada = false): Promise<boolean> {
     setError(null);
     setSuccess(null);
+    setWhatsappWarning(null);
+    setEmailWarning(null);
     if (!supabase) {
       setError("Supabase no está configurado.");
-      return;
+      return false;
     }
 
     const invitados = numeroInvitados.trim() ? Number(numeroInvitados) : null;
     if (invitados !== null && (!Number.isFinite(invitados) || invitados < 0)) {
       setError("Ingresa un número de invitados válido.");
-      return;
+      return false;
     }
 
     setSaving(true);
@@ -249,14 +245,15 @@ export function CotizacionEditor({
 
       if (cotError) {
         setError(cotError.message);
-        return;
+        return false;
       }
 
+      const persistedIds = new Set<string>();
+
       for (const item of items) {
-        const categoria = item.categoria;
         const payload = {
           cotizacion_id: cotizacion.id,
-          categoria,
+          categoria: item.categoria,
           descripcion: item.descripcion,
           precio_estimado: item.precio_estimado,
           proveedor_sugerido_id: item.proveedor_sugerido_id,
@@ -272,9 +269,10 @@ export function CotizacionEditor({
             .single();
           if (insertError) {
             setError(insertError.message);
-            return;
+            return false;
           }
           if (inserted) {
+            persistedIds.add(inserted.id);
             setItems((current) =>
               current.map((i) =>
                 i.id === item.id ? (inserted as CotizacionItemRow) : i,
@@ -282,44 +280,70 @@ export function CotizacionEditor({
             );
           }
         } else {
-          const { error: updateError } = await supabase
+          const { error: upsertError } = await supabase
             .from("cotizacion_items")
-            .update(payload)
-            .eq("id", item.id);
-          if (updateError) {
-            setError(updateError.message);
-            return;
+            .upsert({ id: item.id, ...payload }, { onConflict: "id" });
+          if (upsertError) {
+            setError(upsertError.message);
+            return false;
           }
+          persistedIds.add(item.id);
+        }
+      }
+
+      const idsToDelete = initialPersistedIds.filter((id) => !persistedIds.has(id));
+      if (idsToDelete.length > 0) {
+        const { error: deleteError } = await supabase
+          .from("cotizacion_items")
+          .delete()
+          .in("id", idsToDelete);
+        if (deleteError) {
+          setError(deleteError.message);
+          return false;
         }
       }
 
       if (markEnviada) setEstado("enviada");
       setSuccess("Cotización guardada.");
       router.refresh();
+      return true;
     } finally {
       setSaving(false);
     }
   }
 
   async function handleEnviarWhatsApp() {
-    const telefono = window.prompt(
-      "Teléfono del lead (con indicativo, ej. 3001234567):",
-    );
-    if (!telefono?.trim()) return;
+    setWhatsappWarning(null);
+    setEmailWarning(null);
+    const telefono = lead.telefono?.trim();
+    if (!telefono) {
+      setWhatsappWarning("Este lead no tiene teléfono registrado");
+      return;
+    }
 
-    await handleSave(true);
-    const opened = openCotizacionLeadWhatsApp(telefono.trim(), whatsappMessage);
+    const saved = await handleSave(true);
+    if (!saved) return;
+
+    const opened = openCotizacionLeadWhatsApp(telefono, whatsappMessage);
     if (!opened) {
-      setError("No se pudo abrir WhatsApp. Verifica el número.");
+      setError("No se pudo abrir WhatsApp. Verifica que el teléfono sea válido.");
     }
   }
 
   async function handleEnviarEmail() {
-    const email = window.prompt("Correo del lead:");
-    if (!email?.trim()) return;
+    setEmailWarning(null);
+    setWhatsappWarning(null);
+    const email = lead.email?.trim();
+    if (!email) {
+      setEmailWarning("Este lead no tiene email registrado");
+      return;
+    }
 
-    await handleSave(true);
+    const saved = await handleSave(true);
+    if (!saved) return;
+
     const { subject, body } = buildCotizacionLeadEmail({
+      leadId: lead.id,
       nombreLead: lead.nombre_pareja,
       numeroInvitados: numeroInvitados.trim()
         ? Number(numeroInvitados)
@@ -328,7 +352,7 @@ export function CotizacionEditor({
       ciudad: ciudad.trim() || lead.ciudad,
       items,
     });
-    openCotizacionLeadEmail(email.trim(), subject, body);
+    openCotizacionLeadEmail(email, subject, body);
   }
 
   function applySugerencia(itemId: string, categoria: string) {
@@ -339,17 +363,40 @@ export function CotizacionEditor({
   }
 
   return (
-    <div className="mt-6">
+    <div className={embedded ? "" : "mt-6"}>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="font-display text-3xl text-bloom-ink">
-            Cotización – {lead.nombre_pareja}
-          </h1>
-          <p className="mt-1 text-sm text-bloom-muted">
-            Lead · {COTIZACION_ESTADO_LABELS[estado]}
-          </p>
+          {embedded ? (
+            <>
+              <h2 className="font-display text-xl text-bloom-ink">
+                Editar cotización
+              </h2>
+              <p className="mt-1 text-sm text-bloom-muted">
+                {lead.nombre_pareja} · {COTIZACION_ESTADO_LABELS[estado]}
+              </p>
+            </>
+          ) : (
+            <>
+              <h1 className="font-display text-3xl text-bloom-ink">
+                Cotización – {lead.nombre_pareja}
+              </h1>
+              <p className="mt-1 text-sm text-bloom-muted">
+                Lead · {COTIZACION_ESTADO_LABELS[estado]}
+              </p>
+            </>
+          )}
         </div>
         <div className="flex flex-wrap gap-2">
+          {embedded && onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={saving}
+              className="rounded-full border border-bloom-border bg-bloom-surface px-4 py-2 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-border disabled:opacity-60"
+            >
+              Cerrar
+            </button>
+          )}
           <button
             type="button"
             onClick={() => handleSave(false)}
@@ -358,22 +405,26 @@ export function CotizacionEditor({
           >
             {saving ? "Guardando…" : "Guardar"}
           </button>
-          <button
-            type="button"
-            onClick={handleEnviarWhatsApp}
-            disabled={saving}
-            className="inline-flex items-center gap-1.5 rounded-full bg-green-500 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-green-600 disabled:opacity-60"
-          >
-            Enviar por WhatsApp
-          </button>
-          <button
-            type="button"
-            onClick={handleEnviarEmail}
-            disabled={saving}
-            className="rounded-full border border-bloom-border bg-bloom-surface px-4 py-2 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-border disabled:opacity-60"
-          >
-            Enviar por Email
-          </button>
+          {!embedded && (
+            <>
+              <button
+                type="button"
+                onClick={handleEnviarWhatsApp}
+                disabled={saving}
+                className="inline-flex items-center gap-1.5 rounded-full bg-green-500 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-green-600 disabled:opacity-60"
+              >
+                Enviar por WhatsApp
+              </button>
+              <button
+                type="button"
+                onClick={handleEnviarEmail}
+                disabled={saving}
+                className="rounded-full border border-bloom-border bg-bloom-surface px-4 py-2 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-border disabled:opacity-60"
+              >
+                Enviar por Email
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -383,8 +434,32 @@ export function CotizacionEditor({
         </p>
       )}
       {success && (
-        <p className="mt-4 rounded-xl border border-green-200 bg-green-50 px-4 py-2 text-sm text-green-800">
-          {success}
+        <div className="mt-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+          <p>{success}</p>
+          <a
+            href={`/api/leads/${lead.id}/cotizacion-pdf`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-green-300 bg-white px-4 py-1.5 text-xs font-medium text-green-900 transition-colors hover:bg-green-50"
+          >
+            Descargar PDF
+          </a>
+        </div>
+      )}
+      {whatsappWarning && (
+        <p
+          className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900"
+          role="alert"
+        >
+          {whatsappWarning}
+        </p>
+      )}
+      {emailWarning && (
+        <p
+          className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900"
+          role="alert"
+        >
+          {emailWarning}
         </p>
       )}
 
@@ -431,6 +506,21 @@ export function CotizacionEditor({
               disabled={saving}
             />
           </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-bloom-ink">Estado</label>
+            <select
+              className={inputClass}
+              value={estado}
+              onChange={(e) => setEstado(e.target.value as CotizacionEstado)}
+              disabled={saving}
+            >
+              {COTIZACION_ESTADOS.map((option) => (
+                <option key={option} value={option}>
+                  {COTIZACION_ESTADO_LABELS[option]}
+                </option>
+              ))}
+            </select>
+          </div>
           <div className="space-y-1.5 sm:col-span-2">
             <label className="text-sm font-medium text-bloom-ink">Notas</label>
             <textarea
@@ -450,7 +540,7 @@ export function CotizacionEditor({
         </h2>
         {items.map((item) => {
           const categoria = item.categoria;
-          const baseCategoria = getBaseCategoria(categoria);
+          const baseCategoria = getItemBaseCategoria(categoria);
           const proveedoresDir = directorioByCategoria.get(baseCategoria) ?? [];
           const invitados = numeroInvitados.trim()
             ? Number(numeroInvitados)
@@ -460,18 +550,23 @@ export function CotizacionEditor({
             invitados,
             historico,
           );
+          const removable = canRemoveCotizacionItem(item, items);
 
           return (
             <CategoriaItemCard
               key={item.id}
-              categoria={categoria}
               item={item}
+              baseCategoria={baseCategoria}
               proveedoresDir={proveedoresDir}
               sugerencia={sugerencia}
               saving={saving}
+              removable={removable}
+              autoFocusName={focusItemId === item.id}
+              onNameFocused={() => setFocusItemId(null)}
               onUpdate={(patch) => updateItem(item.id, patch)}
               onApplySugerencia={() => applySugerencia(item.id, categoria)}
               onDuplicate={() => handleDuplicateItem(item)}
+              onRemove={() => handleRemoveItem(item.id)}
             />
           );
         })}
@@ -505,24 +600,54 @@ export function CotizacionEditor({
 }
 
 function CategoriaItemCard({
-  categoria,
   item,
+  baseCategoria,
   proveedoresDir,
   sugerencia,
   saving,
+  removable,
+  autoFocusName,
+  onNameFocused,
   onUpdate,
   onApplySugerencia,
   onDuplicate,
+  onRemove,
 }: {
-  categoria: string;
   item: CotizacionItemRow;
+  baseCategoria: string;
   proveedoresDir: DirectorioProveedorRow[];
   sugerencia: ReturnType<typeof suggestPrecioFromHistory>;
   saving: boolean;
+  removable: boolean;
+  autoFocusName: boolean;
+  onNameFocused: () => void;
   onUpdate: (patch: Partial<CotizacionItemRow>) => void;
   onApplySugerencia: () => void;
   onDuplicate: () => void;
+  onRemove: () => void;
 }) {
+  const parsed = parseItemCategoria(item.categoria);
+  const displayLabel = getItemDisplayLabel(item.categoria);
+  const showDisplayPlaceholder =
+    parsed.hasCustomDisplay && displayLabel.length === 0;
+
+  function handleDisplayNameChange(nextDisplay: string) {
+    const trimmed = nextDisplay.trim();
+
+    if (!trimmed) {
+      onUpdate({
+        categoria: parsed.hasCustomDisplay
+          ? createEmptyExtraItemCategoria(baseCategoria)
+          : baseCategoria,
+      });
+      return;
+    }
+
+    onUpdate({
+      categoria: formatItemCategoria(baseCategoria, trimmed),
+    });
+  }
+
   const proveedorInterno = item.proveedor_sugerido_id
     ? proveedoresDir.find((p) => p.id === item.proveedor_sugerido_id)
     : null;
@@ -550,16 +675,56 @@ function CategoriaItemCard({
           : "border-dashed border-bloom-border bg-bloom-canvas/40 opacity-70"
       }`}
     >
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h3 className="font-medium text-bloom-ink">{categoria}</h3>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1 space-y-1.5">
+          <p className="text-xs font-medium uppercase tracking-wider text-bloom-muted">
+            {removable
+              ? `Ítem adicional · sugerencias de ${baseCategoria}`
+              : baseCategoria}
+          </p>
+          <label className="sr-only" htmlFor={`item-name-${item.id}`}>
+            Nombre del ítem
+          </label>
+          <input
+            id={`item-name-${item.id}`}
+            type="text"
+            className={inputClass}
+            value={displayLabel}
+            onChange={(e) => handleDisplayNameChange(e.target.value)}
+            disabled={saving}
+            placeholder={
+              showDisplayPlaceholder
+                ? COTIZACION_ITEM_DISPLAY_PLACEHOLDER
+                : removable
+                  ? "Escribe el nombre del servicio (ej. Fotógrafo, DJ)"
+                  : "Ej. Fotógrafo, Videógrafo, Banda, DJ"
+            }
+            autoFocus={autoFocusName}
+            onFocus={() => {
+              if (autoFocusName) onNameFocused();
+            }}
+          />
+        </div>
         <div className="flex flex-wrap items-center gap-2">
+          {removable && (
+            <button
+              type="button"
+              onClick={onRemove}
+              disabled={saving}
+              title="Eliminar ítem"
+              aria-label="Eliminar ítem"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-red-200 bg-red-50 text-base font-medium leading-none text-red-700 transition-colors hover:bg-red-100 disabled:opacity-60"
+            >
+              ×
+            </button>
+          )}
           <button
             type="button"
             onClick={onDuplicate}
             disabled={saving}
-            title={`Agregar otra línea de ${getBaseCategoria(categoria)}`}
+            title={`Agregar otra línea de ${baseCategoria}`}
             className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-bloom-border bg-bloom-surface text-lg font-medium leading-none text-bloom-ink transition-colors hover:bg-bloom-canvas disabled:opacity-60"
-            aria-label={`Agregar ${getBaseCategoria(categoria)}`}
+            aria-label={`Agregar ${baseCategoria}`}
           >
             +
           </button>
