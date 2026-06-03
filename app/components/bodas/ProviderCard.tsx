@@ -748,39 +748,6 @@ export function ProviderCard({
             </div>
           )}
 
-          {(provider.monto_cotizado != null ||
-            provider.descripcion_servicio ||
-            provider.notas_cotizacion) && (
-            <div className="mt-3 rounded-lg border border-bloom-border bg-bloom-canvas/60 px-3 py-2">
-              <p className="text-xs font-medium uppercase tracking-wider text-bloom-muted">
-                Cotización recibida
-              </p>
-              {provider.monto_cotizado != null && (
-                <p className="mt-1 text-sm font-medium text-bloom-ink">
-                  Monto: {formatCurrency(provider.monto_cotizado)}
-                </p>
-              )}
-              {provider.descripcion_servicio && (
-                <p className="mt-1 whitespace-pre-wrap text-sm text-bloom-ink">
-                  {provider.descripcion_servicio}
-                </p>
-              )}
-              {provider.cotizacion_recibida_at && (
-                <p className="text-xs text-bloom-muted">
-                  Registrada el{" "}
-                  {formatShortDateStable(
-                    provider.cotizacion_recibida_at.slice(0, 10),
-                  )}
-                </p>
-              )}
-              {provider.notas_cotizacion && (
-                <p className="mt-1 whitespace-pre-wrap text-sm text-bloom-muted">
-                  {provider.notas_cotizacion}
-                </p>
-              )}
-            </div>
-          )}
-
           {provider.estado === "en_negociacion" && (
             <div className="mt-3 flex flex-wrap gap-2">
               <button
