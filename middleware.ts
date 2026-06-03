@@ -17,7 +17,7 @@ function isPublicPath(pathname: string): boolean {
   return isLoginPath(pathname) || isClientePath(pathname);
 }
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   if (isClientePath(pathname)) {
@@ -68,7 +68,7 @@ export const config = {
   matcher: [
     /*
      * Excluye estáticos, /api/* (auth en cada handler), /cliente/* (vista pública)
-     * y deja /login dentro del proxy solo para redirigir usuarios ya autenticados.
+     * y deja /login en el middleware solo para redirigir usuarios ya autenticados.
      */
     "/((?!_next/static|_next/image|favicon.ico|api/|cliente/).*)",
   ],
