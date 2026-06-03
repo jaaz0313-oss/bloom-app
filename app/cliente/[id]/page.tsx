@@ -26,7 +26,7 @@ import {
   hasClienteCotizacionDisponible,
 } from "@/lib/cliente-cotizacion";
 import { formatWeddingDate } from "@/lib/format";
-import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { createPublicSupabaseClient } from "@/lib/supabase-public";
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +36,7 @@ type PageProps = {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
-  const supabase = await createServerSupabaseClient();
+  const supabase = createPublicSupabaseClient();
 
   const { data } = await supabase
     .from("bodas")
@@ -57,7 +57,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function ClienteBodaPage({ params }: PageProps) {
   const { id } = await params;
-  const supabase = await createServerSupabaseClient();
+  const supabase = createPublicSupabaseClient();
 
   const { data: boda, error: bodaError } = await supabase
     .from("bodas")

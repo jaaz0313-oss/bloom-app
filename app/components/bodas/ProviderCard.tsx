@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { DraggableAttributes } from "@dnd-kit/core";
 import type { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
@@ -94,6 +94,8 @@ export function ProviderCard({
   dragHandle,
 }: ProviderCardProps) {
   const router = useRouter();
+  const panelId = useId();
+  const [expanded, setExpanded] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [cotizacionOpen, setCotizacionOpen] = useState(false);
@@ -593,53 +595,73 @@ export function ProviderCard({
   }
 
   return (
-    <div className="relative rounded-2xl border border-bloom-border bg-bloom-surface p-5 shadow-sm">
+    <div className="relative overflow-hidden rounded-2xl border border-bloom-border bg-bloom-surface shadow-sm">
       {dragHandle && (
         <button
           type="button"
           ref={dragHandle.setActivatorNodeRef}
           {...dragHandle.attributes}
           {...dragHandle.listeners}
-          className="absolute left-2 top-2 z-10 inline-flex h-7 w-7 cursor-grab items-center justify-center rounded-lg text-bloom-muted transition-colors hover:bg-bloom-canvas hover:text-bloom-ink active:cursor-grabbing"
+          className="absolute left-2 top-3 z-10 inline-flex h-7 w-7 cursor-grab items-center justify-center rounded-lg text-bloom-muted transition-colors hover:bg-bloom-canvas hover:text-bloom-ink active:cursor-grabbing"
           aria-label="Reordenar proveedor"
           title="Arrastrar para reordenar"
+          onClick={(e) => e.stopPropagation()}
         >
           <DragHandleIcon />
         </button>
       )}
       <div className={dragHandle ? "pl-7" : undefined}>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="font-medium text-bloom-ink">{provider.nombre}</h3>
-            {provider.estado === "cotizacion_solicitada" ? (
-              <span className="inline-flex flex-col rounded-full bg-orange-100 px-2.5 py-1 text-xs font-medium text-orange-800">
-                <span>Cotización solicitada</span>
-                {provider.cotizacion_solicitada_at && (
-                  <span className="font-normal opacity-90">
-                    {formatShortDateStable(
-                      provider.cotizacion_solicitada_at.slice(0, 10),
-                    )}
-                  </span>
-                )}
+        <button
+          type="button"
+          id={`${panelId}-trigger`}
+          aria-expanded={expanded}
+          aria-controls={panelId}
+          onClick={() => setExpanded((value) => !value)}
+          className="flex w-full items-start gap-3 px-5 py-4 text-left transition-colors hover:bg-bloom-canvas/60 sm:px-6"
+        >
+          <span className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+            <span className="min-w-0 flex-1">
+              <span className="flex flex-wrap items-center gap-2">
+                <span className="font-medium text-bloom-ink">{provider.nombre}</span>
+                <ProviderEstadoBadge provider={provider} />
               </span>
-            ) : (
-              <span
-                className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${PROVIDER_STATUS_STYLES[provider.estado]}`}
-              >
-                {PROVIDER_STATUS_LABELS[provider.estado]}
+              <span className="mt-1 block text-sm text-bloom-muted">
+                {provider.categoria}
               </span>
-            )}
-            {isAdmin && provider.da_comision && (
+            </span>
+            <dl className="grid shrink-0 grid-cols-2 gap-x-5 gap-y-1 text-sm sm:text-right">
+              <div>
+                <dt className="text-bloom-muted">Valor total</dt>
+                <dd className="font-medium text-bloom-ink">
+                  {formatCurrency(provider.valor_total)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-bloom-muted">Saldo pendiente</dt>
+                <dd className="font-medium text-bloom-ink">
+                  {formatCurrency(saldoPendiente)}
+                </dd>
+              </div>
+            </dl>
+          </span>
+          <AccordionChevron open={expanded} />
+        </button>
+
+        <div
+          id={panelId}
+          role="region"
+          aria-labelledby={`${panelId}-trigger`}
+          className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${
+            expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+          }`}
+        >
+          <div className="min-h-0 overflow-hidden">
+            <div className="border-t border-bloom-border/70 px-5 pb-5 pt-4 sm:px-6 sm:pb-6">
+          {isAdmin && provider.da_comision && (
+            <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex rounded-full bg-violet-100 px-2.5 py-0.5 text-xs font-medium text-violet-800">
                 Comisión {getPorcentajeComisionProveedor(provider)}%
               </span>
-            )}
-          </div>
-          <p className="mt-1 text-sm text-bloom-muted">{provider.categoria}</p>
-
-          {isAdmin && provider.da_comision && (
-            <div className="mt-3 flex flex-wrap items-center gap-2">
               {provider.comision_recibida ? (
                 <span className="inline-flex rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
                   Comisión recibida
@@ -898,31 +920,23 @@ export function ProviderCard({
               {error}
             </p>
           )}
-        </div>
 
-        <dl className="grid shrink-0 grid-cols-2 gap-x-6 gap-y-2 text-sm sm:text-right">
-          <div>
-            <dt className="text-bloom-muted">Valor total</dt>
-            <dd className="font-medium text-bloom-ink">
-              {formatCurrency(provider.valor_total)}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-bloom-muted">Anticipo</dt>
-            <dd className="font-medium text-bloom-ink">
-              {formatCurrency(provider.anticipo)}
-            </dd>
-          </div>
-          {provider.fecha_saldo && (
-            <div className="col-span-2">
-              <dt className="text-bloom-muted">Fecha de saldo</dt>
+          <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 rounded-lg border border-bloom-border bg-bloom-canvas/60 px-3 py-2 text-sm sm:max-w-md">
+            <div>
+              <dt className="text-bloom-muted">Anticipo</dt>
               <dd className="font-medium text-bloom-ink">
-                {formatShortDateStable(provider.fecha_saldo)}
+                {formatCurrency(provider.anticipo)}
               </dd>
             </div>
-          )}
-        </dl>
-      </div>
+            {provider.fecha_saldo && (
+              <div>
+                <dt className="text-bloom-muted">Fecha de saldo</dt>
+                <dd className="font-medium text-bloom-ink">
+                  {formatShortDateStable(provider.fecha_saldo)}
+                </dd>
+              </div>
+            )}
+          </dl>
 
       {showPaymentReminder && (
         <div className="mt-4 border-t border-bloom-border pt-4">
@@ -954,6 +968,9 @@ export function ProviderCard({
           role={role}
         />
       )}
+            </div>
+          </div>
+        </div>
       </div>
 
       {contratadoConfirmOpen && (
@@ -1452,6 +1469,49 @@ export function ProviderCard({
         </div>
       )}
     </div>
+  );
+}
+
+function ProviderEstadoBadge({ provider }: { provider: ProveedorRow }) {
+  if (provider.estado === "cotizacion_solicitada") {
+    return (
+      <span className="inline-flex flex-col rounded-full bg-orange-100 px-2.5 py-1 text-xs font-medium text-orange-800">
+        <span>Cotización solicitada</span>
+        {provider.cotizacion_solicitada_at && (
+          <span className="font-normal opacity-90">
+            {formatShortDateStable(provider.cotizacion_solicitada_at.slice(0, 10))}
+          </span>
+        )}
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${PROVIDER_STATUS_STYLES[provider.estado]}`}
+    >
+      {PROVIDER_STATUS_LABELS[provider.estado]}
+    </span>
+  );
+}
+
+function AccordionChevron({ open }: { open: boolean }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      className={`h-5 w-5 shrink-0 text-bloom-muted transition-transform duration-300 ${
+        open ? "rotate-180" : "rotate-0"
+      }`}
+      aria-hidden
+    >
+      <path
+        fillRule="evenodd"
+        d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z"
+        clipRule="evenodd"
+      />
+    </svg>
   );
 }
 
