@@ -74,6 +74,11 @@ export function ProviderList({
   const [orderedList, setOrderedList] = useState(sortedFromProps);
   const [reorderError, setReorderError] = useState<string | null>(null);
   const [isSavingOrder, setIsSavingOrder] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
     setOrderedList(sortedFromProps);
@@ -266,7 +271,7 @@ export function ProviderList({
       )}
 
       {showFlatList ? (
-        renderFlatList(orderedList, canReorder)
+        renderFlatList(orderedList, canReorder && isMounted)
       ) : (
         providersByCategoria.map(([categoria, categoriaProviders]) => {
           const enNegociacion = categoriaProviders.filter(
