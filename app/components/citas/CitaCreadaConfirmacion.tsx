@@ -35,6 +35,29 @@ function readStoredLocale(): CitaWhatsAppLocale {
   return sessionStorage.getItem(CITA_WHATSAPP_LOCALE_SESSION_KEY) === "en" ? "en" : "es";
 }
 
+function copiarMensaje(texto: string): boolean {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(texto);
+      return true;
+    }
+    const textArea = document.createElement("textarea");
+    textArea.value = texto;
+    textArea.style.position = "fixed";
+    textArea.style.left = "-999999px";
+    textArea.style.top = "-999999px";
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    const result = document.execCommand("copy");
+    document.body.removeChild(textArea);
+    return result;
+  } catch (e) {
+    console.error("Error copiando:", e);
+    return false;
+  }
+}
+
 export function CitaCreadaConfirmacion({
   cita,
   involvedEmails,
@@ -105,21 +128,18 @@ export function CitaCreadaConfirmacion({
     return getCitaClienteWhatsAppTarget(cita, modificacionMessage, bodasById);
   }, [cita, modificacionMessage, bodasById]);
 
-  async function handleCopy(text: string, target: "grupo" | "proveedor" | "modificacion") {
-    try {
-      await navigator.clipboard.writeText(text);
-      if (target === "grupo") {
-        setCopiedGrupo(true);
-        window.setTimeout(() => setCopiedGrupo(false), 2000);
-      } else if (target === "proveedor") {
-        setCopiedProveedor(true);
-        window.setTimeout(() => setCopiedProveedor(false), 2000);
-      } else {
-        setCopiedModificacion(true);
-        window.setTimeout(() => setCopiedModificacion(false), 2000);
-      }
-    } catch {
-      /* clipboard no disponible */
+  function handleCopy(text: string, target: "grupo" | "proveedor" | "modificacion") {
+    if (!copiarMensaje(text)) return;
+
+    if (target === "grupo") {
+      setCopiedGrupo(true);
+      window.setTimeout(() => setCopiedGrupo(false), 2000);
+    } else if (target === "proveedor") {
+      setCopiedProveedor(true);
+      window.setTimeout(() => setCopiedProveedor(false), 2000);
+    } else {
+      setCopiedModificacion(true);
+      window.setTimeout(() => setCopiedModificacion(false), 2000);
     }
   }
 
@@ -341,15 +361,12 @@ function WhatsAppMessageSection({
 }) {
   const [copiado, setCopiado] = useState(false);
 
-  async function handleAbrirGrupo() {
+  function handleAbrirGrupo() {
     if (!whatsappTarget || !message) return;
 
-    try {
-      await navigator.clipboard.writeText(message);
+    if (copiarMensaje(message)) {
       setCopiado(true);
       setTimeout(() => setCopiado(false), 2000);
-    } catch (e) {
-      console.error("Error copiando:", e);
     }
 
     setTimeout(() => {
@@ -361,7 +378,7 @@ function WhatsAppMessageSection({
     if (!whatsappTarget || !message) return;
 
     if (whatsappTarget.copyMessageBeforeOpen) {
-      void handleAbrirGrupo();
+      handleAbrirGrupo();
       return;
     }
 
