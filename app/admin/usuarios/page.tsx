@@ -17,7 +17,7 @@ export default async function AdminUsuariosPage() {
 
   const { data, error } = await supabase
     .from("user_profiles")
-    .select("id, username, nombre, telefono, email, rol, activo")
+    .select("id, username, nombre, telefono, email, rol, activo, google_access_token")
     .order("created_at", { ascending: true });
 
   if (error) {
@@ -44,7 +44,19 @@ export default async function AdminUsuariosPage() {
 
         <div className="mt-6">
           <UserAdminPanel
-            users={(data ?? [])}
+            users={(data ?? []).map((row) => ({
+              id: row.id,
+              username: row.username,
+              nombre: row.nombre,
+              telefono: row.telefono,
+              email: row.email,
+              rol: row.rol,
+              activo: row.activo,
+              googleConnected: Boolean(
+                (row as { google_access_token: string | null }).google_access_token,
+              ),
+            }))}
+            currentUserId={user.id}
             createUserAction={createUserAction}
             updateUserAction={updateUserAction}
             setUserActiveAction={setUserActiveAction}

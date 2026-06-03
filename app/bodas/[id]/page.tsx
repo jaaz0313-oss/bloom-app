@@ -156,6 +156,27 @@ export default async function BodaDetailPage({ params, searchParams }: PageProps
 
   const canViewBrief = ["admin", "lider", "coordinadora"].includes(user.rol);
   const canViewContrato = user.rol === "admin" || user.rol === "lider";
+  const canManageDrive = canViewContrato;
+
+  const { data: profileData } = await supabase
+    .from("user_profiles")
+    .select("google_access_token")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  const googleConnected = Boolean(
+    (profileData as { google_access_token: string | null } | null)
+      ?.google_access_token,
+  );
+
+  const { data: driveFolderData } = await supabase
+    .from("boda_drive_folders")
+    .select("folder_url")
+    .eq("boda_id", id)
+    .maybeSingle();
+
+  const driveFolderUrl =
+    (driveFolderData as { folder_url: string | null } | null)?.folder_url ?? null;
 
   return (
     <div className="min-h-full bg-bloom-canvas font-sans">
@@ -217,6 +238,9 @@ export default async function BodaDetailPage({ params, searchParams }: PageProps
           hasContrato={hasContratoContent(contrato, bodaRow)}
           openSection={openSection}
           highlightProveedorId={highlightProveedorId}
+          canManageDrive={canManageDrive}
+          googleConnected={googleConnected}
+          driveFolderUrl={driveFolderUrl}
         />
 
         {hasPermission(user.rol, "weddings.delete") && (

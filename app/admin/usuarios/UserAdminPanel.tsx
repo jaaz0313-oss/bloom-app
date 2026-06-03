@@ -11,10 +11,12 @@ type UserItem = {
   email: string | null;
   rol: UserRole;
   activo: boolean;
+  googleConnected: boolean;
 };
 
 type UserAdminPanelProps = {
   users: UserItem[];
+  currentUserId: string;
   createUserAction: (formData: FormData) => Promise<void>;
   updateUserAction: (formData: FormData) => Promise<void>;
   setUserActiveAction: (formData: FormData) => Promise<void>;
@@ -24,6 +26,7 @@ const roles: UserRole[] = ["admin", "lider", "coordinadora", "finanzas"];
 
 export function UserAdminPanel({
   users,
+  currentUserId,
   createUserAction,
   updateUserAction,
   setUserActiveAction,
@@ -155,6 +158,25 @@ export function UserAdminPanel({
                   {user.activo ? "Desactivar" : "Activar"}
                 </button>
               </form>
+
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {user.googleConnected ? (
+                  <span className="rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-medium text-green-700">
+                    Google conectado
+                  </span>
+                ) : user.id === currentUserId ? (
+                  <a
+                    href="/api/auth/google?next=%2Fadmin%2Fusuarios"
+                    className="inline-flex items-center justify-center rounded-full border border-bloom-border bg-bloom-surface px-4 py-1.5 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-border"
+                  >
+                    Conectar Google
+                  </a>
+                ) : (
+                  <span className="rounded-full border border-bloom-border bg-bloom-canvas px-3 py-1 text-xs font-medium text-bloom-muted">
+                    Sin conectar
+                  </span>
+                )}
+              </div>
             </li>
           ))}
         </ul>

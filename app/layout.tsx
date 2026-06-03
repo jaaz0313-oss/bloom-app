@@ -8,9 +8,9 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Bloom — Gestión de bodas",
+  title: "Bloom by Celestia — Wedding Planner & Events",
   description:
-    "Plataforma para wedding planners colombianas. Organiza bodas, proveedores y más.",
+    "Bloom by Celestia: plataforma para wedding planners. Organiza bodas, proveedores y más.",
 };
 
 export default function RootLayout({

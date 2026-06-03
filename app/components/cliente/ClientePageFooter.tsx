@@ -13,7 +13,10 @@ export function ClientePageFooter() {
         </div>
 
         <p className="mt-4 font-display text-lg tracking-wide text-bloom-ink sm:text-xl">
-          Celestia Wedding Planner &amp; Events
+          Bloom by Celestia
+        </p>
+        <p className="mt-1 text-sm text-bloom-muted sm:text-base">
+          Wedding Planner &amp; Events
         </p>
 
         <div className="mt-5 space-y-1.5 text-sm text-bloom-muted sm:text-base">

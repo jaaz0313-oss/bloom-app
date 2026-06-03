@@ -34,7 +34,7 @@ export default async function AdminAuditoriaPage() {
 
         <h1 className="mt-6 font-display text-3xl text-bloom-ink">Auditoría</h1>
         <p className="mt-1 text-sm text-bloom-muted">
-          Historial de acciones realizadas en Bloom.
+          Historial de acciones realizadas en Bloom by Celestia.
         </p>
 
         <AuditoriaAdminClient registros={(data ?? []) as AuditoriaRow[]} />

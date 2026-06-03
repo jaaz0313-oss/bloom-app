@@ -21,6 +21,10 @@ export function ClientePageHeader({
       <div className="relative mx-auto flex max-w-3xl flex-col items-center gap-2 px-5 py-6 text-center sm:px-8">
         <CelestiaLogo variant="header" />
 
+        <p className="text-xs tracking-[0.2em] text-bloom-muted uppercase sm:text-sm">
+          Bloom by Celestia
+        </p>
+
         <div className="flex w-8 items-center gap-1" aria-hidden>
           <span className="h-px flex-1 bg-bloom-accent/20" />
           <span className="text-[10px] leading-none text-bloom-accent/30">✦</span>

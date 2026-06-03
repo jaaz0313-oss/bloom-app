@@ -1,0 +1,104 @@
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+
+type BodaDriveFolderButtonProps = {
+  bodaId: string;
+  googleConnected: boolean;
+  driveFolderUrl: string | null;
+};
+
+export function BodaDriveFolderButton({
+  bodaId,
+  googleConnected,
+  driveFolderUrl,
+}: BodaDriveFolderButtonProps) {
+  const router = useRouter();
+  const [folderUrl, setFolderUrl] = useState(driveFolderUrl);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const nextPath = `/bodas/${bodaId}`;
+
+  async function handleCreateFolder() {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/drive/crear-carpeta-boda", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bodaId }),
+      });
+
+      const data = (await response.json()) as {
+        folder_url?: string;
+        error?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(data.error ?? "No se pudo crear la carpeta.");
+      }
+
+      if (data.folder_url) {
+        setFolderUrl(data.folder_url);
+      }
+
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error inesperado.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const buttonClass =
+    "inline-flex shrink-0 items-center justify-center rounded-full border border-bloom-border bg-bloom-surface px-4 py-2 text-sm font-medium text-bloom-ink transition-colors hover:bg-bloom-border disabled:opacity-60";
+
+  return (
+    <div className="mt-4 flex flex-col gap-3 rounded-xl border border-bloom-border bg-bloom-canvas/50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0">
+        <p className="text-xs font-medium uppercase tracking-wider text-bloom-muted">
+          📁 Carpeta Drive
+        </p>
+        <p className="mt-1 truncate text-sm font-medium text-bloom-ink">
+          {folderUrl ? "Carpeta creada en Google Drive" : "Sin carpeta en Drive"}
+        </p>
+        {error && (
+          <p className="mt-1 text-sm text-red-700" role="alert">
+            {error}
+          </p>
+        )}
+      </div>
+
+      {!googleConnected ? (
+        <Link
+          href={`/api/auth/google?next=${encodeURIComponent(nextPath)}`}
+          className={buttonClass}
+        >
+          Conectar Google Drive
+        </Link>
+      ) : folderUrl ? (
+        <a
+          href={folderUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={buttonClass}
+        >
+          Abrir carpeta
+        </a>
+      ) : (
+        <button
+          type="button"
+          onClick={handleCreateFolder}
+          disabled={loading}
+          className={buttonClass}
+        >
+          {loading ? "Creando..." : "Crear carpeta en Drive"}
+        </button>
+      )}
+    </div>
+  );
+}

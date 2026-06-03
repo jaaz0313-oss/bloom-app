@@ -52,6 +52,9 @@ type BodaDetailSectionsProps = {
   hasContrato: boolean;
   openSection?: string | null;
   highlightProveedorId?: string | null;
+  canManageDrive?: boolean;
+  googleConnected?: boolean;
+  driveFolderUrl?: string | null;
 };
 
 export function BodaDetailSections({
@@ -78,6 +81,9 @@ export function BodaDetailSections({
   hasContrato,
   openSection = null,
   highlightProveedorId = null,
+  canManageDrive = false,
+  googleConnected = false,
+  driveFolderUrl = null,
 }: BodaDetailSectionsProps) {
   const projection = computePaymentProjection(providers, pagosByProveedor);
   const hasPaymentContent =
@@ -102,6 +108,9 @@ export function BodaDetailSections({
           plannerName={plannerName}
           providers={providers}
           pagosByProveedor={pagosByProveedor}
+          canManageDrive={canManageDrive}
+          googleConnected={googleConnected}
+          driveFolderUrl={driveFolderUrl}
         />
 
         {canViewContrato && (

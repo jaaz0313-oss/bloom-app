@@ -6,6 +6,7 @@ import type { BodaRow } from "@/app/data/weddings";
 import type { ProveedorRow } from "@/app/data/providers";
 import type { PagoRow } from "@/app/data/pagos";
 import { SendWhatsAppButton } from "@/app/components/bodas/SendWhatsAppButton";
+import { BodaDriveFolderButton } from "@/app/components/bodas/BodaDriveFolderButton";
 import { supabase } from "@/lib/supabase";
 import { hasPermission, type UserRole } from "@/lib/auth/roles";
 
@@ -19,6 +20,9 @@ type ClientInfoSectionProps = {
   providers?: ProveedorRow[];
   pagosByProveedor?: Record<string, PagoRow[]>;
   embedded?: boolean;
+  canManageDrive?: boolean;
+  googleConnected?: boolean;
+  driveFolderUrl?: string | null;
 };
 
 type ClientInfoForm = {
@@ -43,6 +47,9 @@ export function ClientInfoSection({
   providers = [],
   pagosByProveedor = {},
   embedded = false,
+  canManageDrive = false,
+  googleConnected = false,
+  driveFolderUrl = null,
 }: ClientInfoSectionProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -248,6 +255,14 @@ export function ClientInfoSection({
           </button>
         )}
       </div>
+
+      {canManageDrive && (
+        <BodaDriveFolderButton
+          bodaId={bodaId}
+          googleConnected={googleConnected}
+          driveFolderUrl={driveFolderUrl}
+        />
+      )}
 
       {grupoLinkOpen && (
         <div

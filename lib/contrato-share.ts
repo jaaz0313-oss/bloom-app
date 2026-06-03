@@ -22,7 +22,7 @@ export function buildContratoShareMessage(boda: ContratoShareBoda): string {
 export function buildContratoShareEmailBody(whatsappMessage: string): string {
   return `${whatsappMessage}
 
-Por favor adjunta manualmente el archivo del contrato (.docx) que generaste en Bloom.`;
+Por favor adjunta manualmente el archivo del contrato (.docx) que generaste en Bloom by Celestia.`;
 }
 
 export function buildContratoShareEmailSubject(nombrePareja: string): string {

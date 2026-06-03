@@ -48,8 +48,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   return {
     title: nombre
-      ? `${nombre} — Celestia Weddings`
-      : "Su boda — Celestia Weddings",
+      ? `${nombre} — Bloom by Celestia`
+      : "Su boda — Bloom by Celestia",
     description:
       "Resumen de proveedores contratados y pagos pendientes para tu boda.",
   };

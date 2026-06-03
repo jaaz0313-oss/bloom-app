@@ -76,11 +76,11 @@ export function DashboardHeader({ user }: DashboardHeaderProps) {
               B
             </div>
             <div className="min-w-0">
-              <p className="font-display text-xl tracking-wide text-bloom-ink md:text-2xl">
-                Bloom
+              <p className="font-display text-lg tracking-wide text-bloom-ink sm:text-xl md:text-2xl">
+                Bloom by Celestia
               </p>
               <p className="hidden text-sm text-bloom-muted md:block">
-                Gestión de bodas
+                Wedding Planner &amp; Events
               </p>
             </div>
           </Link>
