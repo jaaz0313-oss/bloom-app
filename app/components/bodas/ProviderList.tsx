@@ -219,6 +219,14 @@ export function ProviderList({
           sensors={sensors}
           collisionDetection={closestCenter}
           onDragEnd={handleDragEnd}
+          accessibility={{
+            announcements: {
+              onDragStart: () => "",
+              onDragOver: () => "",
+              onDragEnd: () => "",
+              onDragCancel: () => "",
+            },
+          }}
         >
           <SortableContext
             items={list.map((provider) => provider.id)}
