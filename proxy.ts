@@ -2,24 +2,25 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
 const LOGIN_PATH = "/login";
-
-/** PDF de cotización compartido por WhatsApp — sin sesión. */
-const LEAD_COTIZACION_PDF_PATH =
-  /^\/api\/leads\/[^/]+\/cotizacion-pdf\/?$/;
+const CLIENTE_PATH_PREFIX = "/cliente/";
 
 function isLoginPath(pathname: string): boolean {
   return pathname === LOGIN_PATH || pathname.startsWith(`${LOGIN_PATH}/`);
 }
 
+function isClientePath(pathname: string): boolean {
+  return pathname === "/cliente" || pathname.startsWith(CLIENTE_PATH_PREFIX);
+}
+
+/** Rutas accesibles sin sesión (link compartido o login). */
 function isPublicPath(pathname: string): boolean {
-  if (isLoginPath(pathname)) return true;
-  return LEAD_COTIZACION_PDF_PATH.test(pathname);
+  return isLoginPath(pathname) || isClientePath(pathname);
 }
 
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
-  if (LEAD_COTIZACION_PDF_PATH.test(pathname)) {
+  if (isClientePath(pathname)) {
     return NextResponse.next({ request });
   }
 
@@ -65,6 +66,10 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|api/leads/[^/]+/cotizacion-pdf).*)",
+    /*
+     * Excluye estáticos, /api/* (auth en cada handler), /cliente/* (vista pública)
+     * y deja /login en el proxy solo para redirigir usuarios ya autenticados.
+     */
+    "/((?!_next/static|_next/image|favicon.ico|api/|cliente/).*)",
   ],
 };
