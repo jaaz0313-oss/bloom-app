@@ -21,7 +21,6 @@ type ClientInfoSectionProps = {
   pagosByProveedor?: Record<string, PagoRow[]>;
   embedded?: boolean;
   canManageDrive?: boolean;
-  googleConnected?: boolean;
   driveFolderUrl?: string | null;
 };
 
@@ -48,7 +47,6 @@ export function ClientInfoSection({
   pagosByProveedor = {},
   embedded = false,
   canManageDrive = false,
-  googleConnected = false,
   driveFolderUrl = null,
 }: ClientInfoSectionProps) {
   const router = useRouter();
@@ -259,7 +257,6 @@ export function ClientInfoSection({
       {canManageDrive && (
         <BodaDriveFolderButton
           bodaId={bodaId}
-          googleConnected={googleConnected}
           driveFolderUrl={driveFolderUrl}
         />
       )}

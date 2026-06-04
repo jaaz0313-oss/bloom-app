@@ -42,11 +42,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Boda no encontrada" }, { status: 404 });
     }
 
-    const folder = await createDriveFolderForBoda({
-      userId: user.id,
+    const folder = await createDriveFolderForBoda(
       bodaId,
-      nombrePareja: (boda as { nombre_pareja: string }).nombre_pareja,
-    });
+      (boda as { nombre_pareja: string }).nombre_pareja,
+      user.id,
+    );
 
     if (!folder.folder_url) {
       return NextResponse.json(

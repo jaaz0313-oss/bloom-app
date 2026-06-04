@@ -1,26 +1,21 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 type BodaDriveFolderButtonProps = {
   bodaId: string;
-  googleConnected: boolean;
   driveFolderUrl: string | null;
 };
 
 export function BodaDriveFolderButton({
   bodaId,
-  googleConnected,
   driveFolderUrl,
 }: BodaDriveFolderButtonProps) {
   const router = useRouter();
   const [folderUrl, setFolderUrl] = useState(driveFolderUrl);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const nextPath = `/bodas/${bodaId}`;
 
   async function handleCreateFolder() {
     setLoading(true);
@@ -73,14 +68,7 @@ export function BodaDriveFolderButton({
         )}
       </div>
 
-      {!googleConnected ? (
-        <Link
-          href={`/api/auth/google?next=${encodeURIComponent(nextPath)}`}
-          className={buttonClass}
-        >
-          Conectar Google Drive
-        </Link>
-      ) : folderUrl ? (
+      {folderUrl ? (
         <a
           href={folderUrl}
           target="_blank"

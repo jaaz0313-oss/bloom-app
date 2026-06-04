@@ -1,11 +1,5 @@
 import { google } from "googleapis";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { createGoogleOAuthClient } from "@/lib/google-oauth";
-
-export type GoogleTokensRow = {
-  google_access_token: string | null;
-  google_refresh_token: string | null;
-};
 
 export type BodaDriveFolderRow = {
   id: string;
@@ -17,90 +11,52 @@ export type BodaDriveFolderRow = {
   created_at: string;
 };
 
-export async function getGoogleTokensForUser(
-  userId: string,
-): Promise<GoogleTokensRow | null> {
-  const { data, error } = await supabaseAdmin
-    .from("user_profiles")
-    .select("google_access_token, google_refresh_token")
-    .eq("id", userId)
-    .maybeSingle();
+const SUBFOLDERS = ["Cotizaciones", "Comprobantes de pago", "Contratos"];
 
-  if (error) throw new Error(error.message);
-  return (data as GoogleTokensRow | null) ?? null;
-}
+function getDriveClient() {
+  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+  const key = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY?.replace(
+    /\\n/g,
+    "\n",
+  );
 
-export async function saveGoogleTokensForUser(
-  userId: string,
-  tokens: {
-    access_token?: string | null;
-    refresh_token?: string | null;
-  },
-) {
-  const update: Record<string, string | null> = {};
-
-  if (tokens.access_token) {
-    update.google_access_token = tokens.access_token;
-  }
-  if (tokens.refresh_token) {
-    update.google_refresh_token = tokens.refresh_token;
-  }
-
-  if (Object.keys(update).length === 0) {
-    throw new Error("Google no devolvió tokens válidos.");
-  }
-
-  const { error } = await supabaseAdmin
-    .from("user_profiles")
-    .update(update)
-    .eq("id", userId);
-
-  if (error) throw new Error(error.message);
-}
-
-export async function getGoogleDriveClientForUser(userId: string) {
-  const tokens = await getGoogleTokensForUser(userId);
-
-  if (!tokens?.google_access_token) {
+  if (!email || !key) {
     throw new Error(
-      "Google Drive no está conectado. Inicia sesión con Google primero.",
+      "Faltan GOOGLE_SERVICE_ACCOUNT_EMAIL o GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY en las variables de entorno.",
     );
   }
 
-  const oauth2Client = createGoogleOAuthClient();
-  oauth2Client.setCredentials({
-    access_token: tokens.google_access_token,
-    refresh_token: tokens.google_refresh_token ?? undefined,
+  const auth = new google.auth.JWT({
+    email,
+    key,
+    scopes: ["https://www.googleapis.com/auth/drive"],
   });
 
-  oauth2Client.on("tokens", async (refreshed) => {
-    const update: Record<string, string> = {};
-    if (refreshed.access_token) {
-      update.google_access_token = refreshed.access_token;
-    }
-    if (refreshed.refresh_token) {
-      update.google_refresh_token = refreshed.refresh_token;
-    }
-    if (Object.keys(update).length === 0) return;
-
-    await supabaseAdmin.from("user_profiles").update(update).eq("id", userId);
-  });
-
-  return google.drive({ version: "v3", auth: oauth2Client });
+  return google.drive({ version: "v3", auth });
 }
 
-export async function createDriveFolderForBoda(params: {
-  userId: string;
-  bodaId: string;
-  nombrePareja: string;
-}) {
-  const existing = await getDriveFolderForBoda(params.bodaId);
+async function shareFolderWithLink(drive: ReturnType<typeof getDriveClient>, fileId: string) {
+  await drive.permissions.create({
+    fileId,
+    requestBody: {
+      role: "reader",
+      type: "anyone",
+    },
+  });
+}
+
+export async function createDriveFolderForBoda(
+  bodaId: string,
+  bodaNombre: string,
+  createdBy?: string,
+) {
+  const existing = await getDriveFolderForBoda(bodaId);
   if (existing?.folder_url) {
     return existing;
   }
 
-  const drive = await getGoogleDriveClientForUser(params.userId);
-  const folderName = `Boda - ${params.nombrePareja.trim() || "Sin nombre"}`;
+  const drive = getDriveClient();
+  const folderName = `Boda - ${bodaNombre.trim() || "Sin nombre"}`;
 
   const mainFolder = await drive.files.create({
     requestBody: {
@@ -115,26 +71,36 @@ export async function createDriveFolderForBoda(params: {
     throw new Error("Google Drive no devolvió el ID de la carpeta principal.");
   }
 
-  const subfolders = ["Cotizaciones", "Comprobantes de pago", "Contratos"];
-  for (const subfolderName of subfolders) {
-    await drive.files.create({
+  await shareFolderWithLink(drive, parentId);
+
+  for (const subfolderName of SUBFOLDERS) {
+    const subfolder = await drive.files.create({
       requestBody: {
         name: subfolderName,
         mimeType: "application/vnd.google-apps.folder",
         parents: [parentId],
       },
+      fields: "id",
     });
+
+    if (subfolder.data.id) {
+      await shareFolderWithLink(drive, subfolder.data.id);
+    }
   }
+
+  const folderUrl =
+    mainFolder.data.webViewLink ??
+    `https://drive.google.com/drive/folders/${parentId}`;
 
   const { data, error } = await supabaseAdmin
     .from("boda_drive_folders")
     .upsert(
       {
-        boda_id: params.bodaId,
+        boda_id: bodaId,
         drive_folder_id: parentId,
         folder_name: mainFolder.data.name ?? folderName,
-        folder_url: mainFolder.data.webViewLink ?? null,
-        created_by: params.userId,
+        folder_url: folderUrl,
+        created_by: createdBy ?? null,
       },
       { onConflict: "boda_id" },
     )
@@ -156,10 +122,4 @@ export async function getDriveFolderForBoda(
 
   if (error) throw new Error(error.message);
   return (data as BodaDriveFolderRow | null) ?? null;
-}
-
-export function userHasGoogleDriveConnected(
-  tokens: GoogleTokensRow | null,
-): boolean {
-  return Boolean(tokens?.google_access_token);
 }

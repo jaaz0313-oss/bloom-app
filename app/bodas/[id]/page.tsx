@@ -158,17 +158,6 @@ export default async function BodaDetailPage({ params, searchParams }: PageProps
   const canViewContrato = user.rol === "admin" || user.rol === "lider";
   const canManageDrive = canViewContrato;
 
-  const { data: profileData } = await supabase
-    .from("user_profiles")
-    .select("google_access_token")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  const googleConnected = Boolean(
-    (profileData as { google_access_token: string | null } | null)
-      ?.google_access_token,
-  );
-
   const { data: driveFolderData } = await supabase
     .from("boda_drive_folders")
     .select("folder_url")
@@ -239,7 +228,6 @@ export default async function BodaDetailPage({ params, searchParams }: PageProps
           openSection={openSection}
           highlightProveedorId={highlightProveedorId}
           canManageDrive={canManageDrive}
-          googleConnected={googleConnected}
           driveFolderUrl={driveFolderUrl}
         />
 
