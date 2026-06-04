@@ -8,7 +8,7 @@ import { normalizeCitaFecha } from "@/lib/citas";
 export type CalendarEventResult = {
   eventId: string;
   htmlLink: string | null;
-  meetLink: string | null;
+  meetLink: null;
 };
 
 export type CitaForCalendar = Pick<
@@ -23,7 +23,6 @@ export type CitaForCalendar = Pick<
   | "link_meet"
   | "boda_id"
   | "lead_id"
-  | "emails_involucrados"
 >;
 
 const DEFAULT_TIMEZONE = "America/Bogota";
@@ -101,22 +100,6 @@ function buildEventTimes(cita: CitaForCalendar) {
   return { startDateTime, endDateTime };
 }
 
-function normalizeAttendeeEmails(emails: string[] | null | undefined): string[] {
-  if (!emails?.length) return [];
-
-  const seen = new Set<string>();
-  const result: string[] = [];
-
-  for (const raw of emails) {
-    const email = raw.trim().toLowerCase();
-    if (!email || !email.includes("@") || seen.has(email)) continue;
-    seen.add(email);
-    result.push(email);
-  }
-
-  return result;
-}
-
 function buildEventDescription(
   cita: CitaForCalendar,
   bodaNombre: string | null,
@@ -137,6 +120,10 @@ function buildEventDescription(
     lines.push(`Lugar: ${cita.lugar.trim()}`);
   }
 
+  if (cita.link_meet?.trim()) {
+    lines.push(`Meet: ${cita.link_meet.trim()}`);
+  }
+
   if (cita.notas?.trim()) {
     lines.push("", "Notas:", cita.notas.trim());
   }
@@ -144,54 +131,20 @@ function buildEventDescription(
   return lines.join("\n");
 }
 
-function extractMeetLink(event: calendar_v3.Schema$Event): string | null {
-  const videoEntry = event.conferenceData?.entryPoints?.find(
-    (entry) =>
-      entry.entryPointType === "video" ||
-      entry.uri?.includes("meet.google.com"),
-  );
-
-  return (
-    videoEntry?.uri?.trim() ||
-    event.hangoutLink?.trim() ||
-    null
-  );
-}
-
-function buildConferenceData(requestId: string): calendar_v3.Schema$ConferenceData {
-  return {
-    createRequest: {
-      requestId,
-      conferenceSolutionKey: { type: "hangoutsMeet" },
-    },
-  };
-}
-
 function buildEventResource(
   cita: CitaForCalendar,
   bodaNombre: string | null,
-  attendeeEmails: string[],
-  options?: { includeConference?: boolean; conferenceRequestId?: string },
 ): calendar_v3.Schema$Event {
   const timeZone = getCalendarTimezone();
   const { startDateTime, endDateTime } = buildEventTimes(cita);
 
-  const resource: calendar_v3.Schema$Event = {
+  return {
     summary: cita.titulo.trim() || "Cita Celestia",
     description: buildEventDescription(cita, bodaNombre),
     location: cita.lugar?.trim() || undefined,
     start: { dateTime: startDateTime, timeZone },
     end: { dateTime: endDateTime, timeZone },
-    attendees: attendeeEmails.map((email) => ({ email })),
   };
-
-  if (options?.includeConference) {
-    resource.conferenceData = buildConferenceData(
-      options.conferenceRequestId ?? `bloom-${Date.now()}`,
-    );
-  }
-
-  return resource;
 }
 
 function mapEventResult(event: calendar_v3.Schema$Event): CalendarEventResult {
@@ -203,27 +156,22 @@ function mapEventResult(event: calendar_v3.Schema$Event): CalendarEventResult {
   return {
     eventId,
     htmlLink: event.htmlLink ?? null,
-    meetLink: extractMeetLink(event),
+    meetLink: null,
   };
 }
 
 export async function createCalendarEvent(
   cita: CitaForCalendar,
   bodaNombre: string | null,
-  attendeeEmails: string[] = [],
 ): Promise<CalendarEventResult> {
   const calendar = getCalendarClient();
   const calendarId = getCalendarId();
-  const emails = normalizeAttendeeEmails(attendeeEmails);
+  const eventResource = buildEventResource(cita, bodaNombre);
 
   const response = await calendar.events.insert({
     calendarId,
-    conferenceDataVersion: 1,
-    sendUpdates: emails.length > 0 ? "all" : "none",
-    requestBody: buildEventResource(cita, bodaNombre, emails, {
-      includeConference: true,
-      conferenceRequestId: `bloom-create-${Date.now()}`,
-    }),
+    sendUpdates: "none",
+    requestBody: eventResource,
   });
 
   return mapEventResult(response.data);
@@ -233,17 +181,15 @@ export async function updateCalendarEvent(
   googleEventId: string,
   cita: CitaForCalendar,
   bodaNombre: string | null,
-  attendeeEmails: string[] = [],
 ): Promise<CalendarEventResult> {
   const calendar = getCalendarClient();
   const calendarId = getCalendarId();
-  const emails = normalizeAttendeeEmails(attendeeEmails);
 
   const response = await calendar.events.patch({
     calendarId,
     eventId: googleEventId,
-    sendUpdates: emails.length > 0 ? "all" : "none",
-    requestBody: buildEventResource(cita, bodaNombre, emails),
+    sendUpdates: "none",
+    requestBody: buildEventResource(cita, bodaNombre),
   });
 
   return mapEventResult(response.data);
@@ -256,6 +202,6 @@ export async function deleteCalendarEvent(googleEventId: string): Promise<void> 
   await calendar.events.delete({
     calendarId,
     eventId: googleEventId,
-    sendUpdates: "all",
+    sendUpdates: "none",
   });
 }

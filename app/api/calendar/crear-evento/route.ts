@@ -31,30 +31,20 @@ export async function POST(request: Request) {
     const { cita, bodaNombre } = loaded;
 
     if (cita.google_event_id) {
-      const meetLink =
-        cita.google_meet_link?.trim() || cita.link_meet?.trim() || null;
       return NextResponse.json({
         eventId: cita.google_event_id,
-        meetLink,
+        meetLink: null,
       });
     }
 
-    const event = await createCalendarEvent(
-      cita,
-      bodaNombre,
-      cita.emails_involucrados ?? [],
-    );
-
-    const meetLink =
-      event.meetLink?.trim() || cita.link_meet?.trim() || null;
+    const event = await createCalendarEvent(cita, bodaNombre);
 
     const supabase = await createServerSupabaseClient();
     const { error: updateError } = await supabase
       .from("citas")
       .update({
         google_event_id: event.eventId,
-        google_meet_link: meetLink,
-        ...(meetLink ? { link_meet: meetLink } : {}),
+        google_meet_link: null,
       })
       .eq("id", citaId);
 
@@ -64,7 +54,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       eventId: event.eventId,
-      meetLink,
+      meetLink: null,
     });
   } catch (error) {
     console.error(error);

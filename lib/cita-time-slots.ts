@@ -15,6 +15,31 @@ export function buildCitaTimeSlotOptions(): { value: string; label: string }[] {
 
 export const CITA_TIME_SLOT_OPTIONS = buildCitaTimeSlotOptions();
 
+export type CitaTimeSlotOption = { value: string; label: string };
+
+/** Compara HH:mm: negativo si a < b, 0 si iguales, positivo si a > b. */
+export function compareCitaTimeSlots(a: string, b: string): number {
+  const parse = (value: string) => {
+    const match = value.match(/^(\d{1,2}):(\d{2})/);
+    if (!match) return 0;
+    return Number(match[1]) * 60 + Number(match[2]);
+  };
+
+  return parse(a) - parse(b);
+}
+
+/** Opciones de hora fin: solo slots posteriores a horaInicio (si está definida). */
+export function getCitaEndTimeSlotOptions(
+  horaInicio: string,
+): CitaTimeSlotOption[] {
+  const inicio = horaInicio.trim();
+  if (!inicio) return CITA_TIME_SLOT_OPTIONS;
+
+  return CITA_TIME_SLOT_OPTIONS.filter(
+    (slot) => compareCitaTimeSlots(slot.value, inicio) > 0,
+  );
+}
+
 function formatTimeSlotLabel(hour: number, minute: number): string {
   const period = hour >= 12 ? "PM" : "AM";
   const hour12 = hour % 12 === 0 ? 12 : hour % 12;

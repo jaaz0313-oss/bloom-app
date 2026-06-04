@@ -14,6 +14,8 @@ import {
 } from "@/lib/cita-emails";
 import {
   CITA_TIME_SLOT_OPTIONS,
+  compareCitaTimeSlots,
+  getCitaEndTimeSlotOptions,
   citaTimeFromDb,
   citaTimeToDb,
 } from "@/lib/cita-time-slots";
@@ -130,6 +132,18 @@ export function CitaFormModal({
   );
 
   const esReunionProveedor = tipo === "reunion_proveedor";
+
+  const horaFinOptions = useMemo(
+    () => getCitaEndTimeSlotOptions(horaInicio),
+    [horaInicio],
+  );
+
+  useEffect(() => {
+    if (!horaInicio || !horaFin) return;
+    if (compareCitaTimeSlots(horaFin, horaInicio) <= 0) {
+      setHoraFin("");
+    }
+  }, [horaInicio, horaFin]);
 
   function loadFormFromCita(raw: CitaRow) {
     const cita = normalizeCitaRow(raw);
@@ -264,15 +278,14 @@ export function CitaFormModal({
 
     setCalendarWarning(null);
 
-    if (!result.meetLink && !result.eventId) {
+    if (!result.eventId) {
       return cita;
     }
 
     return {
       ...cita,
-      google_event_id: result.eventId ?? cita.google_event_id,
-      google_meet_link: result.meetLink ?? cita.google_meet_link,
-      link_meet: result.meetLink ?? cita.link_meet,
+      google_event_id: result.eventId,
+      google_meet_link: null,
     };
   }
 
@@ -612,7 +625,17 @@ export function CitaFormModal({
                 <select
                   className={inputClass}
                   value={horaInicio}
-                  onChange={(e) => setHoraInicio(e.target.value)}
+                  onChange={(e) => {
+                    const nextInicio = e.target.value;
+                    setHoraInicio(nextInicio);
+                    if (
+                      horaFin &&
+                      nextInicio &&
+                      compareCitaTimeSlots(horaFin, nextInicio) <= 0
+                    ) {
+                      setHoraFin("");
+                    }
+                  }}
                   required
                 >
                   {CITA_TIME_SLOT_OPTIONS.map((slot) => (
@@ -629,7 +652,7 @@ export function CitaFormModal({
                   onChange={(e) => setHoraFin(e.target.value)}
                 >
                   <option value="">Sin hora fin</option>
-                  {CITA_TIME_SLOT_OPTIONS.map((slot) => (
+                  {horaFinOptions.map((slot) => (
                     <option key={slot.value} value={slot.value}>
                       {slot.label}
                     </option>

@@ -1,5 +1,11 @@
+import fs from "fs";
+import path from "path";
+import { Readable } from "stream";
 import { google } from "googleapis";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+
+const TIMING_DOCX_MIME =
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 export type BodaDriveFolderRow = {
   id: string;
@@ -45,6 +51,47 @@ async function shareFolderWithLink(drive: ReturnType<typeof getDriveClient>, fil
   });
 }
 
+export async function uploadTimingTemplate(
+  bodaFolderId: string,
+  bodaNombre: string,
+): Promise<void> {
+  try {
+    console.log("Intentando subir timing template para:", bodaNombre);
+    console.log(
+      "Leyendo archivo desde:",
+      path.join(process.cwd(), "public", "plantilla-timing.docx"),
+    );
+
+    const drive = getDriveClient();
+    const templatePath = path.join(
+      process.cwd(),
+      "public",
+      "plantilla-timing.docx",
+    );
+    const fileBuffer = fs.readFileSync(templatePath);
+    console.log("Archivo leído, tamaño:", fileBuffer.length, "bytes");
+
+    const fileName = `Timing - ${bodaNombre.trim() || "Sin nombre"}.docx`;
+
+    const result = await drive.files.create({
+      requestBody: {
+        name: fileName,
+        parents: [bodaFolderId],
+        mimeType: TIMING_DOCX_MIME,
+      },
+      media: {
+        mimeType: TIMING_DOCX_MIME,
+        body: Readable.from(fileBuffer),
+      },
+      fields: "id",
+    });
+
+    console.log("Archivo subido exitosamente:", result.data.id);
+  } catch (error) {
+    console.error("Error subiendo timing template:", error);
+  }
+}
+
 export async function createDriveFolderForBoda(
   bodaId: string,
   bodaNombre: string,
@@ -86,6 +133,12 @@ export async function createDriveFolderForBoda(
     if (subfolder.data.id) {
       await shareFolderWithLink(drive, subfolder.data.id);
     }
+  }
+
+  try {
+    await uploadTimingTemplate(parentId, bodaNombre);
+  } catch (error) {
+    console.error("No se pudo subir la plantilla de timing a Drive:", error);
   }
 
   const folderUrl =
