@@ -11,6 +11,7 @@ import {
 } from "@/lib/citas";
 import type { UserRole } from "@/lib/auth/roles";
 import { supabase } from "@/lib/supabase";
+import { eliminarEventoCalendar } from "@/lib/cita-google-calendar";
 import { CitaFormModal } from "./CitaFormModal";
 import { CitaListItem } from "./CitaListItem";
 import type { CitaLookupBoda, CitaLookupEquipo, CitaLookupLead } from "./cita-lookup";
@@ -81,6 +82,13 @@ export function CitaConAcciones({
     setBusy(true);
     setError(null);
     try {
+      if (cita.google_event_id) {
+        const calendarResult = await eliminarEventoCalendar(cita.id);
+        if (calendarResult.warning) {
+          console.warn(calendarResult.warning);
+        }
+      }
+
       const { data, error: updateError } = await supabase
         .from("citas")
         .update({ estado: "cancelada", confirmada: false })
@@ -107,6 +115,13 @@ export function CitaConAcciones({
     setBusy(true);
     setError(null);
     try {
+      if (cita.google_event_id) {
+        const calendarResult = await eliminarEventoCalendar(cita.id);
+        if (calendarResult.warning) {
+          console.warn(calendarResult.warning);
+        }
+      }
+
       const { error: deleteError } = await supabase
         .from("citas")
         .delete()

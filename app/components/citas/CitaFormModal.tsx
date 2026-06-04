@@ -41,6 +41,10 @@ import {
   type CitaProveedorCita,
 } from "./CitaProveedorPicker";
 import type { UserRole } from "@/lib/auth/roles";
+import {
+  actualizarEventoCalendar,
+  crearEventoCalendar,
+} from "@/lib/cita-google-calendar";
 import { supabase } from "@/lib/supabase";
 
 export type { CitaLookupBoda, CitaLookupEquipo, CitaLookupLead } from "./cita-lookup";
@@ -114,6 +118,7 @@ export function CitaFormModal({
   const [createdProveedorTelefono, setCreatedProveedorTelefono] = useState<
     string | null
   >(null);
+  const [calendarWarning, setCalendarWarning] = useState<string | null>(null);
 
   const bodasById = useMemo(
     () => Object.fromEntries(bodas.map((b) => [b.id, b])),
@@ -238,6 +243,39 @@ export function CitaFormModal({
     setTitulo(tituloAutomatico);
   }, [tituloAutomatico, tituloEditadoManual]);
 
+  async function applyGoogleCalendarSync(
+    cita: CitaRow,
+    mode: "create" | "update",
+    hadGoogleEvent: boolean,
+  ): Promise<CitaRow> {
+    if (mode === "update" && !hadGoogleEvent) {
+      return cita;
+    }
+
+    const result =
+      mode === "create"
+        ? await crearEventoCalendar(cita.id)
+        : await actualizarEventoCalendar(cita.id);
+
+    if (result.warning) {
+      setCalendarWarning(result.warning);
+      return cita;
+    }
+
+    setCalendarWarning(null);
+
+    if (!result.meetLink && !result.eventId) {
+      return cita;
+    }
+
+    return {
+      ...cita,
+      google_event_id: result.eventId ?? cita.google_event_id,
+      google_meet_link: result.meetLink ?? cita.google_meet_link,
+      link_meet: result.meetLink ?? cita.link_meet,
+    };
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -304,6 +342,7 @@ export function CitaFormModal({
     };
 
     setSubmitting(true);
+    setCalendarWarning(null);
     try {
       if (isEditing && editingCita) {
         const { data, error: updateError } = await supabase
@@ -331,10 +370,16 @@ export function CitaFormModal({
             )
           : false;
 
-        setCreatedCita(cita);
+        const syncedCita = await applyGoogleCalendarSync(
+          cita,
+          "update",
+          Boolean(editingCita.google_event_id),
+        );
+
+        setCreatedCita(syncedCita);
         setInvolvedEmails(emailEntries);
         setConfirmacionTipo(scheduleChanged ? "modified" : "updated");
-        onUpdated?.(cita);
+        onUpdated?.(syncedCita);
         router.refresh();
         return;
       }
@@ -356,11 +401,13 @@ export function CitaFormModal({
       }
 
       const cita = data as CitaRow;
-      setCreatedCita(cita);
+      const syncedCita = await applyGoogleCalendarSync(cita, "create", false);
+
+      setCreatedCita(syncedCita);
       setInvolvedEmails(emailEntries);
       setCreatedProveedorTelefono(proveedorCita?.telefono?.trim() || null);
       setConfirmacionTipo("created");
-      onCreated?.(cita);
+      onCreated?.(syncedCita);
       router.refresh();
     } finally {
       setSubmitting(false);
@@ -377,6 +424,7 @@ export function CitaFormModal({
   function handleConfirmacionClose() {
     setCreatedCita(null);
     setCreatedProveedorTelefono(null);
+    setCalendarWarning(null);
     onClose();
   }
 
@@ -419,6 +467,7 @@ export function CitaFormModal({
             onClose={handleConfirmacionClose}
             variant={confirmacionTipo}
             proveedorTelefono={createdProveedorTelefono}
+            calendarWarning={calendarWarning}
           />
         ) : (
           <form className="mt-5 space-y-4" onSubmit={handleSubmit}>

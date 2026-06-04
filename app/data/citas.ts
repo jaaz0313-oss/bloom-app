@@ -28,6 +28,8 @@ export type CitaRow = {
   emails_involucrados: string[] | null;
   estado: CitaEstado;
   confirmada: boolean;
+  google_event_id: string | null;
+  google_meet_link: string | null;
   created_by: string | null;
   created_at: string;
 };
