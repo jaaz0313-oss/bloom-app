@@ -4,7 +4,6 @@ import { ClienteCotizacionBar } from "@/app/components/cliente/ClienteCotizacion
 import { ClienteBodaEstado } from "@/app/components/cliente/ClienteBodaEstado";
 import { ClienteCronograma } from "@/app/components/cliente/ClienteCronograma";
 import { ClientePageFooter } from "@/app/components/cliente/ClientePageFooter";
-import { ClientePortal } from "@/app/components/cliente/ClientePortal";
 import { ClientePageHeader } from "@/app/components/cliente/ClientePageHeader";
 import { ClientePaymentOverview } from "@/app/components/cliente/ClientePaymentOverview";
 import { ClienteProveedoresSection } from "@/app/components/cliente/ClienteProveedoresSection";
@@ -137,41 +136,44 @@ export default async function ClienteBodaPage({ params }: PageProps) {
     Boolean(seatingPlanLink) &&
     shouldShowClienteSeatingPlan(cronogramaItems, bodaRow.fecha_boda);
 
-  return (
-    <ClientePortal>
-      <div className="flex min-h-full flex-col bg-bloom-canvas">
-        <ClientePageHeader
-          nombrePareja={bodaRow.nombre_pareja}
-          fechaBoda={bodaRow.fecha_boda}
-          ciudad={bodaRow.ciudad}
-        />
+  const showCotizacionBar =
+    cotizacionDisponible || (mostrarSeatingPlan && !cotizacionDisponible);
 
+  return (
+    <div className="flex min-h-full flex-col bg-bloom-canvas">
+      <ClientePageHeader
+        nombrePareja={bodaRow.nombre_pareja}
+        fechaBoda={bodaRow.fecha_boda}
+        ciudad={bodaRow.ciudad}
+      />
+
+      {showCotizacionBar && (
         <ClienteCotizacionBar
           bodaId={id}
           cotizacionDisponible={cotizacionDisponible}
           seatingPlanLink={mostrarSeatingPlan ? seatingPlanLink : null}
         />
+      )}
 
-        <main className="mx-auto w-full max-w-3xl flex-1 space-y-12 px-5 py-12 sm:space-y-14 sm:px-8 sm:py-16">
-          <ClienteBodaEstado estado={estadoBoda} />
-          <ClienteCronograma resumen={cronogramaResumen} />
-          {mostrarSeatingPlan && (
-            <ClienteSeatingPlanSection link={seatingPlanLink} />
-          )}
-          <ClientePaymentOverview
-            totalContratado={totalContratado}
-            totalPagado={totalPagado}
-            saldoPendiente={saldoPendiente}
-          />
-          <ClienteProximosPagos pagosPendientes={pagosPendientes} />
-          <ClienteProveedoresSection
-            contratados={contratados}
-            pagosByProveedor={pagosByProveedor}
-          />
-        </main>
+      <main className="mx-auto w-full max-w-3xl flex-1 space-y-12 px-5 py-12 sm:space-y-14 sm:px-8 sm:py-16">
+        <ClienteBodaEstado estado={estadoBoda} />
+        <ClienteCronograma resumen={cronogramaResumen} />
+        {mostrarSeatingPlan && (
+          <ClienteSeatingPlanSection link={seatingPlanLink} />
+        )}
+        <ClientePaymentOverview
+          totalContratado={totalContratado}
+          totalPagado={totalPagado}
+          saldoPendiente={saldoPendiente}
+        />
+        <ClienteProximosPagos pagosPendientes={pagosPendientes} />
+        <ClienteProveedoresSection
+          contratados={contratados}
+          pagosByProveedor={pagosByProveedor}
+        />
+      </main>
 
-        <ClientePageFooter />
-      </div>
-    </ClientePortal>
+      <ClientePageFooter />
+    </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { CelestiaLogo } from "@/app/components/cliente/CelestiaLogo";
+import { ClienteLanguageToggle } from "@/app/components/cliente/ClienteLanguageToggle";
 import { useClienteLocale } from "@/app/components/cliente/ClienteLocaleProvider";
 import { formatClienteWeddingDate } from "@/lib/cliente-i18n";
 
@@ -24,6 +25,10 @@ export function ClientePageHeader({
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(125,107,90,0.08)_0%,_transparent_55%)]"
         aria-hidden
       />
+
+      <div className="absolute right-4 top-4 z-10 sm:right-8 sm:top-5">
+        <ClienteLanguageToggle />
+      </div>
 
       <div className="relative mx-auto flex max-w-3xl flex-col items-center gap-2 px-5 py-6 text-center sm:px-8">
         <CelestiaLogo variant="header" />

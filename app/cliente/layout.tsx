@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Cormorant_Garamond } from "next/font/google";
+import { ClientePortal } from "@/app/components/cliente/ClientePortal";
 
 export const metadata: Metadata = {
   title: "Bloom by Celestia",
@@ -20,7 +21,7 @@ export default function ClienteLayout({
 }>) {
   return (
     <div className={`${cormorant.variable} min-h-full font-sans antialiased`}>
-      {children}
+      <ClientePortal>{children}</ClientePortal>
     </div>
   );
 }

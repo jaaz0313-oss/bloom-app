@@ -1,7 +1,6 @@
 "use client";
 
 import { ClienteDescargarCotizacionButton } from "@/app/components/cliente/ClienteDescargarCotizacionButton";
-import { ClienteLanguageToggle } from "@/app/components/cliente/ClienteLanguageToggle";
 import { useClienteLocale } from "@/app/components/cliente/ClienteLocaleProvider";
 
 type ClienteCotizacionBarProps = {
@@ -21,7 +20,7 @@ export function ClienteCotizacionBar({
 
   return (
     <div className="-mt-2 border-b border-bloom-border/40 bg-gradient-to-b from-[#efe8df] to-bloom-canvas px-5 sm:px-8">
-      <div className="relative mx-auto flex max-w-3xl items-center justify-center py-4">
+      <div className="mx-auto flex max-w-3xl items-center justify-center py-4">
         {cotizacionDisponible && (
           <ClienteDescargarCotizacionButton bodaId={bodaId} />
         )}
@@ -35,9 +34,6 @@ export function ClienteCotizacionBar({
             {t.viewSeatingPlan}
           </a>
         )}
-        <div className="absolute right-4">
-          <ClienteLanguageToggle />
-        </div>
       </div>
     </div>
   );
