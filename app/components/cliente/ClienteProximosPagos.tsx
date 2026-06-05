@@ -1,5 +1,6 @@
 "use client";
 
+import { ClienteAccordionSection } from "@/app/components/cliente/ClienteAccordionSection";
 import { useClienteLocale } from "@/app/components/cliente/ClienteLocaleProvider";
 import {
   CLIENTE_PAGO_URGENCY_STYLES,
@@ -23,16 +24,17 @@ export function ClienteProximosPagos({
   if (pagosPendientes.length === 0) return null;
 
   return (
-    <section className="mt-10">
-      <div className="mb-6">
-        <h2 className="font-display text-2xl text-bloom-ink sm:text-3xl">
-          {t.upcomingPaymentsTitle}
-        </h2>
-        <p className="mt-1 text-sm text-bloom-muted sm:text-base">
-          {t.upcomingPaymentsSubtitle}
-        </p>
-      </div>
-
+    <ClienteAccordionSection
+      title={t.upcomingPaymentsTitle}
+      summary={
+        <>
+          <span>{t.upcomingPaymentsCount(pagosPendientes.length)}</span>
+          <span className="mt-1 block font-normal text-bloom-muted/90">
+            {t.upcomingPaymentsSubtitle}
+          </span>
+        </>
+      }
+    >
       <ul className="space-y-5">
         {pagosPendientes.map((item) => (
           <li key={item.proveedor.id}>
@@ -40,7 +42,7 @@ export function ClienteProximosPagos({
           </li>
         ))}
       </ul>
-    </section>
+    </ClienteAccordionSection>
   );
 }
 

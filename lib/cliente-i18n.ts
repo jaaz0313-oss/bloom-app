@@ -206,6 +206,7 @@ export type ClienteUiCopy = {
   balanceDue: string;
   upcomingPaymentsTitle: string;
   upcomingPaymentsSubtitle: string;
+  upcomingPaymentsCount: (count: number) => string;
   pendingAmount: string;
   paymentDueDate: string;
   toBeConfirmed: string;
@@ -261,6 +262,8 @@ const UI_ES: ClienteUiCopy = {
   balanceDue: "Saldo pendiente",
   upcomingPaymentsTitle: "Próximos pagos",
   upcomingPaymentsSubtitle: "Pagos pendientes ordenados por fecha más próxima",
+  upcomingPaymentsCount: (count) =>
+    count === 1 ? "1 pago pendiente" : `${count} pagos pendientes`,
   pendingAmount: "Monto pendiente",
   paymentDueDate: "Fecha límite de pago",
   toBeConfirmed: "Por confirmar",
@@ -319,6 +322,8 @@ const UI_EN: ClienteUiCopy = {
   balanceDue: "Balance due",
   upcomingPaymentsTitle: "Upcoming payments",
   upcomingPaymentsSubtitle: "Pending payments sorted by nearest due date",
+  upcomingPaymentsCount: (count) =>
+    count === 1 ? "1 pending payment" : `${count} pending payments`,
   pendingAmount: "Amount due",
   paymentDueDate: "Payment due date",
   toBeConfirmed: "To be confirmed",

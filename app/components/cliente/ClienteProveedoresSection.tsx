@@ -1,5 +1,6 @@
 "use client";
 
+import { ClienteAccordionSection } from "@/app/components/cliente/ClienteAccordionSection";
 import { useClienteLocale } from "@/app/components/cliente/ClienteLocaleProvider";
 import type { PagoRow } from "@/app/data/pagos";
 import {
@@ -23,149 +24,141 @@ export function ClienteProveedoresSection({
   const { locale, t } = useClienteLocale();
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-bloom-border/80 bg-bloom-surface shadow-sm">
-      <div className="border-b border-bloom-border/70 bg-gradient-to-br from-bloom-canvas/80 to-bloom-surface px-5 py-7 sm:px-8 sm:py-8">
-        <h2 className="font-display text-2xl text-bloom-ink sm:text-3xl">
-          {t.providersTitle}
-        </h2>
-        <p className="mt-2 text-sm text-bloom-muted sm:text-base">
-          {t.providersSubtitle(contratados.length)}
+    <ClienteAccordionSection
+      title={t.providersTitle}
+      summary={t.providersSubtitle(contratados.length)}
+    >
+      {contratados.length === 0 ? (
+        <p className="rounded-xl border border-dashed border-bloom-border bg-bloom-canvas/50 px-5 py-12 text-center text-sm text-bloom-muted">
+          {t.providersEmpty}
         </p>
-      </div>
+      ) : (
+        <ul className="space-y-6">
+          {contratados.map((provider) => {
+            const pagos = pagosByProveedor[provider.id] ?? [];
+            const saldo = getProviderSaldoPendienteConPagos(provider, pagos);
+            const titular =
+              provider.titular_cuenta?.trim() || provider.nombre;
 
-      <div className="px-5 py-6 sm:px-8 sm:py-8">
-        {contratados.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-bloom-border bg-bloom-canvas/50 px-5 py-12 text-center text-sm text-bloom-muted">
-            {t.providersEmpty}
-          </p>
-        ) : (
-          <ul className="space-y-6">
-            {contratados.map((provider) => {
-              const pagos = pagosByProveedor[provider.id] ?? [];
-              const saldo = getProviderSaldoPendienteConPagos(provider, pagos);
-              const titular =
-                provider.titular_cuenta?.trim() || provider.nombre;
+            return (
+              <li
+                key={provider.id}
+                className="overflow-hidden rounded-xl border border-bloom-border/80 bg-bloom-canvas/30"
+              >
+                <div className="border-b border-bloom-border/60 bg-bloom-surface/80 px-5 py-4 sm:px-6">
+                  <h3 className="font-display text-xl text-bloom-ink">
+                    {provider.nombre}
+                  </h3>
+                  <p className="mt-0.5 text-sm text-bloom-muted">
+                    {provider.categoria}
+                  </p>
+                </div>
 
-              return (
-                <li
-                  key={provider.id}
-                  className="overflow-hidden rounded-xl border border-bloom-border/80 bg-bloom-canvas/30"
-                >
-                  <div className="border-b border-bloom-border/60 bg-bloom-surface/80 px-5 py-4 sm:px-6">
-                    <h3 className="font-display text-xl text-bloom-ink">
-                      {provider.nombre}
-                    </h3>
-                    <p className="mt-0.5 text-sm text-bloom-muted">
-                      {provider.categoria}
+                <div className="grid gap-5 px-5 py-5 sm:grid-cols-2 sm:px-6">
+                  <dl className="space-y-3 text-sm">
+                    <div>
+                      <dt className="text-bloom-muted">{t.totalValue}</dt>
+                      <dd className="font-medium text-bloom-ink">
+                        {formatClienteCurrency(provider.valor_total, locale)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-bloom-muted">{t.depositPaid}</dt>
+                      <dd className="font-medium text-bloom-success">
+                        {formatClienteCurrency(provider.anticipo, locale)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-bloom-muted">{t.pendingBalance}</dt>
+                      <dd className="font-semibold text-bloom-ink">
+                        {formatClienteCurrency(saldo, locale)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-bloom-muted">{t.balanceDueDate}</dt>
+                      <dd className="font-medium text-bloom-ink">
+                        {provider.fecha_saldo
+                          ? formatClienteShortDate(
+                              provider.fecha_saldo,
+                              locale,
+                            )
+                          : t.toBeConfirmed}
+                      </dd>
+                    </div>
+                  </dl>
+
+                  <div className="rounded-xl border border-bloom-border/70 bg-bloom-surface/90 p-4">
+                    <p className="text-xs font-medium uppercase tracking-[0.12em] text-bloom-muted">
+                      {t.transferDetails}
                     </p>
-                  </div>
-
-                  <div className="grid gap-5 px-5 py-5 sm:grid-cols-2 sm:px-6">
-                    <dl className="space-y-3 text-sm">
+                    <dl className="mt-3 space-y-2 text-sm">
                       <div>
-                        <dt className="text-bloom-muted">{t.totalValue}</dt>
+                        <dt className="text-bloom-muted">{t.bank}</dt>
                         <dd className="font-medium text-bloom-ink">
-                          {formatClienteCurrency(provider.valor_total, locale)}
+                          {provider.banco || "—"}
                         </dd>
                       </div>
                       <div>
-                        <dt className="text-bloom-muted">{t.depositPaid}</dt>
-                        <dd className="font-medium text-bloom-success">
-                          {formatClienteCurrency(provider.anticipo, locale)}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt className="text-bloom-muted">{t.pendingBalance}</dt>
-                        <dd className="font-semibold text-bloom-ink">
-                          {formatClienteCurrency(saldo, locale)}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt className="text-bloom-muted">{t.balanceDueDate}</dt>
+                        <dt className="text-bloom-muted">{t.accountType}</dt>
                         <dd className="font-medium text-bloom-ink">
-                          {provider.fecha_saldo
-                            ? formatClienteShortDate(
-                                provider.fecha_saldo,
-                                locale,
-                              )
-                            : t.toBeConfirmed}
+                          {provider.tipo_cuenta || "—"}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-bloom-muted">{t.accountNumber}</dt>
+                        <dd className="font-medium text-bloom-ink">
+                          {provider.numero_cuenta || "—"}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-bloom-muted">{t.accountHolder}</dt>
+                        <dd className="font-medium text-bloom-ink">
+                          {titular}
                         </dd>
                       </div>
                     </dl>
-
-                    <div className="rounded-xl border border-bloom-border/70 bg-bloom-surface/90 p-4">
-                      <p className="text-xs font-medium uppercase tracking-[0.12em] text-bloom-muted">
-                        {t.transferDetails}
-                      </p>
-                      <dl className="mt-3 space-y-2 text-sm">
-                        <div>
-                          <dt className="text-bloom-muted">{t.bank}</dt>
-                          <dd className="font-medium text-bloom-ink">
-                            {provider.banco || "—"}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt className="text-bloom-muted">{t.accountType}</dt>
-                          <dd className="font-medium text-bloom-ink">
-                            {provider.tipo_cuenta || "—"}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt className="text-bloom-muted">{t.accountNumber}</dt>
-                          <dd className="font-medium text-bloom-ink">
-                            {provider.numero_cuenta || "—"}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt className="text-bloom-muted">{t.accountHolder}</dt>
-                          <dd className="font-medium text-bloom-ink">
-                            {titular}
-                          </dd>
-                        </div>
-                      </dl>
-                    </div>
                   </div>
+                </div>
 
-                  <div className="border-t border-bloom-border/60 px-5 py-4 sm:px-6">
-                    <h4 className="font-display text-lg text-bloom-ink">
-                      {t.paymentHistory}
-                    </h4>
-                    {pagos.length === 0 ? (
-                      <p className="mt-2 text-sm text-bloom-muted">
-                        {t.noPaymentsRecorded}
-                      </p>
-                    ) : (
-                      <ul className="mt-3 space-y-2">
-                        {pagos.map((pago) => (
-                          <li
-                            key={pago.id}
-                            className="rounded-lg border border-bloom-border/70 bg-bloom-surface px-3 py-2.5 text-sm"
-                          >
-                            <div className="flex items-center justify-between gap-3">
-                              <p className="font-medium text-bloom-ink">
-                                {formatClienteCurrency(pago.monto, locale)}
-                              </p>
-                              <p className="text-bloom-muted">
-                                {formatClienteShortDate(
-                                  pago.fecha_pago,
-                                  locale,
-                                )}
-                              </p>
-                            </div>
-                            <p className="mt-1 text-bloom-muted">
-                              {pago.concepto || t.noConcept}
+                <div className="border-t border-bloom-border/60 px-5 py-4 sm:px-6">
+                  <h4 className="font-display text-lg text-bloom-ink">
+                    {t.paymentHistory}
+                  </h4>
+                  {pagos.length === 0 ? (
+                    <p className="mt-2 text-sm text-bloom-muted">
+                      {t.noPaymentsRecorded}
+                    </p>
+                  ) : (
+                    <ul className="mt-3 space-y-2">
+                      {pagos.map((pago) => (
+                        <li
+                          key={pago.id}
+                          className="rounded-lg border border-bloom-border/70 bg-bloom-surface px-3 py-2.5 text-sm"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="font-medium text-bloom-ink">
+                              {formatClienteCurrency(pago.monto, locale)}
                             </p>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
-    </section>
+                            <p className="text-bloom-muted">
+                              {formatClienteShortDate(
+                                pago.fecha_pago,
+                                locale,
+                              )}
+                            </p>
+                          </div>
+                          <p className="mt-1 text-bloom-muted">
+                            {pago.concepto || t.noConcept}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </ClienteAccordionSection>
   );
 }
