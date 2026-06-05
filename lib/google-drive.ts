@@ -20,6 +20,8 @@ export type BodaDriveFolderRow = {
 
 const SUBFOLDERS = ["Cotizaciones", "Comprobantes de pago", "Contratos"];
 
+export const COMPROBANTES_PAGO_SUBFOLDER = "Comprobantes de pago";
+
 function getDriveClient() {
   const { email, key } = getGoogleServiceAccountCredentials();
 
@@ -171,4 +173,46 @@ export async function getDriveFolderForBoda(
 
   if (error) throw new Error(error.message);
   return (data as BodaDriveFolderRow | null) ?? null;
+}
+
+function buildDriveFolderUrl(folderId: string, webViewLink?: string | null) {
+  return webViewLink ?? `https://drive.google.com/drive/folders/${folderId}`;
+}
+
+async function findDriveSubfolderUrl(
+  parentFolderId: string,
+  subfolderName: string,
+): Promise<string | null> {
+  const drive = getDriveClient();
+  const escapedName = subfolderName.replace(/'/g, "\\'");
+  const { data } = await drive.files.list({
+    q: `'${parentFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and name='${escapedName}' and trashed=false`,
+    fields: "files(id, webViewLink)",
+    pageSize: 1,
+    supportsAllDrives: true,
+    includeItemsFromAllDrives: true,
+  });
+
+  const subfolder = data.files?.[0];
+  if (!subfolder?.id) return null;
+
+  return buildDriveFolderUrl(subfolder.id, subfolder.webViewLink);
+}
+
+export async function getComprobantesPagoFolderUrl(
+  bodaId: string,
+): Promise<string | null> {
+  const folder = await getDriveFolderForBoda(bodaId);
+  if (!folder?.drive_folder_id) return null;
+
+  const subfolderUrl = await findDriveSubfolderUrl(
+    folder.drive_folder_id,
+    COMPROBANTES_PAGO_SUBFOLDER,
+  );
+
+  return (
+    subfolderUrl ??
+    folder.folder_url ??
+    buildDriveFolderUrl(folder.drive_folder_id)
+  );
 }

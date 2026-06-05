@@ -8,8 +8,10 @@ import { formatCurrency, formatShortDateStable } from "@/lib/format";
 import { AUDITORIA_ACCIONES, logAuditoria } from "@/lib/auditoria";
 import { supabase } from "@/lib/supabase";
 import { hasPermission, type UserRole } from "@/lib/auth/roles";
+import { SubirComprobanteDriveButton } from "@/app/components/bodas/SubirComprobanteDriveButton";
 
 type ProviderPaymentsProps = {
+  bodaId: string;
   proveedorId: string;
   proveedorNombre: string;
   bodaNombre: string;
@@ -23,17 +25,16 @@ type PaymentFormState = {
   monto: string;
   fechaPago: string;
   concepto: string;
-  comprobanteUrl: string;
 };
 
 const emptyPaymentForm: PaymentFormState = {
   monto: "",
   fechaPago: "",
   concepto: "",
-  comprobanteUrl: "",
 };
 
 export function ProviderPayments({
+  bodaId,
   proveedorId,
   proveedorNombre,
   bodaNombre,
@@ -89,7 +90,6 @@ export function ProviderPayments({
     const monto = Number(form.monto);
     const fechaPago = form.fechaPago;
     const concepto = form.concepto.trim();
-    const comprobanteUrl = form.comprobanteUrl.trim();
 
     if (!Number.isFinite(monto) || monto <= 0) {
       return setError("Ingresa un monto válido mayor a 0.");
@@ -107,7 +107,7 @@ export function ProviderPayments({
           monto,
           fecha_pago: fechaPago,
           concepto: concepto || null,
-          comprobante_url: comprobanteUrl || null,
+          comprobante_url: null,
         })
         .select("id")
         .single();
@@ -149,7 +149,6 @@ export function ProviderPayments({
     const monto = Number(form.monto);
     const fechaPago = form.fechaPago;
     const concepto = form.concepto.trim();
-    const comprobanteUrl = form.comprobanteUrl.trim();
 
     if (!Number.isFinite(monto) || monto <= 0) {
       return setError("Ingresa un monto válido mayor a 0.");
@@ -166,7 +165,6 @@ export function ProviderPayments({
           monto,
           fecha_pago: fechaPago,
           concepto: concepto || null,
-          comprobante_url: comprobanteUrl || null,
         })
         .eq("id", editingPago.id);
 
@@ -231,7 +229,6 @@ export function ProviderPayments({
       monto: String(pago.monto),
       fechaPago: pago.fecha_pago,
       concepto: pago.concepto ?? "",
-      comprobanteUrl: pago.comprobante_url ?? "",
     });
     setOpenEdit(true);
   }
@@ -399,15 +396,9 @@ export function ProviderPayments({
                 />
               </Field>
 
-              <Field label="Link del comprobante">
-                <input
-                  type="url"
-                  className={inputClass}
-                  value={form.comprobanteUrl}
-                  onChange={(e) =>
-                    setForm((s) => ({ ...s, comprobanteUrl: e.target.value }))
-                  }
-                  placeholder="https://..."
+              <Field label="Comprobante">
+                <SubirComprobanteDriveButton
+                  bodaId={bodaId}
                   disabled={submitting}
                 />
               </Field>
@@ -509,17 +500,21 @@ export function ProviderPayments({
                 />
               </Field>
 
-              <Field label="Link del comprobante">
-                <input
-                  type="url"
-                  className={inputClass}
-                  value={form.comprobanteUrl}
-                  onChange={(e) =>
-                    setForm((s) => ({ ...s, comprobanteUrl: e.target.value }))
-                  }
-                  placeholder="https://..."
+              <Field label="Comprobante">
+                <SubirComprobanteDriveButton
+                  bodaId={bodaId}
                   disabled={submitting}
                 />
+                {editingPago?.comprobante_url && (
+                  <a
+                    href={editingPago.comprobante_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-2 inline-flex rounded-full border border-bloom-border bg-bloom-surface px-3 py-1 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-border"
+                  >
+                    Ver comprobante guardado
+                  </a>
+                )}
               </Field>
 
               {error && (
