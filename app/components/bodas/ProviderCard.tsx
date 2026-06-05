@@ -981,6 +981,7 @@ export function ProviderCard({
           boda={boda}
           nombreProveedor={provider.nombre}
           categoria={provider.categoria}
+          descripcionServicio={provider.descripcion_servicio}
           telefonoProveedor={provider.telefono}
           onClose={() => {
             setContratadoConfirmOpen(false);
