@@ -52,12 +52,16 @@ export function ClientInfoSection({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [grupoLinkOpen, setGrupoLinkOpen] = useState(false);
+  const [seatingLinkOpen, setSeatingLinkOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [grupoLinkSubmitting, setGrupoLinkSubmitting] = useState(false);
+  const [seatingLinkSubmitting, setSeatingLinkSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [grupoLinkError, setGrupoLinkError] = useState<string | null>(null);
+  const [seatingLinkError, setSeatingLinkError] = useState<string | null>(null);
   const [form, setForm] = useState<ClientInfoForm>(toForm(boda));
   const [grupoLink, setGrupoLink] = useState(boda.whatsapp_grupo_link ?? "");
+  const [seatingLink, setSeatingLink] = useState(boda.seating_plan_link ?? "");
 
   useEffect(() => {
     if (!open) return;
@@ -67,6 +71,10 @@ export function ClientInfoSection({
   useEffect(() => {
     setGrupoLink(boda.whatsapp_grupo_link ?? "");
   }, [boda.whatsapp_grupo_link]);
+
+  useEffect(() => {
+    setSeatingLink(boda.seating_plan_link ?? "");
+  }, [boda.seating_plan_link]);
 
   useEffect(() => {
     if (!open) return;
@@ -86,6 +94,16 @@ export function ClientInfoSection({
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [grupoLinkOpen, boda.whatsapp_grupo_link]);
+
+  useEffect(() => {
+    if (!seatingLinkOpen) return;
+    setSeatingLink(boda.seating_plan_link ?? "");
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSeatingLinkOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [seatingLinkOpen, boda.seating_plan_link]);
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -162,6 +180,40 @@ export function ClientInfoSection({
       router.refresh();
     } finally {
       setGrupoLinkSubmitting(false);
+    }
+  }
+
+  async function handleSaveSeatingLink(e: React.FormEvent) {
+    e.preventDefault();
+    setSeatingLinkError(null);
+    if (!hasPermission(role, "providers.manage")) {
+      setSeatingLinkError("No tienes permisos para editar esta información.");
+      return;
+    }
+
+    if (!supabase) {
+      setSeatingLinkError("Supabase no está configurado.");
+      return;
+    }
+
+    setSeatingLinkSubmitting(true);
+    try {
+      const { error: updateError } = await supabase
+        .from("bodas")
+        .update({
+          seating_plan_link: seatingLink.trim() || null,
+        })
+        .eq("id", bodaId);
+
+      if (updateError) {
+        setSeatingLinkError(updateError.message);
+        return;
+      }
+
+      setSeatingLinkOpen(false);
+      router.refresh();
+    } finally {
+      setSeatingLinkSubmitting(false);
     }
   }
 
@@ -254,11 +306,114 @@ export function ClientInfoSection({
         )}
       </div>
 
+      <div className="mt-4 flex flex-col gap-3 rounded-xl border border-bloom-border bg-bloom-canvas/50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-xs font-medium uppercase tracking-wider text-bloom-muted">
+            Link seating plan (portal cliente)
+          </p>
+          <p className="mt-1 truncate text-sm font-medium text-bloom-ink">
+            {boda.seating_plan_link?.trim() || "—"}
+          </p>
+        </div>
+        {hasPermission(role, "providers.manage") && (
+          <button
+            type="button"
+            onClick={() => {
+              setSeatingLinkError(null);
+              setSeatingLinkOpen(true);
+            }}
+            className="inline-flex shrink-0 items-center justify-center rounded-full border border-bloom-border bg-bloom-surface px-4 py-2 text-sm font-medium text-bloom-ink transition-colors hover:bg-bloom-border"
+          >
+            Editar
+          </button>
+        )}
+      </div>
+
       {canManageDrive && (
         <BodaDriveFolderButton
           bodaId={bodaId}
           driveFolderUrl={driveFolderUrl}
         />
+      )}
+
+      {seatingLinkOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Editar link del seating plan"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setSeatingLinkOpen(false);
+          }}
+        >
+          <div className="w-full max-w-md rounded-2xl border border-bloom-border bg-bloom-surface p-6 shadow-lg">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="font-display text-xl text-bloom-ink">
+                  Link seating plan
+                </h3>
+                <p className="mt-1 text-sm text-bloom-muted">
+                  Enlace externo (p. ej. Google Sheets). Solo se muestra en el
+                  portal del cliente cuando corresponda según el cronograma o la
+                  fecha de la boda.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSeatingLinkOpen(false)}
+                className="rounded-full p-2 text-bloom-muted transition-colors hover:bg-bloom-border hover:text-bloom-ink"
+                aria-label="Cerrar"
+                disabled={seatingLinkSubmitting}
+              >
+                <XIcon />
+              </button>
+            </div>
+
+            <form className="mt-5 space-y-4" onSubmit={handleSaveSeatingLink}>
+              <div className="space-y-1.5">
+                <label
+                  htmlFor="seating-plan-link"
+                  className="text-sm font-medium text-bloom-ink"
+                >
+                  URL del seating plan
+                </label>
+                <input
+                  id="seating-plan-link"
+                  type="url"
+                  className={inputClass}
+                  value={seatingLink}
+                  onChange={(e) => setSeatingLink(e.target.value)}
+                  placeholder="https://..."
+                  disabled={seatingLinkSubmitting}
+                />
+              </div>
+
+              {seatingLinkError && (
+                <p className="text-sm text-red-700" role="alert">
+                  {seatingLinkError}
+                </p>
+              )}
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  className="rounded-full border border-bloom-border bg-bloom-surface px-5 py-2.5 text-sm font-medium text-bloom-ink transition-colors hover:bg-bloom-border disabled:opacity-60"
+                  onClick={() => setSeatingLinkOpen(false)}
+                  disabled={seatingLinkSubmitting}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={seatingLinkSubmitting}
+                  className="inline-flex items-center justify-center rounded-full bg-bloom-accent px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-bloom-accent-hover disabled:opacity-60"
+                >
+                  {seatingLinkSubmitting ? "Guardando..." : "Guardar"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
 
       {grupoLinkOpen && (

@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { Readable } from "stream";
 import { google } from "googleapis";
+import { getGoogleServiceAccountCredentials } from "@/lib/google-service-account";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
 const TIMING_DOCX_MIME =
@@ -20,17 +21,7 @@ export type BodaDriveFolderRow = {
 const SUBFOLDERS = ["Cotizaciones", "Comprobantes de pago", "Contratos"];
 
 function getDriveClient() {
-  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  const key = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY?.replace(
-    /\\n/g,
-    "\n",
-  );
-
-  if (!email || !key) {
-    throw new Error(
-      "Faltan GOOGLE_SERVICE_ACCOUNT_EMAIL o GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY en las variables de entorno.",
-    );
-  }
+  const { email, key } = getGoogleServiceAccountCredentials();
 
   const auth = new google.auth.JWT({
     email,
@@ -89,6 +80,7 @@ export async function uploadTimingTemplate(
     console.log("Archivo subido exitosamente:", result.data.id);
   } catch (error) {
     console.error("Error subiendo timing template:", error);
+    throw error;
   }
 }
 
@@ -104,12 +96,16 @@ export async function createDriveFolderForBoda(
 
   const drive = getDriveClient();
   const folderName = `Boda - ${bodaNombre.trim() || "Sin nombre"}`;
+  const parents = [process.env.GOOGLE_DRIVE_FOLDER_ID].filter(Boolean) as string[];
+
+  const folderMetadata = {
+    name: folderName,
+    mimeType: "application/vnd.google-apps.folder",
+    ...(parents.length > 0 ? { parents } : {}),
+  };
 
   const mainFolder = await drive.files.create({
-    requestBody: {
-      name: folderName,
-      mimeType: "application/vnd.google-apps.folder",
-    },
+    requestBody: folderMetadata,
     fields: "id, name, webViewLink",
   });
 

@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { ClienteDescargarCotizacionButton } from "@/app/components/cliente/ClienteDescargarCotizacionButton";
+import { ClienteCotizacionBar } from "@/app/components/cliente/ClienteCotizacionBar";
 import { ClienteBodaEstado } from "@/app/components/cliente/ClienteBodaEstado";
 import { ClienteCronograma } from "@/app/components/cliente/ClienteCronograma";
 import { ClientePageFooter } from "@/app/components/cliente/ClientePageFooter";
+import { ClientePortal } from "@/app/components/cliente/ClientePortal";
 import { ClientePageHeader } from "@/app/components/cliente/ClientePageHeader";
 import { ClientePaymentOverview } from "@/app/components/cliente/ClientePaymentOverview";
 import { ClienteProveedoresSection } from "@/app/components/cliente/ClienteProveedoresSection";
 import { ClienteProximosPagos } from "@/app/components/cliente/ClienteProximosPagos";
+import { ClienteSeatingPlanSection } from "@/app/components/cliente/ClienteSeatingPlanSection";
 import type { CronogramaItemRow } from "@/app/data/cronograma";
 import type { BodaRow } from "@/app/data/weddings";
 import {
@@ -25,7 +27,7 @@ import {
   getClienteCotizacionContext,
   hasClienteCotizacionDisponible,
 } from "@/lib/cliente-cotizacion";
-import { formatWeddingDate } from "@/lib/format";
+import { shouldShowClienteSeatingPlan } from "@/lib/cliente-seating-plan";
 import { createPublicSupabaseClient } from "@/lib/supabase-public";
 
 export const dynamic = "force-dynamic";
@@ -130,37 +132,46 @@ export default async function ClienteBodaPage({ params }: PageProps) {
   );
   const cotizacionContext = await getClienteCotizacionContext(supabase, id);
   const cotizacionDisponible = hasClienteCotizacionDisponible(cotizacionContext);
+  const seatingPlanLink = bodaRow.seating_plan_link?.trim() ?? "";
+  const mostrarSeatingPlan =
+    Boolean(seatingPlanLink) &&
+    shouldShowClienteSeatingPlan(cronogramaItems, bodaRow.fecha_boda);
 
   return (
-    <div className="flex min-h-full flex-col bg-bloom-canvas">
-      <ClientePageHeader
-        nombrePareja={bodaRow.nombre_pareja}
-        fechaFormateada={formatWeddingDate(bodaRow.fecha_boda)}
-        ciudad={bodaRow.ciudad}
-      />
-
-      {cotizacionDisponible && (
-        <div className="-mt-2 border-b border-bloom-border/40 bg-gradient-to-b from-[#efe8df] to-bloom-canvas px-5 pb-6 pt-2 sm:px-8">
-          <ClienteDescargarCotizacionButton bodaId={id} />
-        </div>
-      )}
-
-      <main className="mx-auto w-full max-w-3xl flex-1 space-y-12 px-5 py-12 sm:space-y-14 sm:px-8 sm:py-16">
-        <ClienteBodaEstado estado={estadoBoda} />
-        <ClienteCronograma resumen={cronogramaResumen} />
-        <ClientePaymentOverview
-          totalContratado={totalContratado}
-          totalPagado={totalPagado}
-          saldoPendiente={saldoPendiente}
+    <ClientePortal>
+      <div className="flex min-h-full flex-col bg-bloom-canvas">
+        <ClientePageHeader
+          nombrePareja={bodaRow.nombre_pareja}
+          fechaBoda={bodaRow.fecha_boda}
+          ciudad={bodaRow.ciudad}
         />
-        <ClienteProximosPagos pagosPendientes={pagosPendientes} />
-        <ClienteProveedoresSection
-          contratados={contratados}
-          pagosByProveedor={pagosByProveedor}
-        />
-      </main>
 
-      <ClientePageFooter />
-    </div>
+        <ClienteCotizacionBar
+          bodaId={id}
+          cotizacionDisponible={cotizacionDisponible}
+          seatingPlanLink={mostrarSeatingPlan ? seatingPlanLink : null}
+        />
+
+        <main className="mx-auto w-full max-w-3xl flex-1 space-y-12 px-5 py-12 sm:space-y-14 sm:px-8 sm:py-16">
+          <ClienteBodaEstado estado={estadoBoda} />
+          <ClienteCronograma resumen={cronogramaResumen} />
+          {mostrarSeatingPlan && (
+            <ClienteSeatingPlanSection link={seatingPlanLink} />
+          )}
+          <ClientePaymentOverview
+            totalContratado={totalContratado}
+            totalPagado={totalPagado}
+            saldoPendiente={saldoPendiente}
+          />
+          <ClienteProximosPagos pagosPendientes={pagosPendientes} />
+          <ClienteProveedoresSection
+            contratados={contratados}
+            pagosByProveedor={pagosByProveedor}
+          />
+        </main>
+
+        <ClientePageFooter />
+      </div>
+    </ClientePortal>
   );
 }

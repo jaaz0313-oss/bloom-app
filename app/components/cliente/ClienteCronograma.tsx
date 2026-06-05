@@ -1,10 +1,15 @@
 "use client";
 
 import { useId, useState } from "react";
+import { useClienteLocale } from "@/app/components/cliente/ClienteLocaleProvider";
 import type {
   ClienteCronogramaHito,
   ClienteCronogramaResumen,
 } from "@/lib/cliente-cronograma";
+import {
+  getClienteCronogramaEstadoLabel,
+  getClienteCronogramaMensajeAliento,
+} from "@/lib/cliente-i18n";
 
 type ClienteCronogramaProps = {
   resumen: ClienteCronogramaResumen;
@@ -13,24 +18,31 @@ type ClienteCronogramaProps = {
 export function ClienteCronograma({ resumen }: ClienteCronogramaProps) {
   const [open, setOpen] = useState(false);
   const panelId = useId();
+  const { locale, t } = useClienteLocale();
+  const mensajeAliento = getClienteCronogramaMensajeAliento(
+    resumen.porcentajeCompletado,
+    locale,
+  );
 
   if (resumen.total === 0) {
     return (
       <section className="overflow-hidden rounded-2xl border border-bloom-border bg-bloom-surface shadow-sm">
         <div className="px-5 py-8 text-center sm:px-8 sm:py-10">
           <h2 className="font-display text-2xl text-bloom-ink sm:text-3xl">
-            Tu cronograma
+            {t.cronogramaTitle}
           </h2>
           <p className="mt-3 text-sm text-bloom-muted sm:text-base">
-            Estamos preparando el cronograma de contratación de su boda. Muy
-            pronto podrán ver aquí el avance de cada categoría.
+            {t.cronogramaEmpty}
           </p>
         </div>
       </section>
     );
   }
 
-  const progressLabel = `${resumen.completados.length} de ${resumen.total} confirmados`;
+  const progressLabel = t.cronogramaProgress(
+    resumen.completados.length,
+    resumen.total,
+  );
 
   return (
     <section className="overflow-hidden rounded-2xl border border-bloom-border bg-bloom-surface shadow-sm">
@@ -45,7 +57,7 @@ export function ClienteCronograma({ resumen }: ClienteCronogramaProps) {
         <span className="flex w-full items-start justify-between gap-4">
           <span className="min-w-0 flex-1">
             <span className="font-display text-2xl text-bloom-ink sm:text-3xl">
-              Tu cronograma
+              {t.cronogramaTitle}
             </span>
           </span>
           <AccordionChevron open={open} />
@@ -64,7 +76,11 @@ export function ClienteCronograma({ resumen }: ClienteCronogramaProps) {
             aria-valuenow={resumen.porcentajeCompletado}
             aria-valuemin={0}
             aria-valuemax={100}
-            aria-label={`${progressLabel}, ${resumen.porcentajeCompletado}% completado`}
+            aria-label={t.cronogramaProgressAria(
+              resumen.completados.length,
+              resumen.total,
+              resumen.porcentajeCompletado,
+            )}
           >
             <span
               className="block h-full rounded-full bg-gradient-to-r from-bloom-success to-emerald-600 transition-all duration-500"
@@ -85,13 +101,13 @@ export function ClienteCronograma({ resumen }: ClienteCronogramaProps) {
         <div className="min-h-0 overflow-hidden">
           <div className="border-t border-bloom-border/80 px-5 py-6 sm:px-8 sm:py-8">
             <p className="text-sm leading-relaxed text-bloom-ink/90 sm:text-base">
-              {resumen.mensajeAliento}
+              {mensajeAliento}
             </p>
 
             <div className="mt-6 space-y-8">
               {resumen.completados.length > 0 && (
                 <HitoGroup
-                  title="Completados"
+                  title={t.cronogramaGroupCompleted}
                   icon="check"
                   tone="success"
                   hitos={resumen.completados}
@@ -99,7 +115,7 @@ export function ClienteCronograma({ resumen }: ClienteCronogramaProps) {
               )}
               {resumen.enProceso.length > 0 && (
                 <HitoGroup
-                  title="En proceso"
+                  title={t.cronogramaGroupInProgress}
                   icon="progress"
                   tone="warm"
                   hitos={resumen.enProceso}
@@ -107,7 +123,7 @@ export function ClienteCronograma({ resumen }: ClienteCronogramaProps) {
               )}
               {resumen.pendientes.length > 0 && (
                 <HitoGroup
-                  title="Pendientes"
+                  title={t.cronogramaGroupPending}
                   icon="pending"
                   tone="muted"
                   hitos={resumen.pendientes}
@@ -189,6 +205,8 @@ function HitoCard({
   hito: ClienteCronogramaHito;
   tone: "success" | "warm" | "muted";
 }) {
+  const { locale, t } = useClienteLocale();
+  const estadoLabel = getClienteCronogramaEstadoLabel(hito.estado, locale);
   const borderClass =
     tone === "success"
       ? "border-green-200/80 bg-green-50/40"
@@ -214,12 +232,12 @@ function HitoCard({
           <span
             className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${badgeClass}`}
           >
-            {hito.estadoLabel}
+            {estadoLabel}
           </span>
         </div>
         {hito.proveedorNombre && (
           <p className="mt-1 text-sm text-bloom-muted">
-            con{" "}
+            {t.cronogramaWithProvider}{" "}
             <span className="font-medium text-bloom-ink">
               {hito.proveedorNombre}
             </span>

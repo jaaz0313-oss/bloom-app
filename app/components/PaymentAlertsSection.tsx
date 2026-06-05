@@ -1,6 +1,8 @@
 "use client";
 
-import type { KeyboardEvent, MouseEvent } from "react";
+import { useState, type KeyboardEvent, type MouseEvent } from "react";
+import { WhatsAppLocaleToggle } from "@/app/components/ui/WhatsAppLocaleToggle";
+import type { WhatsAppLocale } from "@/lib/whatsapp-locale";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { DashboardAccordionSection } from "@/app/components/DashboardAccordionSection";
@@ -54,6 +56,7 @@ function PaymentAlertItem({
   canSendWhatsApp: boolean;
 }) {
   const router = useRouter();
+  const [whatsappLocale, setWhatsappLocale] = useState<WhatsAppLocale>("es");
   const bodaHref = bodaProveedoresHref(alert.bodaId, alert.proveedorId);
 
   const hasWhatsAppTarget =
@@ -134,7 +137,10 @@ function PaymentAlertItem({
         </div>
 
         {canSendWhatsApp && (
-          <div className="mt-3 flex justify-end border-t border-bloom-border/60 pt-3">
+          <div
+            className="mt-3 flex flex-wrap items-center justify-end gap-2 border-t border-bloom-border/60 pt-3"
+            onClick={(e) => e.stopPropagation()}
+          >
             <button
               type="button"
               onClick={handleSendReminder}
@@ -149,6 +155,10 @@ function PaymentAlertItem({
               <WhatsAppIcon />
               Enviar recordatorio
             </button>
+            <WhatsAppLocaleToggle
+              locale={whatsappLocale}
+              onChange={setWhatsappLocale}
+            />
           </div>
         )}
       </div>

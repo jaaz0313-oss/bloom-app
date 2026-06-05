@@ -52,6 +52,9 @@ export function BodaDriveFolderButton({
   const buttonClass =
     "inline-flex shrink-0 items-center justify-center rounded-full border border-bloom-border bg-bloom-surface px-4 py-2 text-sm font-medium text-bloom-ink transition-colors hover:bg-bloom-border disabled:opacity-60";
 
+  const secondaryButtonClass =
+    "inline-flex shrink-0 items-center justify-center rounded-full border border-bloom-border/80 bg-bloom-canvas px-3 py-1.5 text-xs font-medium text-bloom-muted transition-colors hover:border-bloom-border hover:bg-bloom-surface hover:text-bloom-ink";
+
   return (
     <div className="mt-4 flex flex-col gap-3 rounded-xl border border-bloom-border bg-bloom-canvas/50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
@@ -69,14 +72,30 @@ export function BodaDriveFolderButton({
       </div>
 
       {folderUrl ? (
-        <a
-          href={folderUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={buttonClass}
-        >
-          Abrir carpeta
-        </a>
+        <div className="flex shrink-0 flex-col items-stretch gap-2 sm:items-end">
+          <a
+            href={folderUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={buttonClass}
+          >
+            Abrir carpeta
+          </a>
+          <div className="flex flex-col gap-1 sm:items-end">
+            <a
+              href={folderUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Sube manualmente la plantilla de timing a esta carpeta"
+              className={secondaryButtonClass}
+            >
+              📄 Subir timing
+            </a>
+            <p className="text-xs leading-snug text-bloom-muted sm:max-w-[11rem] sm:text-right">
+              Sube manualmente la plantilla de timing a esta carpeta
+            </p>
+          </div>
+        </div>
       ) : (
         <button
           type="button"

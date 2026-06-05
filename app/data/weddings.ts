@@ -28,6 +28,7 @@ export type BodaRow = {
   documento_novia: string | null;
   documento_novio: string | null;
   whatsapp_grupo_link: string | null;
+  seating_plan_link: string | null;
   honorarios: number | null;
   anticipo_honorarios: number | null;
   lugar_venue: string | null;

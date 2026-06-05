@@ -15,12 +15,14 @@ import { supabase } from "@/lib/supabase";
 import { syncBodaProveedoresContratados } from "@/lib/sync-boda";
 import type { PagoRow } from "@/app/data/pagos";
 import { hasPermission, type UserRole } from "@/lib/auth/roles";
+import { WhatsAppLocaleToggle } from "@/app/components/ui/WhatsAppLocaleToggle";
 import {
-  openCotizacionWhatsAppPostReunion,
-  openCotizacionWhatsAppPrimerContacto,
+  buildCotizacionMessageByTipo,
+  openCotizacionWhatsApp,
   type CotizacionBodaContext,
   type CotizacionMensajeTipo,
 } from "@/lib/proveedor-cotizacion";
+import type { WhatsAppLocale } from "@/lib/whatsapp-locale";
 import { ProviderContratadoConfirmacionModal } from "./ProviderContratadoConfirmacionModal";
 import { ProviderPayments } from "./ProviderPayments";
 import { ProviderComisionFields } from "./ProviderComisionFields";
@@ -57,13 +59,17 @@ function CotizacionWhatsAppButtons({
   markPrimerAsRequested,
   disabled,
   onSolicitar,
+  locale,
+  onLocaleChange,
 }: {
   markPrimerAsRequested: boolean;
   disabled: boolean;
   onSolicitar: (tipo: CotizacionMensajeTipo, markAsRequested: boolean) => void;
+  locale: WhatsAppLocale;
+  onLocaleChange: (locale: WhatsAppLocale) => void;
 }) {
   return (
-    <>
+    <div className="inline-flex flex-wrap items-center gap-2">
       <button
         type="button"
         onClick={() => onSolicitar("primer_contacto", markPrimerAsRequested)}
@@ -80,7 +86,8 @@ function CotizacionWhatsAppButtons({
       >
         Solicitar cotización (post reunión)
       </button>
-    </>
+      <WhatsAppLocaleToggle locale={locale} onChange={onLocaleChange} />
+    </div>
   );
 }
 
@@ -113,6 +120,7 @@ export function ProviderCard({
   const [notasCotizacion, setNotasCotizacion] = useState(
     provider.notas_cotizacion ?? "",
   );
+  const [whatsappLocale, setWhatsappLocale] = useState<WhatsAppLocale>("es");
 
   const canManage = hasPermission(role, "providers.manage");
   const canSendWhatsApp = hasPermission(role, "whatsapp.send");
@@ -130,15 +138,18 @@ export function ProviderCard({
     canSendWhatsApp;
 
   function handlePaymentReminder() {
-    const message = buildPaymentReminderDashboardMessage({
-      nombrePareja: boda.nombrePareja,
-      nombreProveedor: provider.nombre,
-      saldoPendiente,
-      fechaSaldo: provider.fecha_saldo,
-      banco: provider.banco,
-      numeroCuenta: provider.numero_cuenta,
-      titularCuenta: provider.titular_cuenta,
-    });
+    const message = buildPaymentReminderDashboardMessage(
+      {
+        nombrePareja: boda.nombrePareja,
+        nombreProveedor: provider.nombre,
+        saldoPendiente,
+        fechaSaldo: provider.fecha_saldo,
+        banco: provider.banco,
+        numeroCuenta: provider.numero_cuenta,
+        titularCuenta: provider.titular_cuenta,
+      },
+      whatsappLocale,
+    );
     openPaymentReminderWhatsApp({
       message,
       whatsappGrupoLink: boda.whatsappGrupoLink ?? null,
@@ -419,18 +430,15 @@ export function ProviderCard({
       fechaBoda: boda.fechaBoda,
       ciudad: boda.ciudad,
     };
-    const cotizacionArgs = [
-      provider.telefono,
+    const message = buildCotizacionMessageByTipo(
+      tipo,
       provider.nombre,
       plannerName.trim(),
       bodaCtx,
       provider.categoria,
-    ] as const;
-
-    const opened =
-      tipo === "post_reunion"
-        ? openCotizacionWhatsAppPostReunion(...cotizacionArgs)
-        : openCotizacionWhatsAppPrimerContacto(...cotizacionArgs);
+      whatsappLocale,
+    );
+    const opened = openCotizacionWhatsApp(provider.telefono, message);
     if (!opened) {
       setError("No se pudo abrir WhatsApp con el teléfono del proveedor.");
       return;
@@ -699,26 +707,13 @@ export function ProviderCard({
 
           {provider.estado === "pendiente" && (
             <div className="mt-3 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() =>
-                  handleSolicitarCotizacion("primer_contacto", true)
-                }
+              <CotizacionWhatsAppButtons
+                markPrimerAsRequested
                 disabled={updating || editSubmitting || deleting}
-                className={cotizacionPrimerContactoButtonClass}
-              >
-                Solicitar cotización
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  handleSolicitarCotizacion("post_reunion", false)
-                }
-                disabled={updating || editSubmitting || deleting}
-                className={cotizacionPostReunionButtonClass}
-              >
-                Solicitar cotización (post reunión)
-              </button>
+                onSolicitar={handleSolicitarCotizacion}
+                locale={whatsappLocale}
+                onLocaleChange={setWhatsappLocale}
+              />
               <button
                 type="button"
                 onClick={() => openCotizacionModal("Ya tengo cotización", { resetFields: true })}
@@ -736,6 +731,8 @@ export function ProviderCard({
                 markPrimerAsRequested={false}
                 disabled={updating || editSubmitting || deleting}
                 onSolicitar={handleSolicitarCotizacion}
+                locale={whatsappLocale}
+                onLocaleChange={setWhatsappLocale}
               />
               <button
                 type="button"
@@ -940,20 +937,26 @@ export function ProviderCard({
 
       {showPaymentReminder && (
         <div className="mt-4 border-t border-bloom-border pt-4">
-          <button
-            type="button"
-            onClick={handlePaymentReminder}
-            disabled={!hasWhatsAppTarget}
-            title={
-              hasWhatsAppTarget
-                ? undefined
-                : "Agrega el grupo de WhatsApp o el teléfono de la novia en la boda"
-            }
-            className="inline-flex items-center gap-1.5 rounded-full border border-green-200 bg-green-50 px-4 py-2 text-xs font-medium text-green-800 transition-colors hover:bg-green-100 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <WhatsAppIcon />
-            Enviar recordatorio de pago
-          </button>
+          <div className="inline-flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handlePaymentReminder}
+              disabled={!hasWhatsAppTarget}
+              title={
+                hasWhatsAppTarget
+                  ? undefined
+                  : "Agrega el grupo de WhatsApp o el teléfono de la novia en la boda"
+              }
+              className="inline-flex items-center gap-1.5 rounded-full border border-green-200 bg-green-50 px-4 py-2 text-xs font-medium text-green-800 transition-colors hover:bg-green-100 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <WhatsAppIcon />
+              Enviar recordatorio de pago
+            </button>
+            <WhatsAppLocaleToggle
+              locale={whatsappLocale}
+              onChange={setWhatsappLocale}
+            />
+          </div>
         </div>
       )}
 

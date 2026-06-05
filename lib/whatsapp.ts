@@ -1,4 +1,11 @@
 import { formatCurrency, formatShortDate, formatWeddingDate } from "@/lib/format";
+import {
+  formatCurrencyWhatsApp,
+  formatShortDateWhatsApp,
+  formatWeddingDateWhatsApp,
+  whatsappNotRegistered,
+  type WhatsAppLocale,
+} from "@/lib/whatsapp-locale";
 import { loadPlannerSettings } from "@/lib/planner-settings";
 import {
   buildSolicitudCotizacionMessage,
@@ -169,16 +176,33 @@ export type PaymentReminderMessageInput = {
 /** Recordatorio de saldo pendiente para el dashboard (grupo o novia). */
 export function buildPaymentReminderDashboardMessage(
   input: PaymentReminderMessageInput,
+  locale: WhatsAppLocale = "es",
 ): string {
-  const nombrePareja = input.nombrePareja.trim() || "equipo";
-  return `Hola ${nombrePareja}, te recordamos que tienes un pago pendiente con ${input.nombreProveedor}:
-💰 Saldo pendiente: ${formatCurrency(input.saldoPendiente)}
-📅 Fecha límite: ${
-    input.fechaSaldo ? formatShortDate(input.fechaSaldo) : formatDatoProveedor(null)
+  const nombrePareja = input.nombrePareja.trim() || (locale === "en" ? "team" : "equipo");
+  const fechaLimite = input.fechaSaldo
+    ? formatShortDateWhatsApp(input.fechaSaldo, locale)
+    : whatsappNotRegistered(locale);
+  const banco = input.banco?.trim() || whatsappNotRegistered(locale);
+  const cuenta = input.numeroCuenta?.trim() || whatsappNotRegistered(locale);
+  const titular = input.titularCuenta?.trim() || whatsappNotRegistered(locale);
+  const monto = formatCurrencyWhatsApp(input.saldoPendiente, locale);
+
+  if (locale === "en") {
+    return `Hi ${nombrePareja}, this is a reminder that you have a pending payment with ${input.nombreProveedor}:
+💰 Balance due: ${monto}
+📅 Due date: ${fechaLimite}
+🏦 Bank: ${banco}
+📋 Account: ${cuenta}
+👤 Account holder: ${titular}
+We're here if you need anything to confirm the payment 🌸`;
   }
-🏦 Banco: ${formatDatoProveedor(input.banco)}
-📋 Cuenta: ${formatDatoProveedor(input.numeroCuenta)}
-👤 Titular: ${formatDatoProveedor(input.titularCuenta)}
+
+  return `Hola ${nombrePareja}, te recordamos que tienes un pago pendiente con ${input.nombreProveedor}:
+💰 Saldo pendiente: ${monto}
+📅 Fecha límite: ${fechaLimite}
+🏦 Banco: ${banco}
+📋 Cuenta: ${cuenta}
+👤 Titular: ${titular}
 Quedamos atentos para confirmar el pago 🌸`;
 }
 

@@ -1,9 +1,15 @@
-import { formatCurrency, formatShortDate } from "@/lib/format";
+"use client";
+
+import { useClienteLocale } from "@/app/components/cliente/ClienteLocaleProvider";
+import type { PagoRow } from "@/app/data/pagos";
 import {
   getProviderSaldoPendienteConPagos,
   type ProveedorRow,
 } from "@/app/data/providers";
-import type { PagoRow } from "@/app/data/pagos";
+import {
+  formatClienteCurrency,
+  formatClienteShortDate,
+} from "@/lib/cliente-i18n";
 
 type ClienteProveedoresSectionProps = {
   contratados: ProveedorRow[];
@@ -14,23 +20,23 @@ export function ClienteProveedoresSection({
   contratados,
   pagosByProveedor,
 }: ClienteProveedoresSectionProps) {
+  const { locale, t } = useClienteLocale();
+
   return (
     <section className="overflow-hidden rounded-2xl border border-bloom-border/80 bg-bloom-surface shadow-sm">
       <div className="border-b border-bloom-border/70 bg-gradient-to-br from-bloom-canvas/80 to-bloom-surface px-5 py-7 sm:px-8 sm:py-8">
         <h2 className="font-display text-2xl text-bloom-ink sm:text-3xl">
-          Proveedores contratados
+          {t.providersTitle}
         </h2>
         <p className="mt-2 text-sm text-bloom-muted sm:text-base">
-          {contratados.length}{" "}
-          {contratados.length === 1 ? "proveedor" : "proveedores"} confirmados
-          para su celebración
+          {t.providersSubtitle(contratados.length)}
         </p>
       </div>
 
       <div className="px-5 py-6 sm:px-8 sm:py-8">
         {contratados.length === 0 ? (
           <p className="rounded-xl border border-dashed border-bloom-border bg-bloom-canvas/50 px-5 py-12 text-center text-sm text-bloom-muted">
-            Aún no hay proveedores contratados para mostrar.
+            {t.providersEmpty}
           </p>
         ) : (
           <ul className="space-y-6">
@@ -57,60 +63,61 @@ export function ClienteProveedoresSection({
                   <div className="grid gap-5 px-5 py-5 sm:grid-cols-2 sm:px-6">
                     <dl className="space-y-3 text-sm">
                       <div>
-                        <dt className="text-bloom-muted">Valor total</dt>
+                        <dt className="text-bloom-muted">{t.totalValue}</dt>
                         <dd className="font-medium text-bloom-ink">
-                          {formatCurrency(provider.valor_total)}
+                          {formatClienteCurrency(provider.valor_total, locale)}
                         </dd>
                       </div>
                       <div>
-                        <dt className="text-bloom-muted">Anticipo pagado</dt>
+                        <dt className="text-bloom-muted">{t.depositPaid}</dt>
                         <dd className="font-medium text-bloom-success">
-                          {formatCurrency(provider.anticipo)}
+                          {formatClienteCurrency(provider.anticipo, locale)}
                         </dd>
                       </div>
                       <div>
-                        <dt className="text-bloom-muted">Saldo pendiente</dt>
+                        <dt className="text-bloom-muted">{t.pendingBalance}</dt>
                         <dd className="font-semibold text-bloom-ink">
-                          {formatCurrency(saldo)}
+                          {formatClienteCurrency(saldo, locale)}
                         </dd>
                       </div>
                       <div>
-                        <dt className="text-bloom-muted">
-                          Fecha de pago del saldo
-                        </dt>
+                        <dt className="text-bloom-muted">{t.balanceDueDate}</dt>
                         <dd className="font-medium text-bloom-ink">
                           {provider.fecha_saldo
-                            ? formatShortDate(provider.fecha_saldo)
-                            : "Por confirmar"}
+                            ? formatClienteShortDate(
+                                provider.fecha_saldo,
+                                locale,
+                              )
+                            : t.toBeConfirmed}
                         </dd>
                       </div>
                     </dl>
 
                     <div className="rounded-xl border border-bloom-border/70 bg-bloom-surface/90 p-4">
                       <p className="text-xs font-medium uppercase tracking-[0.12em] text-bloom-muted">
-                        Datos para transferencia
+                        {t.transferDetails}
                       </p>
                       <dl className="mt-3 space-y-2 text-sm">
                         <div>
-                          <dt className="text-bloom-muted">Banco</dt>
+                          <dt className="text-bloom-muted">{t.bank}</dt>
                           <dd className="font-medium text-bloom-ink">
                             {provider.banco || "—"}
                           </dd>
                         </div>
                         <div>
-                          <dt className="text-bloom-muted">Tipo de cuenta</dt>
+                          <dt className="text-bloom-muted">{t.accountType}</dt>
                           <dd className="font-medium text-bloom-ink">
                             {provider.tipo_cuenta || "—"}
                           </dd>
                         </div>
                         <div>
-                          <dt className="text-bloom-muted">Número de cuenta</dt>
+                          <dt className="text-bloom-muted">{t.accountNumber}</dt>
                           <dd className="font-medium text-bloom-ink">
                             {provider.numero_cuenta || "—"}
                           </dd>
                         </div>
                         <div>
-                          <dt className="text-bloom-muted">Titular</dt>
+                          <dt className="text-bloom-muted">{t.accountHolder}</dt>
                           <dd className="font-medium text-bloom-ink">
                             {titular}
                           </dd>
@@ -121,11 +128,11 @@ export function ClienteProveedoresSection({
 
                   <div className="border-t border-bloom-border/60 px-5 py-4 sm:px-6">
                     <h4 className="font-display text-lg text-bloom-ink">
-                      Historial de pagos
+                      {t.paymentHistory}
                     </h4>
                     {pagos.length === 0 ? (
                       <p className="mt-2 text-sm text-bloom-muted">
-                        No hay pagos registrados.
+                        {t.noPaymentsRecorded}
                       </p>
                     ) : (
                       <ul className="mt-3 space-y-2">
@@ -136,14 +143,17 @@ export function ClienteProveedoresSection({
                           >
                             <div className="flex items-center justify-between gap-3">
                               <p className="font-medium text-bloom-ink">
-                                {formatCurrency(pago.monto)}
+                                {formatClienteCurrency(pago.monto, locale)}
                               </p>
                               <p className="text-bloom-muted">
-                                {formatShortDate(pago.fecha_pago)}
+                                {formatClienteShortDate(
+                                  pago.fecha_pago,
+                                  locale,
+                                )}
                               </p>
                             </div>
                             <p className="mt-1 text-bloom-muted">
-                              {pago.concepto || "Sin concepto"}
+                              {pago.concepto || t.noConcept}
                             </p>
                           </li>
                         ))}

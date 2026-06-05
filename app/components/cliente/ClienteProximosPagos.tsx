@@ -1,9 +1,15 @@
+"use client";
+
+import { useClienteLocale } from "@/app/components/cliente/ClienteLocaleProvider";
 import {
-  CLIENTE_PAGO_URGENCY_LABELS,
   CLIENTE_PAGO_URGENCY_STYLES,
   type ClientePagoPendiente,
 } from "@/lib/cliente-pagos";
-import { formatCurrency, formatShortDate } from "@/lib/format";
+import {
+  formatClienteCurrency,
+  formatClienteShortDate,
+  getClientePagoUrgencyLabel,
+} from "@/lib/cliente-i18n";
 
 type ClienteProximosPagosProps = {
   pagosPendientes: ClientePagoPendiente[];
@@ -12,16 +18,18 @@ type ClienteProximosPagosProps = {
 export function ClienteProximosPagos({
   pagosPendientes,
 }: ClienteProximosPagosProps) {
+  const { t } = useClienteLocale();
+
   if (pagosPendientes.length === 0) return null;
 
   return (
     <section className="mt-10">
       <div className="mb-6">
         <h2 className="font-display text-2xl text-bloom-ink sm:text-3xl">
-          Próximos pagos
+          {t.upcomingPaymentsTitle}
         </h2>
         <p className="mt-1 text-sm text-bloom-muted sm:text-base">
-          Pagos pendientes ordenados por fecha más próxima
+          {t.upcomingPaymentsSubtitle}
         </p>
       </div>
 
@@ -37,6 +45,7 @@ export function ClienteProximosPagos({
 }
 
 function ProximoPagoCard({ item }: { item: ClientePagoPendiente }) {
+  const { locale, t } = useClienteLocale();
   const { proveedor, saldoPendiente, fechaLimite, urgency } = item;
   const titular = proveedor.titular_cuenta?.trim() || proveedor.nombre;
   const hasBankInfo =
@@ -62,7 +71,7 @@ function ProximoPagoCard({ item }: { item: ClientePagoPendiente }) {
             <span
               className={`inline-flex w-fit shrink-0 rounded-full px-3 py-1 text-xs font-medium ${CLIENTE_PAGO_URGENCY_STYLES[urgency]}`}
             >
-              {CLIENTE_PAGO_URGENCY_LABELS[urgency]}
+              {getClientePagoUrgencyLabel(urgency, locale)}
             </span>
           )}
         </div>
@@ -70,18 +79,20 @@ function ProximoPagoCard({ item }: { item: ClientePagoPendiente }) {
         <dl className="mt-4 grid gap-4 sm:grid-cols-2">
           <div>
             <dt className="text-xs font-medium uppercase tracking-wider text-bloom-muted">
-              Monto pendiente
+              {t.pendingAmount}
             </dt>
             <dd className="mt-1 font-display text-2xl text-bloom-ink">
-              {formatCurrency(saldoPendiente)}
+              {formatClienteCurrency(saldoPendiente, locale)}
             </dd>
           </div>
           <div>
             <dt className="text-xs font-medium uppercase tracking-wider text-bloom-muted">
-              Fecha límite de pago
+              {t.paymentDueDate}
             </dt>
             <dd className="mt-1 text-lg font-medium text-bloom-ink">
-              {fechaLimite ? formatShortDate(fechaLimite) : "Por confirmar"}
+              {fechaLimite
+                ? formatClienteShortDate(fechaLimite, locale)
+                : t.toBeConfirmed}
             </dd>
           </div>
         </dl>
@@ -90,25 +101,28 @@ function ProximoPagoCard({ item }: { item: ClientePagoPendiente }) {
       {hasBankInfo && (
         <div className="px-5 py-5 sm:px-6">
           <p className="text-xs font-medium uppercase tracking-[0.12em] text-bloom-muted">
-            Datos para transferencia
+            {t.transferDetails}
           </p>
           <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
             {proveedor.banco && (
-              <BankField label="Banco" value={proveedor.banco} />
+              <BankField label={t.bank} value={proveedor.banco} />
             )}
             {proveedor.tipo_cuenta && (
-              <BankField label="Tipo de cuenta" value={proveedor.tipo_cuenta} />
+              <BankField label={t.accountType} value={proveedor.tipo_cuenta} />
             )}
             {proveedor.numero_cuenta && (
               <BankField
-                label="Número de cuenta"
+                label={t.accountNumber}
                 value={proveedor.numero_cuenta}
                 mono
               />
             )}
-            {titular && <BankField label="Titular" value={titular} />}
+            {titular && <BankField label={t.accountHolder} value={titular} />}
             {proveedor.documento_nit && (
-              <BankField label="Documento / NIT" value={proveedor.documento_nit} />
+              <BankField
+                label={t.documentNit}
+                value={proveedor.documento_nit}
+              />
             )}
           </dl>
         </div>

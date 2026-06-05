@@ -6,6 +6,12 @@ import {
 } from "@/lib/provider-categories";
 import { formatCurrency, formatWeddingDate } from "@/lib/format";
 import { buildWhatsAppUrl } from "@/lib/whatsapp";
+import {
+  formatCurrencyWhatsApp,
+  formatWeddingDateWhatsApp,
+  whatsappToBeDefined,
+  type WhatsAppLocale,
+} from "@/lib/whatsapp-locale";
 
 const CATEGORIA_BASE_DELIMITER = "::";
 
@@ -232,30 +238,74 @@ export function buildLeadCotizacionPdfPublicUrl(leadId: string): string {
   return `${BLOOM_PUBLIC_APP_URL}/api/leads/${leadId}/cotizacion-pdf`;
 }
 
-export function buildCotizacionLeadWhatsAppMessage(params: {
-  leadId: string;
-  nombreLead: string;
-  numeroInvitados: number | null;
-  fechaEstimada: string | null;
-  ciudad: string | null;
-  items: CotizacionItemRow[];
-}): string {
+function formatItemLineForLocale(
+  item: CotizacionItemRow,
+  locale: WhatsAppLocale,
+): string {
+  const precio = getItemPrecioEstimado(item);
+  if (precio == null) return "";
+
+  const amount =
+    locale === "en"
+      ? formatCurrencyWhatsApp(precio, locale)
+      : formatCurrency(precio);
+  return `• ${getItemDisplayName(item.categoria)}: ${amount}`;
+}
+
+export function buildCotizacionLeadWhatsAppMessage(
+  params: {
+    leadId: string;
+    nombreLead: string;
+    numeroInvitados: number | null;
+    fechaEstimada: string | null;
+    ciudad: string | null;
+    items: CotizacionItemRow[];
+  },
+  locale: WhatsAppLocale = "es",
+): string {
   const { leadId, nombreLead, numeroInvitados, fechaEstimada, ciudad, items } =
     params;
   const incluidos = items.filter((i) => i.incluido);
   const totalEstimado = computeCotizacionTotal(incluidos);
 
   const lineas = incluidos
-    .map(formatItemLine)
+    .map((item) => formatItemLineForLocale(item, locale))
     .filter(Boolean)
     .join("\n");
 
   const invitadosTexto =
-    numeroInvitados != null ? String(numeroInvitados) : "Por definir";
+    numeroInvitados != null
+      ? String(numeroInvitados)
+      : whatsappToBeDefined(locale);
   const fechaTexto = fechaEstimada
-    ? formatWeddingDate(fechaEstimada)
-    : "Por definir";
-  const ciudadTexto = ciudad?.trim() || "Por definir";
+    ? locale === "en"
+      ? formatWeddingDateWhatsApp(fechaEstimada, locale)
+      : formatWeddingDate(fechaEstimada)
+    : whatsappToBeDefined(locale);
+  const ciudadTexto = ciudad?.trim() || whatsappToBeDefined(locale);
+  const totalTexto =
+    locale === "en"
+      ? formatCurrencyWhatsApp(totalEstimado, locale)
+      : formatCurrency(totalEstimado);
+  const pdfUrl = buildLeadCotizacionPdfPublicUrl(leadId);
+
+  if (locale === "en") {
+    return `Hi ${nombreLead}, here is our estimated projection for your wedding:
+
+📋 ESTIMATED PROJECTION
+👥 Guests: ${invitadosTexto}
+📅 Estimated date: ${fechaTexto}
+📍 City: ${ciudadTexto}
+
+${lineas}
+
+💰 TOTAL ESTIMATE: ${totalTexto}
+
+This is an approximate projection. Final prices depend on the selected vendors. We look forward to hearing from you! 🌸
+- Celestia Team
+
+🔗 Download your quote here: ${pdfUrl}`;
+  }
 
   return `Hola ${nombreLead}, aquí está nuestra proyección estimada para su boda:
 
@@ -266,12 +316,12 @@ export function buildCotizacionLeadWhatsAppMessage(params: {
 
 ${lineas}
 
-💰 TOTAL ESTIMADO: ${formatCurrency(totalEstimado)}
+💰 TOTAL ESTIMADO: ${totalTexto}
 
 Esta es una proyección aproximada. Los precios finales dependen de los proveedores seleccionados. ¡Quedamos atentos para resolver sus dudas! 🌸
 - Equipo Celestia
 
-🔗 Descarga tu cotización aquí: ${buildLeadCotizacionPdfPublicUrl(leadId)}`;
+🔗 Descarga tu cotización aquí: ${pdfUrl}`;
 }
 
 export function buildCotizacionLeadEmail(params: {

@@ -4,6 +4,7 @@ import type { CitaRow } from "@/app/data/citas";
 import { CITA_TIPO_LABELS } from "@/app/data/citas";
 import { citaTimeFromDb } from "@/lib/cita-time-slots";
 import { normalizeCitaFecha } from "@/lib/citas";
+import { getGoogleServiceAccountCredentials } from "@/lib/google-service-account";
 
 export type CalendarEventResult = {
   eventId: string;
@@ -29,19 +30,7 @@ const DEFAULT_TIMEZONE = "America/Bogota";
 const DEFAULT_DURATION_MINUTES = 60;
 
 function requireServiceAccountEnv() {
-  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  const key = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY?.replace(
-    /\\n/g,
-    "\n",
-  );
-
-  if (!email || !key) {
-    throw new Error(
-      "Faltan GOOGLE_SERVICE_ACCOUNT_EMAIL o GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY en las variables de entorno.",
-    );
-  }
-
-  return { email, key };
+  return getGoogleServiceAccountCredentials();
 }
 
 export function getCalendarClient() {

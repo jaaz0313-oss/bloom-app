@@ -1,12 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { WhatsAppLocaleToggle } from "@/app/components/ui/WhatsAppLocaleToggle";
 import {
   buildProveedorContratadoGrupoMessage,
   buildProveedorContratadoProveedorMessage,
 } from "@/lib/proveedor-contratacion-whatsapp";
 import type { CotizacionBodaContext } from "@/lib/proveedor-cotizacion";
 import { buildGrupoWhatsAppUrl, buildWhatsAppUrl } from "@/lib/whatsapp";
+import type { WhatsAppLocale } from "@/lib/whatsapp-locale";
 
 type ProviderContratadoConfirmacionModalProps = {
   boda: CotizacionBodaContext;
@@ -25,16 +27,23 @@ export function ProviderContratadoConfirmacionModal({
 }: ProviderContratadoConfirmacionModalProps) {
   const [copiedNovios, setCopiedNovios] = useState(false);
   const [copiedProveedor, setCopiedProveedor] = useState(false);
+  const [locale, setLocale] = useState<WhatsAppLocale>("es");
 
   const mensajeNovios = useMemo(
     () =>
-      buildProveedorContratadoGrupoMessage(boda, nombreProveedor, categoria),
-    [boda, nombreProveedor, categoria],
+      buildProveedorContratadoGrupoMessage(
+        boda,
+        nombreProveedor,
+        categoria,
+        locale,
+      ),
+    [boda, nombreProveedor, categoria, locale],
   );
 
   const mensajeProveedor = useMemo(
-    () => buildProveedorContratadoProveedorMessage(boda, nombreProveedor),
-    [boda, nombreProveedor],
+    () =>
+      buildProveedorContratadoProveedorMessage(boda, nombreProveedor, locale),
+    [boda, nombreProveedor, locale],
   );
 
   const grupoWhatsappUrl = useMemo(() => {
@@ -94,9 +103,12 @@ export function ProviderContratadoConfirmacionModal({
           </button>
         </div>
 
-        <p className="mt-4 text-sm text-bloom-muted">
-          Comparte estos mensajes con los novios y el proveedor.
-        </p>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-bloom-muted">
+            Comparte estos mensajes con los novios y el proveedor.
+          </p>
+          <WhatsAppLocaleToggle locale={locale} onChange={setLocale} />
+        </div>
 
         <div className="mt-5 space-y-6">
           <WhatsAppMessageSection

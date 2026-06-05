@@ -38,6 +38,8 @@ import {
   type HistoricoPrecioCategoria,
 } from "@/lib/cotizacion-lead";
 import { supabase } from "@/lib/supabase";
+import { WhatsAppLocaleToggle } from "@/app/components/ui/WhatsAppLocaleToggle";
+import type { WhatsAppLocale } from "@/lib/whatsapp-locale";
 
 type CotizacionEditorProps = {
   cotizacion: CotizacionRow;
@@ -154,6 +156,7 @@ export function CotizacionEditor({
   const [success, setSuccess] = useState<string | null>(null);
   const [whatsappWarning, setWhatsappWarning] = useState<string | null>(null);
   const [emailWarning, setEmailWarning] = useState<string | null>(null);
+  const [whatsappLocale, setWhatsappLocale] = useState<WhatsAppLocale>("es");
   const [focusItemId, setFocusItemId] = useState<string | null>(null);
   const initialPersistedIds = useMemo(
     () =>
@@ -178,17 +181,29 @@ export function CotizacionEditor({
 
   const whatsappMessage = useMemo(
     () =>
-      buildCotizacionLeadWhatsAppMessage({
-        leadId: lead.id,
-        nombreLead: lead.nombre_pareja,
-        numeroInvitados: numeroInvitados.trim()
-          ? Number(numeroInvitados)
-          : null,
-        fechaEstimada: fechaEstimada || null,
-        ciudad: ciudad.trim() || lead.ciudad,
-        items,
-      }),
-    [lead.nombre_pareja, lead.ciudad, numeroInvitados, fechaEstimada, ciudad, items],
+      buildCotizacionLeadWhatsAppMessage(
+        {
+          leadId: lead.id,
+          nombreLead: lead.nombre_pareja,
+          numeroInvitados: numeroInvitados.trim()
+            ? Number(numeroInvitados)
+            : null,
+          fechaEstimada: fechaEstimada || null,
+          ciudad: ciudad.trim() || lead.ciudad,
+          items,
+        },
+        whatsappLocale,
+      ),
+    [
+      lead.id,
+      lead.nombre_pareja,
+      lead.ciudad,
+      numeroInvitados,
+      fechaEstimada,
+      ciudad,
+      items,
+      whatsappLocale,
+    ],
   );
 
   function updateItem(
@@ -415,6 +430,10 @@ export function CotizacionEditor({
               >
                 Enviar por WhatsApp
               </button>
+              <WhatsAppLocaleToggle
+                locale={whatsappLocale}
+                onChange={setWhatsappLocale}
+              />
               <button
                 type="button"
                 onClick={handleEnviarEmail}

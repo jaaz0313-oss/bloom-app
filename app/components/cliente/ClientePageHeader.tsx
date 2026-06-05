@@ -1,16 +1,23 @@
+"use client";
+
 import { CelestiaLogo } from "@/app/components/cliente/CelestiaLogo";
+import { useClienteLocale } from "@/app/components/cliente/ClienteLocaleProvider";
+import { formatClienteWeddingDate } from "@/lib/cliente-i18n";
 
 type ClientePageHeaderProps = {
   nombrePareja: string;
-  fechaFormateada: string;
+  fechaBoda: string;
   ciudad?: string | null;
 };
 
 export function ClientePageHeader({
   nombrePareja,
-  fechaFormateada,
+  fechaBoda,
   ciudad,
 }: ClientePageHeaderProps) {
+  const { locale, t } = useClienteLocale();
+  const fechaFormateada = formatClienteWeddingDate(fechaBoda, locale);
+
   return (
     <header className="relative overflow-hidden border-b border-bloom-border/60 bg-gradient-to-b from-[#faf6f0] via-[#f5efe8] to-[#efe8df]">
       <div
@@ -22,7 +29,7 @@ export function ClientePageHeader({
         <CelestiaLogo variant="header" />
 
         <p className="text-xs tracking-[0.2em] text-bloom-muted uppercase sm:text-sm">
-          Bloom by Celestia
+          {t.brandTagline}
         </p>
 
         <div className="flex w-8 items-center gap-1" aria-hidden>

@@ -16,6 +16,7 @@ import {
   resolveClienteFromBoda,
 } from "@/lib/contrato-celestia-template";
 import { downloadContratoDocx } from "@/lib/download-contrato-docx";
+import { WhatsAppLocaleToggle } from "@/app/components/ui/WhatsAppLocaleToggle";
 import {
   buildContratoShareEmailBody,
   buildContratoShareEmailSubject,
@@ -25,6 +26,7 @@ import {
   openContratoShareWhatsApp,
 } from "@/lib/contrato-share";
 import { supabase } from "@/lib/supabase";
+import type { WhatsAppLocale } from "@/lib/whatsapp-locale";
 
 type ContratoSectionProps = {
   embedded?: boolean;
@@ -98,6 +100,7 @@ export function ContratoSection({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [shareWarning, setShareWarning] = useState<string | null>(null);
+  const [whatsappLocale, setWhatsappLocale] = useState<WhatsAppLocale>("es");
   const [hasGeneratedOnce, setHasGeneratedOnce] = useState(
     () => (initialContrato?.estado ?? "borrador") !== "borrador",
   );
@@ -130,8 +133,8 @@ export function ContratoSection({
   );
 
   const contratoShareMessage = useMemo(
-    () => buildContratoShareMessage(shareBoda),
-    [shareBoda],
+    () => buildContratoShareMessage(shareBoda, whatsappLocale),
+    [shareBoda, whatsappLocale],
   );
 
   const showShareActions = hasGeneratedOnce || estado !== "borrador";
@@ -538,7 +541,7 @@ export function ContratoSection({
           </div>
 
           {showShareActions && (
-            <div className="flex flex-wrap justify-end gap-2">
+            <div className="flex flex-wrap items-center justify-end gap-2">
               <button
                 type="button"
                 onClick={handleShareWhatsApp}
@@ -548,6 +551,10 @@ export function ContratoSection({
                 <WhatsAppIcon />
                 Enviar por WhatsApp
               </button>
+              <WhatsAppLocaleToggle
+                locale={whatsappLocale}
+                onChange={setWhatsappLocale}
+              />
               <button
                 type="button"
                 onClick={handleShareEmail}

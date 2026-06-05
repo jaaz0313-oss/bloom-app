@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { WhatsAppLocaleToggle } from "@/app/components/ui/WhatsAppLocaleToggle";
 import type { CitaRow } from "@/app/data/citas";
 import type { CitaInvolvedEmail } from "@/lib/cita-emails";
 import {
@@ -214,31 +215,10 @@ export function CitaCreadaConfirmacion({
 
       {showWhatsAppSections && (
         <section className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-medium text-bloom-muted">Idioma del mensaje</span>
-          <div className="inline-flex rounded-full border border-bloom-border p-0.5">
-            <button
-              type="button"
-              onClick={() => handleLocaleChange("es")}
-              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                locale === "es"
-                  ? "bg-bloom-accent text-white"
-                  : "text-bloom-ink hover:bg-bloom-canvas"
-              }`}
-            >
-              Español
-            </button>
-            <button
-              type="button"
-              onClick={() => handleLocaleChange("en")}
-              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                locale === "en"
-                  ? "bg-bloom-accent text-white"
-                  : "text-bloom-ink hover:bg-bloom-canvas"
-              }`}
-            >
-              English
-            </button>
-          </div>
+          <span className="text-xs font-medium text-bloom-muted">
+            Idioma del mensaje
+          </span>
+          <WhatsAppLocaleToggle locale={locale} onChange={handleLocaleChange} />
         </section>
       )}
 

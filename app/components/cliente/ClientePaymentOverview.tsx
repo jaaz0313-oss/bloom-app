@@ -1,5 +1,8 @@
-import { formatCurrency } from "@/lib/format";
+"use client";
+
+import { useClienteLocale } from "@/app/components/cliente/ClienteLocaleProvider";
 import { computeClientePorcentajePagado } from "@/lib/cliente-pagos";
+import { formatClienteCurrency } from "@/lib/cliente-i18n";
 
 type ClientePaymentOverviewProps = {
   totalContratado: number;
@@ -12,6 +15,7 @@ export function ClientePaymentOverview({
   totalPagado,
   saldoPendiente,
 }: ClientePaymentOverviewProps) {
+  const { locale, t } = useClienteLocale();
   const percent = computeClientePorcentajePagado(
     totalContratado,
     totalPagado,
@@ -21,10 +25,10 @@ export function ClientePaymentOverview({
     <section className="overflow-hidden rounded-2xl border border-bloom-border bg-bloom-surface shadow-sm">
       <div className="border-b border-bloom-border/80 bg-gradient-to-br from-bloom-canvas to-bloom-surface px-5 py-6 sm:px-8 sm:py-7">
         <h2 className="font-display text-2xl text-bloom-ink sm:text-3xl">
-          Proyección de pagos
+          {t.paymentOverviewTitle}
         </h2>
         <p className="mt-1 text-sm text-bloom-muted sm:text-base">
-          Resumen de lo contratado y el avance de tus pagos
+          {t.paymentOverviewSubtitle}
         </p>
 
         <div className="mt-6">
@@ -33,7 +37,7 @@ export function ClientePaymentOverview({
               {percent}%
             </p>
             <p className="pb-1 text-sm font-medium text-bloom-muted">
-              completado
+              {t.paymentCompleted}
             </p>
           </div>
           <div
@@ -42,7 +46,7 @@ export function ClientePaymentOverview({
             aria-valuenow={percent}
             aria-valuemin={0}
             aria-valuemax={100}
-            aria-label={`${percent}% de pagos completados`}
+            aria-label={t.paymentProgressAria(percent)}
           >
             <div
               className="h-full rounded-full bg-gradient-to-r from-bloom-success to-emerald-600 transition-all duration-500"
@@ -54,18 +58,18 @@ export function ClientePaymentOverview({
 
       <dl className="grid gap-px bg-bloom-border/60 sm:grid-cols-3">
         <SummaryCard
-          label="Total contratado"
-          value={formatCurrency(totalContratado)}
+          label={t.totalContracted}
+          value={formatClienteCurrency(totalContratado, locale)}
           tone="neutral"
         />
         <SummaryCard
-          label="Total pagado"
-          value={formatCurrency(totalPagado)}
+          label={t.totalPaid}
+          value={formatClienteCurrency(totalPagado, locale)}
           tone="success"
         />
         <SummaryCard
-          label="Saldo pendiente"
-          value={formatCurrency(saldoPendiente)}
+          label={t.balanceDue}
+          value={formatClienteCurrency(saldoPendiente, locale)}
           tone="pending"
         />
       </dl>

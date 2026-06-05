@@ -1,10 +1,24 @@
+"use client";
+
+import { useClienteLocale } from "@/app/components/cliente/ClienteLocaleProvider";
 import type { ClienteBodaEstadoResumen } from "@/lib/cliente-boda-estado";
+import {
+  formatClienteDiasParaBoda,
+  getClienteMensajeMotivacional,
+} from "@/lib/cliente-i18n";
 
 type ClienteBodaEstadoProps = {
   estado: ClienteBodaEstadoResumen;
 };
 
 export function ClienteBodaEstado({ estado }: ClienteBodaEstadoProps) {
+  const { locale, t } = useClienteLocale();
+  const mensajeMotivacional = getClienteMensajeMotivacional(
+    estado.diasParaBoda,
+    locale,
+  );
+  const dias = formatClienteDiasParaBoda(estado.diasParaBoda, locale);
+
   return (
     <section className="relative overflow-hidden rounded-2xl border border-bloom-border bg-gradient-to-br from-bloom-surface via-bloom-canvas to-[#f3ebe3] p-6 shadow-sm sm:p-8">
       <div
@@ -25,26 +39,29 @@ export function ClienteBodaEstado({ estado }: ClienteBodaEstadoProps) {
         </div>
         <div className="min-w-0 flex-1">
           <h2 className="font-display text-2xl text-bloom-ink sm:text-3xl">
-            Estado de tu boda
+            {t.estadoBodaTitle}
           </h2>
           <p className="mt-3 text-base leading-relaxed text-bloom-ink/90 sm:text-lg">
-            {estado.mensajeMotivacional}
+            {mensajeMotivacional}
           </p>
         </div>
       </div>
 
       <dl className="relative mt-8 grid gap-4 sm:grid-cols-3">
-        <DiasStatCard estado={estado} />
+        <DiasStatCard dias={dias} diasParaBoda={estado.diasParaBoda} />
         <StatCard
-          label="Proveedores listos"
+          label={t.providersReady}
           value={`${estado.porcentajeProveedores}%`}
-          sublabel={`${estado.proveedoresContratados} de ${estado.totalCategorias} categorías`}
+          sublabel={t.providersReadySub(
+            estado.proveedoresContratados,
+            estado.totalCategorias,
+          )}
           accent="warm"
         />
         <StatCard
-          label="Pagos completados"
+          label={t.paymentsCompleted}
           value={`${estado.porcentajePagos}%`}
-          sublabel="del total contratado"
+          sublabel={t.paymentsCompletedSub}
           accent="success"
         />
       </dl>
@@ -52,13 +69,21 @@ export function ClienteBodaEstado({ estado }: ClienteBodaEstadoProps) {
   );
 }
 
-function DiasStatCard({ estado }: { estado: ClienteBodaEstadoResumen }) {
-  if (estado.diasParaBoda > 0) {
+function DiasStatCard({
+  dias,
+  diasParaBoda,
+}: {
+  dias: ReturnType<typeof formatClienteDiasParaBoda>;
+  diasParaBoda: number;
+}) {
+  const { t } = useClienteLocale();
+
+  if (diasParaBoda > 0) {
     return (
       <StatCard
-        label="Cuenta regresiva"
-        value={String(estado.diasDisplay)}
-        sublabel={estado.diasLabel}
+        label={t.countdown}
+        value={String(dias.display)}
+        sublabel={dias.label}
         accent="accent"
       />
     );
@@ -66,9 +91,9 @@ function DiasStatCard({ estado }: { estado: ClienteBodaEstadoResumen }) {
 
   return (
     <StatCard
-      label="Cuenta regresiva"
-      value={estado.diasParaBoda === 0 ? "Hoy" : "—"}
-      sublabel={estado.diasLabel}
+      label={t.countdown}
+      value={dias.todayLabel}
+      sublabel={dias.label}
       accent="accent"
     />
   );

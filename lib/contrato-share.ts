@@ -1,6 +1,11 @@
 import type { ContratoFirmante } from "@/app/data/contratos";
 import { formatWeddingDate } from "@/lib/format";
 import { buildGrupoWhatsAppUrl, buildWhatsAppUrl } from "@/lib/whatsapp";
+import {
+  formatWeddingDateWhatsApp,
+  whatsappToBeDefined,
+  type WhatsAppLocale,
+} from "@/lib/whatsapp-locale";
 
 export type ContratoShareBoda = {
   nombre_pareja: string;
@@ -12,10 +17,24 @@ export type ContratoShareBoda = {
   whatsapp_grupo_link: string | null;
 };
 
-export function buildContratoShareMessage(boda: ContratoShareBoda): string {
-  const nombrePareja = boda.nombre_pareja.trim() || "equipo";
-  const ciudad = boda.ciudad.trim() || "Por definir";
-  return `Hola ${nombrePareja}, adjuntamos el contrato de servicios de Celestia para su boda el ${formatWeddingDate(boda.fecha_boda)} en ${ciudad}. Por favor revísenlo y confírmen cuando estén listos para firmarlo. Cualquier duda estamos atentos 🌸
+export function buildContratoShareMessage(
+  boda: ContratoShareBoda,
+  locale: WhatsAppLocale = "es",
+): string {
+  const nombrePareja =
+    boda.nombre_pareja.trim() || (locale === "en" ? "team" : "equipo");
+  const ciudad = boda.ciudad.trim() || whatsappToBeDefined(locale);
+  const fecha =
+    locale === "en"
+      ? formatWeddingDateWhatsApp(boda.fecha_boda, locale)
+      : formatWeddingDate(boda.fecha_boda);
+
+  if (locale === "en") {
+    return `Hi ${nombrePareja}, please find Celestia's services contract for your wedding on ${fecha} in ${ciudad}. Please review it and let us know when you are ready to sign. We're here for any questions 🌸
+- Celestia Team`;
+  }
+
+  return `Hola ${nombrePareja}, adjuntamos el contrato de servicios de Celestia para su boda el ${fecha} en ${ciudad}. Por favor revísenlo y confírmen cuando estén listos para firmarlo. Cualquier duda estamos atentos 🌸
 - Equipo Celestia`;
 }
 

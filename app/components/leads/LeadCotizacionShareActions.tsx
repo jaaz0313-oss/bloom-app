@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { WhatsAppLocaleToggle } from "@/app/components/ui/WhatsAppLocaleToggle";
+import type { WhatsAppLocale } from "@/lib/whatsapp-locale";
 import type { CotizacionItemRow, CotizacionRow } from "@/app/data/cotizaciones";
 import type { LeadRow } from "@/app/data/leads";
 import {
@@ -26,6 +28,7 @@ export function LeadCotizacionShareActions({
 }: LeadCotizacionShareActionsProps) {
   const [whatsappWarning, setWhatsappWarning] = useState<string | null>(null);
   const [emailWarning, setEmailWarning] = useState<string | null>(null);
+  const [whatsappLocale, setWhatsappLocale] = useState<WhatsAppLocale>("es");
 
   const displayItems = useMemo(
     () => items.filter((item) => item.incluido),
@@ -34,16 +37,19 @@ export function LeadCotizacionShareActions({
 
   const whatsappMessage = useMemo(
     () =>
-      buildCotizacionLeadWhatsAppMessage({
-        leadId: lead.id,
-        nombreLead: lead.nombre_pareja,
-        numeroInvitados:
-          cotizacion.numero_invitados ?? lead.cantidad_invitados ?? null,
-        fechaEstimada: cotizacion.fecha_estimada ?? lead.fecha_tentativa,
-        ciudad: cotizacion.ciudad?.trim() || lead.ciudad,
-        items: displayItems,
-      }),
-    [lead, cotizacion, displayItems],
+      buildCotizacionLeadWhatsAppMessage(
+        {
+          leadId: lead.id,
+          nombreLead: lead.nombre_pareja,
+          numeroInvitados:
+            cotizacion.numero_invitados ?? lead.cantidad_invitados ?? null,
+          fechaEstimada: cotizacion.fecha_estimada ?? lead.fecha_tentativa,
+          ciudad: cotizacion.ciudad?.trim() || lead.ciudad,
+          items: displayItems,
+        },
+        whatsappLocale,
+      ),
+    [lead, cotizacion, displayItems, whatsappLocale],
   );
 
   function handleWhatsApp() {
@@ -118,7 +124,7 @@ export function LeadCotizacionShareActions({
             Cotización activa · {COTIZACION_ESTADO_LABELS[cotizacion.estado]}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={handleWhatsApp}
@@ -127,6 +133,10 @@ export function LeadCotizacionShareActions({
             <WhatsAppIcon />
             Enviar por WhatsApp
           </button>
+          <WhatsAppLocaleToggle
+            locale={whatsappLocale}
+            onChange={setWhatsappLocale}
+          />
           <button
             type="button"
             onClick={handleEmail}
