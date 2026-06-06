@@ -1,12 +1,6 @@
-import fs from "fs";
-import path from "path";
-import { Readable } from "stream";
 import { google } from "googleapis";
 import { getGoogleServiceAccountCredentials } from "@/lib/google-service-account";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-
-const TIMING_DOCX_MIME =
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 export type BodaDriveFolderRow = {
   id: string;
@@ -44,45 +38,36 @@ async function shareFolderWithLink(drive: ReturnType<typeof getDriveClient>, fil
   });
 }
 
-export async function uploadTimingTemplate(
+export async function copyTimingTemplate(
   bodaFolderId: string,
   bodaNombre: string,
 ): Promise<void> {
+  const templateId = process.env.GOOGLE_TIMING_TEMPLATE_ID?.trim();
+
+  if (!templateId) {
+    console.error(
+      "GOOGLE_TIMING_TEMPLATE_ID no está definido; se omite la copia del timing.",
+    );
+    return;
+  }
+
   try {
-    console.log("Intentando subir timing template para:", bodaNombre);
-    console.log(
-      "Leyendo archivo desde:",
-      path.join(process.cwd(), "public", "plantilla-timing.docx"),
-    );
-
     const drive = getDriveClient();
-    const templatePath = path.join(
-      process.cwd(),
-      "public",
-      "plantilla-timing.docx",
-    );
-    const fileBuffer = fs.readFileSync(templatePath);
-    console.log("Archivo leído, tamaño:", fileBuffer.length, "bytes");
+    const fileName = `Timing - ${bodaNombre.trim() || "Sin nombre"}`;
 
-    const fileName = `Timing - ${bodaNombre.trim() || "Sin nombre"}.docx`;
-
-    const result = await drive.files.create({
+    const result = await drive.files.copy({
+      fileId: templateId,
       requestBody: {
         name: fileName,
         parents: [bodaFolderId],
-        mimeType: TIMING_DOCX_MIME,
-      },
-      media: {
-        mimeType: TIMING_DOCX_MIME,
-        body: Readable.from(fileBuffer),
       },
       fields: "id",
+      supportsAllDrives: true,
     });
 
-    console.log("Archivo subido exitosamente:", result.data.id);
+    console.log("Timing template copiado exitosamente:", result.data.id);
   } catch (error) {
-    console.error("Error subiendo timing template:", error);
-    throw error;
+    console.error("Error copiando timing template:", error);
   }
 }
 
@@ -133,11 +118,7 @@ export async function createDriveFolderForBoda(
     }
   }
 
-  try {
-    await uploadTimingTemplate(parentId, bodaNombre);
-  } catch (error) {
-    console.error("No se pudo subir la plantilla de timing a Drive:", error);
-  }
+  await copyTimingTemplate(parentId, bodaNombre);
 
   const folderUrl =
     mainFolder.data.webViewLink ??
