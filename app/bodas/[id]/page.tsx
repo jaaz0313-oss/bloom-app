@@ -20,7 +20,7 @@ import {
 } from "@/lib/boda-section-content";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { requireAuthUser } from "@/lib/auth/user-profiles";
-import { hasPermission } from "@/lib/auth/roles";
+import { hasPermission, isAdminRole } from "@/lib/auth/roles";
 import type { EquipoUsuarioMencion } from "@/lib/notas-menciones";
 
 export const dynamic = "force-dynamic";
@@ -168,6 +168,20 @@ export default async function BodaDetailPage({ params, searchParams }: PageProps
   const driveFolderUrl =
     (driveFolderData as { folder_url: string | null } | null)?.folder_url ?? null;
 
+  const isAdmin = isAdminRole(user.rol);
+  const revertBodaPayload = {
+    id,
+    lead_id: bodaRow.lead_id,
+    nombre_pareja: bodaRow.nombre_pareja,
+    fecha_boda: bodaRow.fecha_boda,
+    ciudad: bodaRow.ciudad,
+    telefono_novia: bodaRow.telefono_novia,
+    email_novia: bodaRow.email_novia,
+    honorarios: bodaRow.honorarios,
+    anticipo_honorarios: bodaRow.anticipo_honorarios,
+    lugar_venue: bodaRow.lugar_venue,
+  };
+
   return (
     <div className="min-h-full bg-bloom-canvas font-sans">
       <DashboardHeader user={user} />
@@ -197,10 +211,11 @@ export default async function BodaDetailPage({ params, searchParams }: PageProps
               <dd className="font-medium text-bloom-ink">{bodaRow.ciudad}</dd>
             </div>
           </dl>
-          <div className="mt-4">
+          <div className="mt-4 flex flex-wrap gap-3">
             {hasPermission(user.rol, "whatsapp.send") && (
               <ShareWithClientButton bodaId={id} />
             )}
+            {isAdmin && <RevertirALeadButton boda={revertBodaPayload} />}
           </div>
         </header>
 
@@ -232,33 +247,12 @@ export default async function BodaDetailPage({ params, searchParams }: PageProps
           driveFolderUrl={driveFolderUrl}
         />
 
-        {(user.rol === "admin" ||
-          hasPermission(user.rol, "weddings.delete")) && (
+        {hasPermission(user.rol, "weddings.delete") && (
           <div className="mt-12 border-t border-bloom-border pt-8">
-            <div className="flex flex-wrap gap-3">
-              {user.rol === "admin" && (
-                <RevertirALeadButton
-                  boda={{
-                    id,
-                    lead_id: bodaRow.lead_id,
-                    nombre_pareja: bodaRow.nombre_pareja,
-                    fecha_boda: bodaRow.fecha_boda,
-                    ciudad: bodaRow.ciudad,
-                    telefono_novia: bodaRow.telefono_novia,
-                    email_novia: bodaRow.email_novia,
-                    honorarios: bodaRow.honorarios,
-                    anticipo_honorarios: bodaRow.anticipo_honorarios,
-                    lugar_venue: bodaRow.lugar_venue,
-                  }}
-                />
-              )}
-              {hasPermission(user.rol, "weddings.delete") && (
-                <DeleteWeddingButton
-                  bodaId={id}
-                  bodaNombre={bodaRow.nombre_pareja}
-                />
-              )}
-            </div>
+            <DeleteWeddingButton
+              bodaId={id}
+              bodaNombre={bodaRow.nombre_pareja}
+            />
           </div>
         )}
       </main>

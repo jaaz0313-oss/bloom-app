@@ -60,3 +60,7 @@ export function hasPermission(role: UserRole, permission: Permission): boolean {
   if (!permissions) return false;
   return permissions.includes(permission);
 }
+
+export function isAdminRole(role: string | null | undefined): role is UserRole {
+  return role?.trim().toLowerCase() === "admin";
+}
