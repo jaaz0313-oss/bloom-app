@@ -18,7 +18,7 @@ import {
 import type { UserRole } from "@/lib/auth/roles";
 import { formatShortDateStable } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
-import { eliminarEventoCalendar } from "@/lib/cita-google-calendar";
+import { eliminarEventoCalendarSiVinculado } from "@/lib/cita-google-calendar";
 import { CitaFormModal } from "./CitaFormModal";
 import type { CitaLookupBoda, CitaLookupEquipo, CitaLookupLead } from "./cita-lookup";
 
@@ -68,16 +68,10 @@ export function CitaCalendarioDetalleModal({
   async function handleCancelConfirm() {
     if (!supabase || !cita) return;
     const citaId = cita.id;
-    const hadGoogleEvent = Boolean(cita.google_event_id);
     setBusy(true);
     setError(null);
     try {
-      if (hadGoogleEvent) {
-        const calendarResult = await eliminarEventoCalendar(citaId);
-        if (calendarResult.warning) {
-          console.warn(calendarResult.warning);
-        }
-      }
+      await eliminarEventoCalendarSiVinculado(cita);
 
       const { data, error: updateError } = await supabase
         .from("citas")

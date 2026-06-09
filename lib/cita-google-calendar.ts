@@ -54,11 +54,32 @@ export async function actualizarEventoCalendar(
 export async function eliminarEventoCalendar(
   citaId: string,
 ): Promise<CitaCalendarSyncResult> {
-  const response = await fetch("/api/calendar/eliminar-evento", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ citaId }),
-  });
+  try {
+    const response = await fetch("/api/calendar/eliminar-evento", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ citaId }),
+    });
 
-  return parseCalendarApiResponse(response);
+    return parseCalendarApiResponse(response);
+  } catch (error) {
+    return {
+      warning:
+        error instanceof Error
+          ? error.message
+          : "No se pudo eliminar el evento en Google Calendar.",
+    };
+  }
+}
+
+export async function eliminarEventoCalendarSiVinculado(cita: {
+  id: string;
+  google_event_id: string | null;
+}): Promise<void> {
+  if (!cita.google_event_id) return;
+
+  const result = await eliminarEventoCalendar(cita.id);
+  if (result.warning) {
+    console.warn(result.warning);
+  }
 }
