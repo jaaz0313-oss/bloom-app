@@ -12,6 +12,7 @@ export const AUDITORIA_ACCIONES = {
   COTIZACION_REGISTRADA: "Cotización registrada",
   LEAD_CREADO: "Lead creado",
   LEAD_CONVERTIDO: "Lead convertido a boda",
+  BODA_REVERTIDA_A_LEAD: "Boda revertida a lead",
   COMISION_RECIBIDA: "Comisión marcada como recibida",
 } as const;
 

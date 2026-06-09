@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { DashboardHeader } from "@/app/components/DashboardHeader";
 import { BodaDetailSections } from "@/app/components/bodas/BodaDetailSections";
 import { DeleteWeddingButton } from "@/app/components/bodas/DeleteWeddingButton";
+import { RevertirALeadButton } from "@/app/components/bodas/RevertirALeadButton";
 import { ShareWithClientButton } from "@/app/components/bodas/ShareWithClientButton";
 import type { CitaRow } from "@/app/data/citas";
 import type { BriefBodaRow } from "@/app/data/brief-boda";
@@ -231,12 +232,33 @@ export default async function BodaDetailPage({ params, searchParams }: PageProps
           driveFolderUrl={driveFolderUrl}
         />
 
-        {hasPermission(user.rol, "weddings.delete") && (
+        {(user.rol === "admin" ||
+          hasPermission(user.rol, "weddings.delete")) && (
           <div className="mt-12 border-t border-bloom-border pt-8">
-            <DeleteWeddingButton
-              bodaId={id}
-              bodaNombre={bodaRow.nombre_pareja}
-            />
+            <div className="flex flex-wrap gap-3">
+              {user.rol === "admin" && (
+                <RevertirALeadButton
+                  boda={{
+                    id,
+                    lead_id: bodaRow.lead_id,
+                    nombre_pareja: bodaRow.nombre_pareja,
+                    fecha_boda: bodaRow.fecha_boda,
+                    ciudad: bodaRow.ciudad,
+                    telefono_novia: bodaRow.telefono_novia,
+                    email_novia: bodaRow.email_novia,
+                    honorarios: bodaRow.honorarios,
+                    anticipo_honorarios: bodaRow.anticipo_honorarios,
+                    lugar_venue: bodaRow.lugar_venue,
+                  }}
+                />
+              )}
+              {hasPermission(user.rol, "weddings.delete") && (
+                <DeleteWeddingButton
+                  bodaId={id}
+                  bodaNombre={bodaRow.nombre_pareja}
+                />
+              )}
+            </div>
           </div>
         )}
       </main>
