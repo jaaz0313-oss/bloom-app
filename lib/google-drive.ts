@@ -42,6 +42,13 @@ export async function copyTimingTemplate(
   bodaFolderId: string,
   bodaNombre: string,
 ): Promise<void> {
+  console.log(
+    "GOOGLE_TIMING_TEMPLATE_ID:",
+    process.env.GOOGLE_TIMING_TEMPLATE_ID
+      ? "definido: " + process.env.GOOGLE_TIMING_TEMPLATE_ID
+      : "undefined",
+  );
+
   const templateId = process.env.GOOGLE_TIMING_TEMPLATE_ID?.trim();
 
   if (!templateId) {
@@ -55,6 +62,8 @@ export async function copyTimingTemplate(
     const drive = getDriveClient();
     const fileName = `Timing - ${bodaNombre.trim() || "Sin nombre"}`;
 
+    console.log("Intentando copiar timing a carpeta:", bodaFolderId);
+
     const result = await drive.files.copy({
       fileId: templateId,
       requestBody: {
@@ -65,9 +74,9 @@ export async function copyTimingTemplate(
       supportsAllDrives: true,
     });
 
-    console.log("Timing template copiado exitosamente:", result.data.id);
+    console.log("Resultado copy:", JSON.stringify(result.data));
   } catch (error) {
-    console.error("Error copiando timing template:", error);
+    console.error("Error copiando timing:", error);
   }
 }
 
