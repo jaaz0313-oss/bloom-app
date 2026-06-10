@@ -108,6 +108,7 @@ export function BodaDetailSections({
           pagosByProveedor={pagosByProveedor}
           canManageDrive={canManageDrive}
           driveFolderUrl={driveFolderUrl}
+          contratoFirmante={contrato?.firmante ?? "novia"}
         />
 
         {canViewContrato && (

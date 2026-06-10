@@ -7,8 +7,11 @@ import type { ProveedorRow } from "@/app/data/providers";
 import type { PagoRow } from "@/app/data/pagos";
 import { SendWhatsAppButton } from "@/app/components/bodas/SendWhatsAppButton";
 import { BodaDriveFolderButton } from "@/app/components/bodas/BodaDriveFolderButton";
+import type { ContratoFirmante } from "@/app/data/contratos";
 import { supabase } from "@/lib/supabase";
 import { hasPermission, type UserRole } from "@/lib/auth/roles";
+import { buildClienteContratoClipboardText } from "@/lib/cliente-contrato-clipboard";
+import { copyTextToClipboard } from "@/lib/copy-to-clipboard";
 
 const DOCUMENT_TYPES = ["Cédula", "Pasaporte", "ID extranjero"] as const;
 
@@ -22,6 +25,7 @@ type ClientInfoSectionProps = {
   embedded?: boolean;
   canManageDrive?: boolean;
   driveFolderUrl?: string | null;
+  contratoFirmante?: ContratoFirmante;
 };
 
 type ClientInfoForm = {
@@ -48,8 +52,10 @@ export function ClientInfoSection({
   embedded = false,
   canManageDrive = false,
   driveFolderUrl = null,
+  contratoFirmante = "novia",
 }: ClientInfoSectionProps) {
   const router = useRouter();
+  const [copiedContratoInfo, setCopiedContratoInfo] = useState(false);
   const [open, setOpen] = useState(false);
   const [grupoLinkOpen, setGrupoLinkOpen] = useState(false);
   const [seatingLinkOpen, setSeatingLinkOpen] = useState(false);
@@ -149,6 +155,14 @@ export function ClientInfoSection({
     }
   }
 
+  function handleCopyContratoInfo() {
+    const text = buildClienteContratoClipboardText(boda, contratoFirmante);
+    if (!copyTextToClipboard(text)) return;
+
+    setCopiedContratoInfo(true);
+    window.setTimeout(() => setCopiedContratoInfo(false), 2000);
+  }
+
   async function handleSaveGrupoLink(e: React.FormEvent) {
     e.preventDefault();
     setGrupoLinkError(null);
@@ -240,6 +254,21 @@ export function ClientInfoSection({
           </div>
         )}
         <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={handleCopyContratoInfo}
+            className="inline-flex items-center gap-1.5 rounded-full border border-bloom-border bg-bloom-canvas px-3 py-2 text-xs font-medium text-bloom-muted transition-colors hover:border-bloom-accent/30 hover:bg-bloom-surface hover:text-bloom-ink"
+            aria-live="polite"
+          >
+            {copiedContratoInfo ? (
+              "✓ Copiado"
+            ) : (
+              <>
+                <CopyIcon />
+                Copiar info para contrato
+              </>
+            )}
+          </button>
           {hasPermission(role, "whatsapp.send") && (
             <SendWhatsAppButton
               boda={boda}
@@ -753,6 +782,24 @@ function Field({
       <label className="text-sm font-medium text-bloom-ink">{label}</label>
       {children}
     </div>
+  );
+}
+
+function CopyIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      className="h-3.5 w-3.5 shrink-0 opacity-70"
+      aria-hidden
+    >
+      <path
+        fillRule="evenodd"
+        d="M13.887 3.182c.396.037.635.06.845.109a2.25 2.25 0 0 1 1.589 1.59c.05.21.073.45.11.846.037.396.06.635.109.845a2.25 2.25 0 0 1-1.59 1.591c-.21.05-.45.073-.846.11-.396.037-.635.06-.845.109a2.25 2.25 0 0 1-1.591-1.59c-.05-.21-.073-.45-.11-.846a2.25 2.25 0 0 1 1.59-1.591c.21-.05.45-.073.846-.11.396-.037.635-.06.845-.109A2.25 2.25 0 0 1 13.887 3.18ZM8 5.25A2.75 2.75 0 0 0 5.25 8v7.5A2.75 2.75 0 0 0 8 18.25h7.5A2.75 2.75 0 0 0 18.25 15.5V8A2.75 2.75 0 0 0 15.5 5.25H8Zm-1.5 2.75c0-.69.56-1.25 1.25-1.25h7.5c.69 0 1.25.56 1.25 1.25v7.5c0 .69-.56 1.25-1.25 1.25H8A1.25 1.25 0 0 1 6.75 15.5V8Z"
+        clipRule="evenodd"
+      />
+    </svg>
   );
 }
 
