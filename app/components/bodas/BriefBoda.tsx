@@ -468,11 +468,14 @@ function BriefChecklistItem({
 }) {
   const stringValue =
     typeof value === "string" ? value : value ? String(value) : "";
+  const hasContent = Boolean(stringValue.trim());
+  const showContent = checked || hasContent;
+  const isHighlighted = checked || hasContent;
 
   return (
     <div
       className={`rounded-xl border px-3 py-2.5 transition-colors ${
-        checked
+        isHighlighted
           ? "border-green-200 bg-green-50/50"
           : "border-bloom-border bg-bloom-surface/60"
       }`}
@@ -486,14 +489,16 @@ function BriefChecklistItem({
         />
         <span
           className={`text-sm ${
-            checked ? "font-semibold text-bloom-ink" : "font-medium text-bloom-muted"
+            isHighlighted
+              ? "font-semibold text-bloom-ink"
+              : "font-medium text-bloom-muted"
           }`}
         >
           {field.label}
         </span>
       </label>
 
-      {checked && (
+      {showContent && (
         <div className="mt-3 pl-7">
           {field.type === "text" ? (
             <input
