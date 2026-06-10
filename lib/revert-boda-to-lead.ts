@@ -68,5 +68,9 @@ export async function revertirBodaALead(
     return deleteResult;
   }
 
+  if (!leadId) {
+    return { ok: false, message: "No se pudo resolver el lead asociado." };
+  }
+
   return { ok: true, leadId };
 }
