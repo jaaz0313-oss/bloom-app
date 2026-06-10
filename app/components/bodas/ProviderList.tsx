@@ -23,6 +23,7 @@ import type { ProveedorRow } from "@/app/data/providers";
 import { hasPermission, type UserRole } from "@/lib/auth/roles";
 import { persistProviderOrden } from "@/lib/provider-orden";
 import type { CotizacionBodaContext } from "@/lib/proveedor-cotizacion";
+import { formatCurrency } from "@/lib/format";
 import { CompararCotizacionesBar } from "./CompararCotizacionesBar";
 import { ProviderCard, type ProviderDragHandleProps } from "./ProviderCard";
 
@@ -297,6 +298,49 @@ export function ProviderList({
           );
         })
       )}
+
+      <ProviderListSummary providers={sortedFromProps} />
+    </div>
+  );
+}
+
+function ProviderListSummary({ providers }: { providers: ProveedorRow[] }) {
+  const hasValor = providers.some((provider) => provider.valor_total > 0);
+  if (!hasValor) return null;
+
+  const totalProyectado = providers.reduce(
+    (sum, provider) => sum + provider.valor_total,
+    0,
+  );
+  const totalContratado = providers
+    .filter((provider) => provider.estado === "contratado")
+    .reduce((sum, provider) => sum + provider.valor_total, 0);
+  const pendientePorContratar = totalProyectado - totalContratado;
+
+  return (
+    <div className="border-t border-bloom-border/70 pt-4">
+      <dl className="grid gap-3 text-sm sm:grid-cols-3">
+        <div>
+          <dt className="text-bloom-muted">
+            Total proyectado (cotización inicial)
+          </dt>
+          <dd className="mt-0.5 font-medium text-bloom-ink">
+            {formatCurrency(totalProyectado)}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-bloom-muted">Total contratado</dt>
+          <dd className="mt-0.5 font-medium text-bloom-success">
+            {formatCurrency(totalContratado)}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-bloom-muted">Pendiente por contratar</dt>
+          <dd className="mt-0.5 font-medium text-bloom-ink">
+            {formatCurrency(pendientePorContratar)}
+          </dd>
+        </div>
+      </dl>
     </div>
   );
 }
