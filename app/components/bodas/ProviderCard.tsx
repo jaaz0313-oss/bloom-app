@@ -962,7 +962,7 @@ export function ProviderCard({
 
       {showPayments && (
         <ProviderPayments
-          bodaId={boda.id}
+          bodaId={bodaId}
           proveedorId={provider.id}
           proveedorNombre={provider.nombre}
           bodaNombre={boda.nombrePareja}
