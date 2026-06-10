@@ -2,7 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { CitaRow } from "@/app/data/citas";
-import { normalizeCitaRow, sortCitasBySchedule } from "@/lib/citas";
+import {
+  filterCitasFuturas,
+  normalizeCitaRow,
+  sortCitasBySchedule,
+} from "@/lib/citas";
 import type { UserRole } from "@/lib/auth/roles";
 import {
   CitaFormModal,
@@ -23,6 +27,7 @@ type CitasSectionProps = {
   defaultBodaId?: string | null;
   defaultLeadId?: string | null;
   embedded?: boolean;
+  futureOnly?: boolean;
 };
 
 export function CitasSection({
@@ -36,6 +41,7 @@ export function CitasSection({
   defaultBodaId = null,
   defaultLeadId = null,
   embedded = false,
+  futureOnly = false,
 }: CitasSectionProps) {
   const [citas, setCitas] = useState(() => initialCitas.map(normalizeCitaRow));
   const [modalOpen, setModalOpen] = useState(false);
@@ -44,7 +50,10 @@ export function CitasSection({
     setCitas(initialCitas.map(normalizeCitaRow));
   }, [initialCitas]);
 
-  const sorted = sortCitasBySchedule(citas);
+  const sorted = useMemo(() => {
+    const list = futureOnly ? filterCitasFuturas(citas) : citas;
+    return sortCitasBySchedule(list);
+  }, [citas, futureOnly]);
 
   function handleCitaChange(citaId: string, next: CitaRow | null) {
     setCitas((prev) => {
@@ -92,7 +101,9 @@ export function CitasSection({
             embedded ? "mt-4" : "mt-6"
           }`}
         >
-          No hay citas programadas.
+          {futureOnly
+            ? "No hay citas próximas programadas"
+            : "No hay citas programadas."}
         </p>
       ) : (
         <ul className={`space-y-3 ${embedded ? "mt-4" : "mt-5"}`}>

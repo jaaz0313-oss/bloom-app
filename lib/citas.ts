@@ -11,6 +11,7 @@ import { parseProveedorFromCitaTitulo } from "@/lib/cita-titulo";
 import { formatLongDateStable, formatLongDateEnglishStable, formatTimeEnglishStable } from "@/lib/format";
 import { buildWhatsAppUrl, normalizeWhatsAppGroupLink } from "@/lib/whatsapp";
 import type { UserRole } from "@/lib/auth/roles";
+import { getTodayIso } from "@/lib/citas-calendar";
 
 export type CitaProveedorLookup = {
   nombre: string;
@@ -604,6 +605,15 @@ export function getCitaRelacionLabel(
     return leadsById[cita.lead_id]?.nombre_pareja ?? "Lead";
   }
   return null;
+}
+
+export function filterCitasFuturas<T extends Pick<CitaRow, "fecha">>(
+  citas: T[],
+  todayIso: string = getTodayIso(),
+): T[] {
+  return citas.filter(
+    (cita) => normalizeCitaFecha(cita.fecha) >= todayIso,
+  );
 }
 
 export function sortCitasBySchedule<T extends Pick<CitaRow, "fecha" | "hora_inicio">>(

@@ -29,6 +29,7 @@ import { hasPermission, type UserRole } from "@/lib/auth/roles";
 import type { EquipoUsuarioMencion } from "@/lib/notas-menciones";
 import type { CitaLookupBoda, CitaLookupEquipo, CitaLookupLead } from "@/app/components/citas/CitaFormModal";
 import { BODA_SECTION_PROVEEDORES } from "@/lib/boda-url";
+import { filterCitasFuturas } from "@/lib/citas";
 
 type BodaDetailSectionsProps = {
   bodaId: string;
@@ -187,10 +188,11 @@ export function BodaDetailSections({
       <BodaAccordionSection
         title="Citas"
         defaultOpen={false}
-        hasContent={citas.length > 0}
+        hasContent={filterCitasFuturas(citas).length > 0}
       >
         <CitasSection
           embedded
+          futureOnly
           initialCitas={citas}
           bodas={bodasLookup}
           leads={leadsLookup}
