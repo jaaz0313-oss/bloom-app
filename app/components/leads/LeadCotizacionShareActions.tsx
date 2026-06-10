@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { EmailShareModal } from "@/app/components/ui/EmailShareModal";
 import { WhatsAppLocaleToggle } from "@/app/components/ui/WhatsAppLocaleToggle";
 import type { WhatsAppLocale } from "@/lib/whatsapp-locale";
 import type { CotizacionItemRow, CotizacionRow } from "@/app/data/cotizaciones";
@@ -8,7 +9,6 @@ import type { LeadRow } from "@/app/data/leads";
 import {
   buildCotizacionLeadEmail,
   buildCotizacionLeadWhatsAppMessage,
-  openCotizacionLeadEmail,
   openCotizacionLeadWhatsApp,
 } from "@/lib/cotizacion-lead";
 import { COTIZACION_ESTADO_LABELS } from "@/app/data/cotizaciones";
@@ -28,6 +28,8 @@ export function LeadCotizacionShareActions({
 }: LeadCotizacionShareActionsProps) {
   const [whatsappWarning, setWhatsappWarning] = useState<string | null>(null);
   const [emailWarning, setEmailWarning] = useState<string | null>(null);
+  const [emailCopiedNotice, setEmailCopiedNotice] = useState(false);
+  const emailCopiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [whatsappLocale, setWhatsappLocale] = useState<WhatsAppLocale>("es");
 
   const displayItems = useMemo(
@@ -68,16 +70,10 @@ export function LeadCotizacionShareActions({
     }
   }
 
-  function handleEmail() {
-    setWhatsappWarning(null);
-    setEmailWarning(null);
+  const cotizacionEmail = useMemo(() => {
     const email = lead.email?.trim();
-    if (!email) {
-      setEmailWarning("Este lead no tiene email registrado");
-      return;
-    }
-
-    const { subject, body } = buildCotizacionLeadEmail({
+    if (!email) return null;
+    return buildCotizacionLeadEmail({
       leadId: lead.id,
       nombreLead: lead.nombre_pareja,
       numeroInvitados:
@@ -86,7 +82,16 @@ export function LeadCotizacionShareActions({
       ciudad: cotizacion.ciudad?.trim() || lead.ciudad,
       items: displayItems,
     });
-    openCotizacionLeadEmail(email, subject, body);
+  }, [lead, cotizacion, displayItems]);
+
+  function handleEmail() {
+    setWhatsappWarning(null);
+    setEmailWarning(null);
+    if (!lead.email?.trim()) {
+      setEmailWarning("Este lead no tiene email registrado");
+      return;
+    }
+    setEmailModalOpen(true);
   }
 
   if (displayItems.length === 0) {
@@ -171,6 +176,17 @@ export function LeadCotizacionShareActions({
         >
           {whatsappWarning ?? emailWarning}
         </p>
+      )}
+
+      {lead.email?.trim() && cotizacionEmail && (
+        <EmailShareModal
+          open={emailModalOpen}
+          onClose={() => setEmailModalOpen(false)}
+          recipientEmail={lead.email.trim()}
+          subject={cotizacionEmail.subject}
+          initialMessage={cotizacionEmail.body}
+          instructions="1. Copia el mensaje 2. Abre Gmail 3. Pega el mensaje 4. Adjunta el PDF de cotización"
+        />
       )}
     </section>
   );

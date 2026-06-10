@@ -17,12 +17,12 @@ import {
 } from "@/lib/contrato-celestia-template";
 import { downloadContratoDocx } from "@/lib/download-contrato-docx";
 import { WhatsAppLocaleToggle } from "@/app/components/ui/WhatsAppLocaleToggle";
+import { EmailShareModal } from "@/app/components/ui/EmailShareModal";
 import {
-  buildContratoShareEmailBody,
+  buildContratoShareEmailMessage,
   buildContratoShareEmailSubject,
   buildContratoShareMessage,
   getContratoRecipientEmail,
-  openContratoShareEmail,
   openContratoShareWhatsApp,
 } from "@/lib/contrato-share";
 import { supabase } from "@/lib/supabase";
@@ -101,6 +101,7 @@ export function ContratoSection({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [shareWarning, setShareWarning] = useState<string | null>(null);
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
   const [whatsappLocale, setWhatsappLocale] = useState<WhatsAppLocale>("es");
   const [hasGeneratedOnce, setHasGeneratedOnce] = useState(
     () => (initialContrato?.estado ?? "borrador") !== "borrador",
@@ -138,6 +139,21 @@ export function ContratoSection({
     [shareBoda, whatsappLocale],
   );
 
+  const contratoEmailMessage = useMemo(
+    () => buildContratoShareEmailMessage(shareBoda),
+    [shareBoda],
+  );
+
+  const contratoEmailSubject = useMemo(
+    () => buildContratoShareEmailSubject(boda.nombre_pareja),
+    [boda.nombre_pareja],
+  );
+
+  const contratoRecipientEmail = useMemo(
+    () => getContratoRecipientEmail(shareBoda, form.firmante),
+    [shareBoda, form.firmante],
+  );
+
   const showShareActions = hasGeneratedOnce || estado !== "borrador";
 
   function handleShareWhatsApp() {
@@ -152,18 +168,13 @@ export function ContratoSection({
 
   function handleShareEmail() {
     setShareWarning(null);
-    const email = getContratoRecipientEmail(shareBoda, form.firmante);
-    if (!email) {
+    if (!contratoRecipientEmail) {
       setShareWarning(
         `No hay email del ${form.firmante === "novio" ? "novio" : "novia"} registrado. Agrégalo en información del cliente.`,
       );
       return;
     }
-    openContratoShareEmail(
-      email,
-      buildContratoShareEmailSubject(boda.nombre_pareja),
-      buildContratoShareEmailBody(contratoShareMessage),
-    );
+    setEmailModalOpen(true);
   }
 
   function parseForm():
@@ -585,6 +596,17 @@ export function ContratoSection({
           )}
         </div>
       </form>
+
+      {contratoRecipientEmail && (
+        <EmailShareModal
+          open={emailModalOpen}
+          onClose={() => setEmailModalOpen(false)}
+          recipientEmail={contratoRecipientEmail}
+          subject={contratoEmailSubject}
+          initialMessage={contratoEmailMessage}
+          instructions="1. Copia el mensaje 2. Abre Gmail 3. Pega el mensaje 4. Adjunta el contrato Word"
+        />
+      )}
     </Shell>
   );
 }

@@ -1,5 +1,6 @@
 import type { ContratoFirmante } from "@/app/data/contratos";
 import { formatWeddingDate } from "@/lib/format";
+import { openGmailComposeWithClipboard } from "@/lib/gmail-compose";
 import { buildGrupoWhatsAppUrl, buildWhatsAppUrl } from "@/lib/whatsapp";
 import {
   formatWeddingDateWhatsApp,
@@ -38,10 +39,26 @@ export function buildContratoShareMessage(
 - Equipo Celestia`;
 }
 
-export function buildContratoShareEmailBody(whatsappMessage: string): string {
-  return `${whatsappMessage}
+export function buildContratoShareEmailMessage(boda: ContratoShareBoda): string {
+  const nombrePareja = boda.nombre_pareja.trim() || "equipo";
 
-Por favor adjunta manualmente el archivo del contrato (.docx) que generaste en Bloom by Celestia.`;
+  return `Hola ${nombrePareja},
+
+Qué alegría compartirles este paso tan importante dentro de su proceso 🌸
+
+Adjunto encontrarán su contrato de servicios, en el que hemos dejado consignada toda la información correspondiente a la planeación de su boda.
+
+Les recomiendo revisarlo con calma y, por supuesto, si tienen cualquier duda o hay algo que quieran validar conmigo, estaré muy atenta para acompañarlos.
+
+Para nosotros es un honor ser parte de este momento tan especial.
+
+Quedo muy atenta
+
+Un abrazo,
+Luisa Bustamante
+Celestia Events
+319 553 8654
+celestiaandevents@gmail.com`;
 }
 
 export function buildContratoShareEmailSubject(nombrePareja: string): string {
@@ -89,7 +106,6 @@ export function openContratoShareEmail(
   email: string,
   subject: string,
   body: string,
-): void {
-  const url = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  window.location.href = url;
+): { copied: boolean } {
+  return openGmailComposeWithClipboard({ email, subject, message: body });
 }

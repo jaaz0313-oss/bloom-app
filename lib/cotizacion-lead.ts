@@ -5,6 +5,7 @@ import {
   PROVIDER_CATEGORIES,
 } from "@/lib/provider-categories";
 import { formatCurrency, formatWeddingDate } from "@/lib/format";
+import { openGmailComposeWithClipboard } from "@/lib/gmail-compose";
 import { buildWhatsAppUrl } from "@/lib/whatsapp";
 import {
   formatCurrencyWhatsApp,
@@ -333,8 +334,9 @@ export function buildCotizacionLeadEmail(params: {
   items: CotizacionItemRow[];
 }): { subject: string; body: string } {
   const body = buildCotizacionLeadWhatsAppMessage(params);
+  const nombre = params.nombreLead.trim() || "Boda";
   return {
-    subject: `Proyección estimada - Boda ${params.nombreLead}`,
+    subject: `Proyección estimada - Boda ${nombre} - Celestia Events`,
     body,
   };
 }
@@ -353,7 +355,6 @@ export function openCotizacionLeadEmail(
   email: string,
   subject: string,
   body: string,
-): void {
-  const url = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  window.location.href = url;
+): { copied: boolean } {
+  return openGmailComposeWithClipboard({ email, subject, message: body });
 }
