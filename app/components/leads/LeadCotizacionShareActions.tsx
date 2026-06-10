@@ -28,6 +28,7 @@ export function LeadCotizacionShareActions({
 }: LeadCotizacionShareActionsProps) {
   const [whatsappWarning, setWhatsappWarning] = useState<string | null>(null);
   const [emailWarning, setEmailWarning] = useState<string | null>(null);
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
   const [emailCopiedNotice, setEmailCopiedNotice] = useState(false);
   const emailCopiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [whatsappLocale, setWhatsappLocale] = useState<WhatsAppLocale>("es");
