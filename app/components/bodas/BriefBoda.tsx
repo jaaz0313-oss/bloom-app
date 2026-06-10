@@ -9,9 +9,11 @@ import {
   type BriefBodaRow,
 } from "@/app/data/brief-boda";
 import { supabase } from "@/lib/supabase";
+import { AUDITORIA_ACCIONES, logAuditoria } from "@/lib/auditoria";
 
 type BriefBodaProps = {
   bodaId: string;
+  bodaNombre: string;
   initialBrief: BriefBodaRow | null;
   embedded?: boolean;
 };
@@ -200,6 +202,7 @@ function formsEqual(a: BriefBodaFormData, b: BriefBodaFormData): boolean {
 
 export function BriefBoda({
   bodaId,
+  bodaNombre,
   initialBrief,
   embedded = false,
 }: BriefBodaProps) {
@@ -287,6 +290,13 @@ export function BriefBoda({
       const nextForm = briefRowToFormData(row);
       setForm(nextForm);
       setSavedForm(nextForm);
+      await logAuditoria({
+        accion: AUDITORIA_ACCIONES.BRIEF_GUARDADO,
+        entidad: "brief_boda",
+        entidadId: row.id,
+        bodaNombre,
+        detalle: `Brief actualizado para ${bodaNombre}`,
+      });
       setJustSaved(true);
       window.setTimeout(() => setJustSaved(false), 2000);
       router.refresh();

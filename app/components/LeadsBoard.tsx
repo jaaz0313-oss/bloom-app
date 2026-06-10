@@ -332,6 +332,14 @@ export function LeadsBoard({
         .update({ estado: "descartado" })
         .eq("id", discardTarget.id);
       if (updateError) return setError(updateError.message);
+
+      await logAuditoria({
+        accion: AUDITORIA_ACCIONES.LEAD_DESCARTADO,
+        entidad: "lead",
+        entidadId: discardTarget.id,
+        detalle: `${discardTarget.nombre_pareja} · ${discardTarget.ciudad}`,
+      });
+
       setDiscardTarget(null);
       router.refresh();
     } finally {

@@ -26,6 +26,7 @@ import {
   openContratoShareWhatsApp,
 } from "@/lib/contrato-share";
 import { supabase } from "@/lib/supabase";
+import { AUDITORIA_ACCIONES, logAuditoria } from "@/lib/auditoria";
 import type { WhatsAppLocale } from "@/lib/whatsapp-locale";
 
 type ContratoSectionProps = {
@@ -340,6 +341,13 @@ export function ContratoSection({
         response.headers.get("X-Filename") ??
         `Contrato_Celestia_${bodaForDoc.nombre_pareja.replace(/\s+/g, "_")}.docx`;
       downloadContratoDocx(blob, filename);
+      await logAuditoria({
+        accion: AUDITORIA_ACCIONES.CONTRATO_GENERADO,
+        entidad: "contrato",
+        entidadId: contratoId ?? bodaId,
+        bodaNombre: bodaForDoc.nombre_pareja,
+        detalle: `${cliente.nombre} · ${formatCurrency(parsed.honorarios)} · ${parsed.ciudad}`,
+      });
       setHasGeneratedOnce(true);
       setSuccess("Contrato generado y descargado.");
     } catch (err) {

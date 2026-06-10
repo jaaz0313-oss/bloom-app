@@ -19,6 +19,12 @@ import type { UserRole } from "@/lib/auth/roles";
 import { formatShortDateStable } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
 import { eliminarEventoCalendarSiVinculado } from "@/lib/cita-google-calendar";
+import {
+  AUDITORIA_ACCIONES,
+  buildCitaAuditoriaDetalle,
+  logAuditoria,
+  resolveCitaBodaNombre,
+} from "@/lib/auditoria";
 import { CitaFormModal } from "./CitaFormModal";
 import type { CitaLookupBoda, CitaLookupEquipo, CitaLookupLead } from "./cita-lookup";
 
@@ -83,6 +89,13 @@ export function CitaCalendarioDetalleModal({
       if (updateError) throw new Error(updateError.message);
 
       const updated = normalizeCitaRow(data as CitaRow);
+      await logAuditoria({
+        accion: AUDITORIA_ACCIONES.CITA_CANCELADA,
+        entidad: "cita",
+        entidadId: updated.id,
+        bodaNombre: resolveCitaBodaNombre(updated, bodasById, leadsById),
+        detalle: buildCitaAuditoriaDetalle(updated),
+      });
       setCancelConfirmOpen(false);
       onChange(updated);
       onClose();

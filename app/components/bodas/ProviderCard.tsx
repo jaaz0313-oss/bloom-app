@@ -26,7 +26,11 @@ import type { WhatsAppLocale } from "@/lib/whatsapp-locale";
 import { ProviderContratadoConfirmacionModal } from "./ProviderContratadoConfirmacionModal";
 import { ProviderPayments } from "./ProviderPayments";
 import { ProviderComisionFields } from "./ProviderComisionFields";
-import { AUDITORIA_ACCIONES, logAuditoria } from "@/lib/auditoria";
+import {
+  AUDITORIA_ACCIONES,
+  buildProveedorEstadoAuditoriaDetalle,
+  logAuditoria,
+} from "@/lib/auditoria";
 import { getPorcentajeComisionProveedor } from "@/lib/comisiones";
 import {
   buildPaymentReminderDashboardMessage,
@@ -473,7 +477,10 @@ export function ProviderCard({
         entidad: "proveedor",
         entidadId: provider.id,
         bodaNombre: boda.nombrePareja,
-        detalle: `${provider.nombre}: cotización solicitada`,
+        detalle: buildProveedorEstadoAuditoriaDetalle(
+          provider.nombre,
+          "cotizacion_solicitada",
+        ),
       });
 
       router.refresh();
@@ -588,7 +595,10 @@ export function ProviderCard({
         entidad: "proveedor",
         entidadId: provider.id,
         bodaNombre: boda.nombrePareja,
-        detalle: `${provider.nombre}: ${nuevoEstado}`,
+        detalle: buildProveedorEstadoAuditoriaDetalle(
+          provider.nombre,
+          nuevoEstado,
+        ),
       });
 
       if (nuevoEstado === "contratado") {

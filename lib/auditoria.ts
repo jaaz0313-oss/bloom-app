@@ -1,6 +1,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 
+import { CITA_TIPO_LABELS, type CitaRow } from "@/app/data/citas";
+import {
+  PROVIDER_STATUS_LABELS,
+  type ProviderStatus,
+} from "@/app/data/providers";
+import { formatShortDateStable } from "@/lib/format";
+
 export const AUDITORIA_ACCIONES = {
   BODA_CREADA: "Boda creada",
   BODA_ELIMINADA: "Boda eliminada",
@@ -10,11 +17,50 @@ export const AUDITORIA_ACCIONES = {
   PAGO_REGISTRADO: "Pago registrado",
   PAGO_ELIMINADO: "Pago eliminado",
   COTIZACION_REGISTRADA: "Cotización registrada",
+  CITA_CREADA: "Cita creada",
+  CITA_EDITADA: "Cita editada",
+  CITA_CANCELADA: "Cita cancelada",
+  DRIVE_CARPETA_CREADA: "Carpeta Drive creada",
+  CONTRATO_GENERADO: "Contrato generado",
+  BRIEF_GUARDADO: "Brief guardado",
+  NOTA_REUNION_AGREGADA: "Nota de reunión agregada",
   LEAD_CREADO: "Lead creado",
   LEAD_CONVERTIDO: "Lead convertido a boda",
+  LEAD_DESCARTADO: "Lead descartado",
   BODA_REVERTIDA_A_LEAD: "Boda revertida a lead",
   COMISION_RECIBIDA: "Comisión marcada como recibida",
 } as const;
+
+export function buildCitaAuditoriaDetalle(
+  cita: Pick<CitaRow, "titulo" | "tipo" | "fecha">,
+): string {
+  return `${cita.titulo} · ${CITA_TIPO_LABELS[cita.tipo]} · ${formatShortDateStable(cita.fecha)}`;
+}
+
+export function resolveCitaBodaNombre(
+  cita: Pick<CitaRow, "boda_id" | "lead_id">,
+  bodasById: Record<string, { nombre_pareja: string }>,
+  leadsById: Record<string, { nombre_pareja: string }> = {},
+): string | null {
+  if (cita.boda_id && bodasById[cita.boda_id]) {
+    return bodasById[cita.boda_id].nombre_pareja;
+  }
+  if (cita.lead_id && leadsById[cita.lead_id]) {
+    return leadsById[cita.lead_id].nombre_pareja;
+  }
+  return null;
+}
+
+export function buildProveedorEstadoAuditoriaDetalle(
+  nombre: string,
+  estado: ProviderStatus | string,
+): string {
+  const label =
+    estado in PROVIDER_STATUS_LABELS
+      ? PROVIDER_STATUS_LABELS[estado as ProviderStatus]
+      : estado;
+  return `${nombre}: ${label}`;
+}
 
 export type RegistrarAccionParams = {
   usuarioId: string | null;

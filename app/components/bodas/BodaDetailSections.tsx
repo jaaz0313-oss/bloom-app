@@ -160,6 +160,7 @@ export function BodaDetailSections({
         <NotasReunionSection
           embedded
           bodaId={bodaId}
+          bodaNombre={boda.nombre_pareja}
           initialNotas={notasReunion}
           providers={providers}
           currentUserId={currentUserId}
@@ -174,7 +175,12 @@ export function BodaDetailSections({
           defaultOpen={false}
           hasContent={hasBrief}
         >
-          <BriefBoda embedded bodaId={bodaId} initialBrief={brief} />
+          <BriefBoda
+            embedded
+            bodaId={bodaId}
+            bodaNombre={boda.nombre_pareja}
+            initialBrief={brief}
+          />
         </BodaAccordionSection>
       )}
 

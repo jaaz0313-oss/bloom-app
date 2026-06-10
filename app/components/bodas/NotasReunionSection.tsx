@@ -7,9 +7,11 @@ import type { ProveedorRow } from "@/app/data/providers";
 import { formatDateTimeStable } from "@/lib/format";
 import type { UserRole } from "@/lib/auth/roles";
 import { supabase } from "@/lib/supabase";
+import { AUDITORIA_ACCIONES, logAuditoria } from "@/lib/auditoria";
 
 type NotasReunionSectionProps = {
   bodaId: string;
+  bodaNombre: string;
   initialNotas: NotaReunionRow[];
   providers: ProveedorRow[];
   currentUserId: string;
@@ -56,6 +58,7 @@ function buildConQuienLabel(
 
 export function NotasReunionSection({
   bodaId,
+  bodaNombre,
   initialNotas,
   providers,
   currentUserId,
@@ -144,7 +147,15 @@ export function NotasReunionSection({
       }
 
       if (data) {
-        setNotas((current) => [data as NotaReunionRow, ...current]);
+        const nota = data as NotaReunionRow;
+        setNotas((current) => [nota, ...current]);
+        await logAuditoria({
+          accion: AUDITORIA_ACCIONES.NOTA_REUNION_AGREGADA,
+          entidad: "nota_reunion",
+          entidadId: nota.id,
+          bodaNombre,
+          detalle: `${conQuien} · ${resumen.slice(0, 120)}${resumen.length > 120 ? "…" : ""}`,
+        });
       }
 
       setFormOpen(false);

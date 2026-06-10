@@ -48,6 +48,12 @@ import {
   crearEventoCalendar,
 } from "@/lib/cita-google-calendar";
 import { supabase } from "@/lib/supabase";
+import {
+  AUDITORIA_ACCIONES,
+  buildCitaAuditoriaDetalle,
+  logAuditoria,
+  resolveCitaBodaNombre,
+} from "@/lib/auditoria";
 
 export type { CitaLookupBoda, CitaLookupEquipo, CitaLookupLead } from "./cita-lookup";
 
@@ -389,6 +395,14 @@ export function CitaFormModal({
           Boolean(editingCita.google_event_id),
         );
 
+        await logAuditoria({
+          accion: AUDITORIA_ACCIONES.CITA_EDITADA,
+          entidad: "cita",
+          entidadId: syncedCita.id,
+          bodaNombre: resolveCitaBodaNombre(syncedCita, bodasById, leadsById),
+          detalle: buildCitaAuditoriaDetalle(syncedCita),
+        });
+
         setCreatedCita(syncedCita);
         setInvolvedEmails(emailEntries);
         setConfirmacionTipo(scheduleChanged ? "modified" : "updated");
@@ -415,6 +429,14 @@ export function CitaFormModal({
 
       const cita = data as CitaRow;
       const syncedCita = await applyGoogleCalendarSync(cita, "create", false);
+
+      await logAuditoria({
+        accion: AUDITORIA_ACCIONES.CITA_CREADA,
+        entidad: "cita",
+        entidadId: syncedCita.id,
+        bodaNombre: resolveCitaBodaNombre(syncedCita, bodasById, leadsById),
+        detalle: buildCitaAuditoriaDetalle(syncedCita),
+      });
 
       setCreatedCita(syncedCita);
       setInvolvedEmails(emailEntries);

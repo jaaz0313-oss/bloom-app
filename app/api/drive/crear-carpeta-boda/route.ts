@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentAuthUser } from "@/lib/auth/user-profiles";
+import { AUDITORIA_ACCIONES, registrarAccion } from "@/lib/auditoria";
 import { createDriveFolderForBoda } from "@/lib/google-drive";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 
@@ -54,6 +55,17 @@ export async function POST(request: Request) {
         { status: 500 },
       );
     }
+
+    await registrarAccion({
+      usuarioId: user.id,
+      usuarioNombre: user.nombre,
+      accion: AUDITORIA_ACCIONES.DRIVE_CARPETA_CREADA,
+      entidad: "boda",
+      entidadId: bodaId,
+      bodaNombre: (boda as { nombre_pareja: string }).nombre_pareja,
+      detalle: folder.folder_name ?? folder.folder_url,
+      client: supabase,
+    });
 
     return NextResponse.json({ folder_url: folder.folder_url });
   } catch (error) {
