@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { EmailShareModal } from "@/app/components/ui/EmailShareModal";
 import { WhatsAppLocaleToggle } from "@/app/components/ui/WhatsAppLocaleToggle";
 import type { WhatsAppLocale } from "@/lib/whatsapp-locale";
