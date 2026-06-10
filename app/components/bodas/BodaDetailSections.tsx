@@ -9,6 +9,7 @@ import {
 import { ClientInfoSection } from "@/app/components/bodas/ClientInfoSection";
 import { ContratoSection } from "@/app/components/bodas/ContratoSection";
 import { NotasInternas } from "@/app/components/bodas/NotasInternas";
+import { NotasReunionSection } from "@/app/components/bodas/NotasReunionSection";
 import { PaymentProjection } from "@/app/components/bodas/PaymentProjection";
 import { ProviderList } from "@/app/components/bodas/ProviderList";
 import { CronogramaContratacion } from "@/app/components/CronogramaContratacion";
@@ -17,6 +18,7 @@ import type { CitaRow } from "@/app/data/citas";
 import type { BriefBodaRow } from "@/app/data/brief-boda";
 import type { ContratoRow } from "@/app/data/contratos";
 import type { NotaBodaRow } from "@/app/data/notas-boda";
+import type { NotaReunionRow } from "@/app/data/notas-reunion";
 import { groupPagosByProveedor, type PagoRow } from "@/app/data/pagos";
 import {
   computePaymentProjection,
@@ -37,6 +39,7 @@ type BodaDetailSectionsProps = {
   providers: ProveedorRow[];
   pagosByProveedor: Record<string, PagoRow[]>;
   notas: NotaBodaRow[];
+  notasReunion: NotaReunionRow[];
   brief: BriefBodaRow | null;
   contrato: ContratoRow | null;
   citas: CitaRow[];
@@ -65,6 +68,7 @@ export function BodaDetailSections({
   providers,
   pagosByProveedor,
   notas,
+  notasReunion,
   brief,
   contrato,
   citas,
@@ -142,6 +146,22 @@ export function BodaDetailSections({
           bodaNombre={boda.nombre_pareja}
           initialNotas={notas}
           equipo={equipo}
+          currentUserId={currentUserId}
+          currentUserNombre={plannerName}
+          role={role}
+        />
+      </BodaAccordionSection>
+
+      <BodaAccordionSection
+        title="Notas de reunión"
+        defaultOpen={false}
+        hasContent={notasReunion.length > 0}
+      >
+        <NotasReunionSection
+          embedded
+          bodaId={bodaId}
+          initialNotas={notasReunion}
+          providers={providers}
           currentUserId={currentUserId}
           currentUserNombre={plannerName}
           role={role}
