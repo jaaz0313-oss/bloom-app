@@ -9,7 +9,7 @@ import type { CitaRow } from "@/app/data/citas";
 import type { BriefBodaRow } from "@/app/data/brief-boda";
 import type { ContratoRow } from "@/app/data/contratos";
 import type { NotaBodaRow } from "@/app/data/notas-boda";
-import type { NotaReunionRow } from "@/app/data/notas-reunion";
+import { fetchNotasReunionForBoda } from "@/app/data/notas-reunion";
 import type { BodaRow } from "@/app/data/weddings";
 import { groupPagosByProveedor, type PagoRow } from "@/app/data/pagos";
 import type { ProveedorRow } from "@/app/data/providers";
@@ -97,17 +97,7 @@ export default async function BodaDetailPage({ params, searchParams }: PageProps
 
   const notas = (notasData ?? []) as NotaBodaRow[];
 
-  const { data: notasReunionData, error: notasReunionError } = await supabase
-    .from("notas_reunion")
-    .select("*")
-    .eq("boda_id", id)
-    .order("fecha", { ascending: false });
-
-  if (notasReunionError) {
-    console.error(notasReunionError);
-  }
-
-  const notasReunion = (notasReunionData ?? []) as NotaReunionRow[];
+  const notasReunion = await fetchNotasReunionForBoda(supabase, id);
 
   const { data: briefData } = await supabase
     .from("brief_boda")
