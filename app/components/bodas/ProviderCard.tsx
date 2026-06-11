@@ -14,7 +14,9 @@ import { formatCurrency, formatShortDateStable } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
 import { syncBodaProveedoresContratados } from "@/lib/sync-boda";
 import type { PagoRow } from "@/app/data/pagos";
+import type { NotaReunionRow } from "@/app/data/notas-reunion";
 import { hasPermission, type UserRole } from "@/lib/auth/roles";
+import { ProviderNotasReunion } from "@/app/components/bodas/ProviderNotasReunion";
 import { WhatsAppLocaleToggle } from "@/app/components/ui/WhatsAppLocaleToggle";
 import {
   buildCotizacionMessageByTipo,
@@ -43,6 +45,8 @@ type ProviderCardProps = {
   boda: CotizacionBodaContext;
   plannerName: string;
   pagos: PagoRow[];
+  notasReunion: NotaReunionRow[];
+  currentUserId: string;
   role: UserRole;
   dragHandle?: ProviderDragHandleProps;
 };
@@ -101,6 +105,8 @@ export function ProviderCard({
   boda,
   plannerName,
   pagos,
+  notasReunion,
+  currentUserId,
   role,
   dragHandle,
 }: ProviderCardProps) {
@@ -982,6 +988,19 @@ export function ProviderCard({
           role={role}
         />
       )}
+
+      <div className="mt-4 rounded bg-yellow-100 p-3 text-sm text-yellow-800">
+        DEBUG: Sección notas de reunión
+      </div>
+      <ProviderNotasReunion
+        bodaId={bodaId}
+        bodaNombre={boda.nombrePareja}
+        provider={provider}
+        initialNotas={notasReunion}
+        currentUserId={currentUserId}
+        currentUserNombre={plannerName}
+        role={role}
+      />
             </div>
           </div>
         </div>

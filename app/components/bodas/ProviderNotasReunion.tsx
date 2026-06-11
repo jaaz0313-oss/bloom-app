@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { NotaReunionRow } from "@/app/data/notas-reunion";
 import type { ProveedorRow } from "@/app/data/providers";
@@ -9,20 +9,17 @@ import type { UserRole } from "@/lib/auth/roles";
 import { supabase } from "@/lib/supabase";
 import { AUDITORIA_ACCIONES, logAuditoria } from "@/lib/auditoria";
 
-type NotasReunionSectionProps = {
+type ProviderNotasReunionProps = {
   bodaId: string;
   bodaNombre: string;
+  provider: ProveedorRow;
   initialNotas: NotaReunionRow[];
-  providers: ProveedorRow[];
   currentUserId: string;
   currentUserNombre: string;
   role: UserRole;
-  embedded?: boolean;
 };
 
 type FormState = {
-  tipoConQuien: "cliente" | "proveedor" | "equipo";
-  proveedorId: string;
   fecha: string;
   resumen: string;
 };
@@ -40,44 +37,31 @@ function toDatetimeLocalValue(date = new Date()): string {
 
 function emptyForm(): FormState {
   return {
-    tipoConQuien: "cliente",
-    proveedorId: "",
     fecha: toDatetimeLocalValue(),
     resumen: "",
   };
 }
 
-function buildConQuienLabel(
-  tipo: FormState["tipoConQuien"],
-  proveedorNombre: string,
-): string {
-  if (tipo === "cliente") return "Cliente";
-  if (tipo === "equipo") return "Equipo";
-  return `Proveedor: ${proveedorNombre}`;
-}
-
-export function NotasReunionSection({
+export function ProviderNotasReunion({
   bodaId,
   bodaNombre,
+  provider,
   initialNotas,
-  providers,
   currentUserId,
   currentUserNombre,
   role,
-  embedded = false,
-}: NotasReunionSectionProps) {
+}: ProviderNotasReunionProps) {
   const router = useRouter();
   const [notas, setNotas] = useState(initialNotas);
+
+  useEffect(() => {
+    setNotas(initialNotas);
+  }, [initialNotas]);
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  const providersById = useMemo(
-    () => Object.fromEntries(providers.map((p) => [p.id, p])),
-    [providers],
-  );
 
   const sortedNotas = useMemo(
     () =>
@@ -103,11 +87,6 @@ export function NotasReunionSection({
       return;
     }
 
-    if (form.tipoConQuien === "proveedor" && !form.proveedorId) {
-      setError("Selecciona un proveedor.");
-      return;
-    }
-
     if (!form.fecha) {
       setError("Indica la fecha y hora de la reunión.");
       return;
@@ -118,13 +97,7 @@ export function NotasReunionSection({
       return;
     }
 
-    const proveedor = form.proveedorId
-      ? providersById[form.proveedorId]
-      : undefined;
-    const conQuien = buildConQuienLabel(
-      form.tipoConQuien,
-      proveedor?.nombre ?? "Sin nombre",
-    );
+    const conQuien = provider.nombre.trim() || "Proveedor";
 
     setSubmitting(true);
     try {
@@ -132,6 +105,7 @@ export function NotasReunionSection({
         .from("notas_reunion")
         .insert({
           boda_id: bodaId,
+          proveedor_id: provider.id,
           fecha: new Date(form.fecha).toISOString(),
           con_quien: conQuien,
           resumen,
@@ -189,27 +163,14 @@ export function NotasReunionSection({
     }
   }
 
-  const shellClass = embedded
-    ? ""
-    : "rounded-2xl border border-bloom-border bg-bloom-surface p-5 shadow-sm";
-  const Shell = embedded ? "div" : "section";
-
   return (
-    <Shell className={shellClass}>
-      {!embedded && (
-        <>
-          <h2 className="font-display text-xl text-bloom-ink">Notas de reunión</h2>
-          <p className="mt-1 text-sm text-bloom-muted">
-            Resumen de reuniones con cliente, proveedores o equipo.
-          </p>
-        </>
-      )}
-
-      <div className={`flex justify-end ${embedded ? "" : "mt-5"}`}>
+    <section className="mt-5 border-t border-bloom-border pt-5">
+      <div className="flex items-center justify-between gap-3">
+        <h4 className="font-display text-lg text-bloom-ink">Notas de reunión</h4>
         <button
           type="button"
           onClick={openForm}
-          className="inline-flex items-center justify-center rounded-full bg-bloom-accent px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-bloom-accent-hover"
+          className="inline-flex items-center justify-center rounded-full border border-bloom-border bg-bloom-canvas px-4 py-2 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-border"
         >
           Nueva nota
         </button>
@@ -217,65 +178,21 @@ export function NotasReunionSection({
 
       {formOpen && (
         <form
-          className="mt-5 space-y-4 rounded-xl border border-bloom-border bg-bloom-canvas/50 p-4 sm:p-5"
+          className="mt-4 space-y-4 rounded-xl border border-bloom-border bg-bloom-canvas/50 p-4"
           onSubmit={handleSubmit}
         >
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Con quién">
-              <select
-                className={inputClass}
-                value={form.tipoConQuien}
-                onChange={(e) =>
-                  setForm((s) => ({
-                    ...s,
-                    tipoConQuien: e.target.value as FormState["tipoConQuien"],
-                    proveedorId:
-                      e.target.value === "proveedor" ? s.proveedorId : "",
-                  }))
-                }
-                disabled={submitting}
-              >
-                <option value="cliente">Cliente</option>
-                <option value="proveedor">Proveedor</option>
-                <option value="equipo">Equipo</option>
-              </select>
-            </Field>
-
-            <Field label="Fecha y hora">
-              <input
-                type="datetime-local"
-                className={inputClass}
-                value={form.fecha}
-                onChange={(e) =>
-                  setForm((s) => ({ ...s, fecha: e.target.value }))
-                }
-                disabled={submitting}
-                required
-              />
-            </Field>
-          </div>
-
-          {form.tipoConQuien === "proveedor" && (
-            <Field label="Proveedor">
-              <select
-                className={inputClass}
-                value={form.proveedorId}
-                onChange={(e) =>
-                  setForm((s) => ({ ...s, proveedorId: e.target.value }))
-                }
-                disabled={submitting}
-                required
-              >
-                <option value="">Seleccionar proveedor</option>
-                {providers.map((provider) => (
-                  <option key={provider.id} value={provider.id}>
-                    {provider.nombre}
-                    {provider.categoria ? ` · ${provider.categoria}` : ""}
-                  </option>
-                ))}
-              </select>
-            </Field>
-          )}
+          <Field label="Fecha y hora">
+            <input
+              type="datetime-local"
+              className={inputClass}
+              value={form.fecha}
+              onChange={(e) =>
+                setForm((s) => ({ ...s, fecha: e.target.value }))
+              }
+              disabled={submitting}
+              required
+            />
+          </Field>
 
           <Field label="Resumen">
             <textarea
@@ -296,14 +213,14 @@ export function NotasReunionSection({
               type="button"
               onClick={() => setFormOpen(false)}
               disabled={submitting}
-              className="rounded-full border border-bloom-border bg-bloom-surface px-5 py-2.5 text-sm font-medium text-bloom-ink transition-colors hover:bg-bloom-border disabled:opacity-60"
+              className="rounded-full border border-bloom-border bg-bloom-surface px-4 py-2 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-border disabled:opacity-60"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="inline-flex items-center justify-center rounded-full bg-bloom-accent px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-bloom-accent-hover disabled:opacity-60"
+              className="inline-flex items-center justify-center rounded-full bg-bloom-accent px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-bloom-accent-hover disabled:opacity-60"
             >
               {submitting ? "Guardando…" : "Guardar nota"}
             </button>
@@ -318,11 +235,11 @@ export function NotasReunionSection({
       )}
 
       {sortedNotas.length === 0 ? (
-        <p className="mt-6 rounded-xl border border-dashed border-bloom-border bg-bloom-canvas/60 px-4 py-8 text-center text-sm text-bloom-muted">
-          Aún no hay notas de reunión registradas.
+        <p className="mt-4 rounded-xl border border-dashed border-bloom-border bg-bloom-canvas/60 px-4 py-6 text-center text-sm text-bloom-muted">
+          Aún no hay notas de reunión con este proveedor.
         </p>
       ) : (
-        <ul className="mt-6 space-y-3">
+        <ul className="mt-4 space-y-3">
           {sortedNotas.map((nota) => (
             <li
               key={nota.id}
@@ -330,13 +247,9 @@ export function NotasReunionSection({
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-bloom-muted">
-                    <span>{formatDateTimeStable(nota.fecha)}</span>
-                    <span aria-hidden>·</span>
-                    <span className="font-medium text-bloom-ink">
-                      {nota.con_quien}
-                    </span>
-                  </div>
+                  <p className="text-xs font-medium text-bloom-muted">
+                    {formatDateTimeStable(nota.fecha)}
+                  </p>
                   <p className="mt-2 whitespace-pre-wrap text-sm text-bloom-ink">
                     {nota.resumen}
                   </p>
@@ -360,7 +273,7 @@ export function NotasReunionSection({
           ))}
         </ul>
       )}
-    </Shell>
+    </section>
   );
 }
 

@@ -18,6 +18,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import type { NotaReunionRow } from "@/app/data/notas-reunion";
 import type { PagoRow } from "@/app/data/pagos";
 import type { ProveedorRow } from "@/app/data/providers";
 import { hasPermission, type UserRole } from "@/lib/auth/roles";
@@ -32,7 +33,9 @@ type ProviderListProps = {
   bodaId: string;
   boda: CotizacionBodaContext;
   plannerName: string;
+  currentUserId: string;
   pagosByProveedor: Record<string, PagoRow[]>;
+  notasReunionByProveedor: Record<string, NotaReunionRow[]>;
   role: UserRole;
   whatsappGrupoLink?: string | null;
   highlightProveedorId?: string | null;
@@ -61,7 +64,9 @@ export function ProviderList({
   bodaId,
   boda,
   plannerName,
+  currentUserId,
   pagosByProveedor,
+  notasReunionByProveedor,
   role,
   whatsappGrupoLink = null,
   highlightProveedorId = null,
@@ -166,6 +171,8 @@ export function ProviderList({
           boda={boda}
           plannerName={plannerName}
           pagos={pagosByProveedor[provider.id] ?? []}
+          notasReunion={notasReunionByProveedor[provider.id] ?? []}
+          currentUserId={currentUserId}
           role={role}
         />
       </li>
@@ -209,6 +216,8 @@ export function ProviderList({
             boda={boda}
             plannerName={plannerName}
             pagos={pagosByProveedor[provider.id] ?? []}
+            notasReunion={notasReunionByProveedor[provider.id] ?? []}
+            currentUserId={currentUserId}
             role={role}
             highlightProveedorId={highlightProveedorId}
             compareBar={compareBar}
@@ -351,6 +360,8 @@ type SortableProviderItemProps = {
   boda: CotizacionBodaContext;
   plannerName: string;
   pagos: PagoRow[];
+  notasReunion: NotaReunionRow[];
+  currentUserId: string;
   role: UserRole;
   highlightProveedorId: string | null;
   compareBar: ReactNode;
@@ -362,6 +373,8 @@ function SortableProviderItem({
   boda,
   plannerName,
   pagos,
+  notasReunion,
+  currentUserId,
   role,
   highlightProveedorId,
   compareBar,
@@ -407,6 +420,8 @@ function SortableProviderItem({
         boda={boda}
         plannerName={plannerName}
         pagos={pagos}
+        notasReunion={notasReunion}
+        currentUserId={currentUserId}
         role={role}
         dragHandle={dragHandle}
       />

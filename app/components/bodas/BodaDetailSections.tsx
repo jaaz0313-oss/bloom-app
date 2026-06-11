@@ -9,7 +9,6 @@ import {
 import { ClientInfoSection } from "@/app/components/bodas/ClientInfoSection";
 import { ContratoSection } from "@/app/components/bodas/ContratoSection";
 import { NotasInternas } from "@/app/components/bodas/NotasInternas";
-import { NotasReunionSection } from "@/app/components/bodas/NotasReunionSection";
 import { PaymentProjection } from "@/app/components/bodas/PaymentProjection";
 import { ProviderList } from "@/app/components/bodas/ProviderList";
 import { CronogramaContratacion } from "@/app/components/CronogramaContratacion";
@@ -18,7 +17,10 @@ import type { CitaRow } from "@/app/data/citas";
 import type { BriefBodaRow } from "@/app/data/brief-boda";
 import type { ContratoRow } from "@/app/data/contratos";
 import type { NotaBodaRow } from "@/app/data/notas-boda";
-import type { NotaReunionRow } from "@/app/data/notas-reunion";
+import {
+  groupNotasReunionByProveedor,
+  type NotaReunionRow,
+} from "@/app/data/notas-reunion";
 import { groupPagosByProveedor, type PagoRow } from "@/app/data/pagos";
 import {
   computePaymentProjection,
@@ -89,6 +91,7 @@ export function BodaDetailSections({
   driveFolderUrl = null,
 }: BodaDetailSectionsProps) {
   const projection = computePaymentProjection(providers, pagosByProveedor);
+  const notasReunionByProveedor = groupNotasReunionByProveedor(notasReunion);
   const hasPaymentContent =
     projection.totalContratado > 0 ||
     projection.totalPagado > 0 ||
@@ -147,23 +150,6 @@ export function BodaDetailSections({
           bodaNombre={boda.nombre_pareja}
           initialNotas={notas}
           equipo={equipo}
-          currentUserId={currentUserId}
-          currentUserNombre={plannerName}
-          role={role}
-        />
-      </BodaAccordionSection>
-
-      <BodaAccordionSection
-        title="Notas de reunión"
-        defaultOpen={false}
-        hasContent={notasReunion.length > 0}
-      >
-        <NotasReunionSection
-          embedded
-          bodaId={bodaId}
-          bodaNombre={boda.nombre_pareja}
-          initialNotas={notasReunion}
-          providers={providers}
           currentUserId={currentUserId}
           currentUserNombre={plannerName}
           role={role}
@@ -249,7 +235,9 @@ export function BodaDetailSections({
               telefonoNovia: boda.telefono_novia,
             }}
             plannerName={plannerName}
+            currentUserId={currentUserId}
             pagosByProveedor={pagosByProveedor}
+            notasReunionByProveedor={notasReunionByProveedor}
             role={role}
             whatsappGrupoLink={boda.whatsapp_grupo_link}
             highlightProveedorId={highlightProveedorId}

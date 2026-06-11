@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export type NotaReunionRow = {
   id: string;
   boda_id: string;
+  proveedor_id: string | null;
   fecha: string;
   con_quien: string;
   resumen: string;
@@ -11,7 +12,18 @@ export type NotaReunionRow = {
   created_at: string;
 };
 
-export type NotaReunionConQuienTipo = "cliente" | "proveedor" | "equipo";
+export function groupNotasReunionByProveedor(
+  notas: NotaReunionRow[],
+): Record<string, NotaReunionRow[]> {
+  const map: Record<string, NotaReunionRow[]> = {};
+  for (const nota of notas) {
+    if (!nota.proveedor_id) continue;
+    const list = map[nota.proveedor_id] ?? [];
+    list.push(nota);
+    map[nota.proveedor_id] = list;
+  }
+  return map;
+}
 
 function isMissingNotasReunionTable(message: string): boolean {
   const lower = message.toLowerCase();
