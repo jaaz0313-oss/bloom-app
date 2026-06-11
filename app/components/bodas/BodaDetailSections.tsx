@@ -9,6 +9,7 @@ import {
 import { ClientInfoSection } from "@/app/components/bodas/ClientInfoSection";
 import { ContratoSection } from "@/app/components/bodas/ContratoSection";
 import { NotasInternas } from "@/app/components/bodas/NotasInternas";
+import { PaymentProjection } from "@/app/components/bodas/PaymentProjection";
 import { TastingsSection } from "@/app/components/bodas/TastingsSection";
 import { ProviderList } from "@/app/components/bodas/ProviderList";
 import { CronogramaContratacion } from "@/app/components/CronogramaContratacion";
