@@ -10,6 +10,7 @@ import type { BriefBodaRow } from "@/app/data/brief-boda";
 import type { ContratoRow } from "@/app/data/contratos";
 import type { NotaBodaRow } from "@/app/data/notas-boda";
 import { fetchNotasReunionForBoda } from "@/app/data/notas-reunion";
+import type { DetallesCelebracionRow } from "@/app/data/detalles-celebracion";
 import { sortTastingsBySchedule, type TastingRow } from "@/app/data/tastings";
 import type { BodaRow } from "@/app/data/weddings";
 import { groupPagosByProveedor, type PagoRow } from "@/app/data/pagos";
@@ -110,6 +111,15 @@ export default async function BodaDetailPage({ params, searchParams }: PageProps
   const tastings = sortTastingsBySchedule(
     (tastingsData ?? []) as TastingRow[],
   );
+
+  const { data: detallesCelebracionData } = await supabase
+    .from("detalles_celebracion")
+    .select("*")
+    .eq("boda_id", id)
+    .maybeSingle();
+
+  const detallesCelebracion =
+    (detallesCelebracionData as DetallesCelebracionRow | null) ?? null;
 
   const { data: briefData } = await supabase
     .from("brief_boda")
@@ -245,6 +255,7 @@ export default async function BodaDetailPage({ params, searchParams }: PageProps
           notas={notas}
           notasReunion={notasReunion}
           tastings={tastings}
+          detallesCelebracion={detallesCelebracion}
           brief={brief}
           contrato={contrato}
           citas={(citasData ?? []) as CitaRow[]}

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ClienteCotizacionBar } from "@/app/components/cliente/ClienteCotizacionBar";
 import { ClienteBodaEstado } from "@/app/components/cliente/ClienteBodaEstado";
 import { ClienteCronograma } from "@/app/components/cliente/ClienteCronograma";
+import { ClienteDetallesCelebracionSection } from "@/app/components/cliente/ClienteDetallesCelebracionSection";
 import { ClienteTastingsSection } from "@/app/components/cliente/ClienteTastingsSection";
 import { ClientePageFooter } from "@/app/components/cliente/ClientePageFooter";
 import { ClientePageHeader } from "@/app/components/cliente/ClientePageHeader";
@@ -11,6 +12,7 @@ import { ClienteProveedoresSection } from "@/app/components/cliente/ClienteProve
 import { ClienteProximosPagos } from "@/app/components/cliente/ClienteProximosPagos";
 import { ClienteSeatingPlanSection } from "@/app/components/cliente/ClienteSeatingPlanSection";
 import type { CronogramaItemRow } from "@/app/data/cronograma";
+import type { DetallesCelebracionRow } from "@/app/data/detalles-celebracion";
 import { sortTastingsBySchedule, type TastingRow } from "@/app/data/tastings";
 import type { BodaRow } from "@/app/data/weddings";
 import {
@@ -98,11 +100,19 @@ export default async function ClienteBodaPage({ params }: PageProps) {
     .select("*")
     .eq("boda_id", id);
 
+  const { data: detallesCelebracionData } = await supabase
+    .from("detalles_celebracion")
+    .select("*")
+    .eq("boda_id", id)
+    .maybeSingle();
+
   const contratados = (proveedoresContratadosData ?? []) as ProveedorRow[];
   const proveedoresCronograma = (proveedoresCronogramaData ??
     []) as ClienteCronogramaProveedor[];
   const cronogramaItems = (cronogramaData ?? []) as CronogramaItemRow[];
   const tastings = sortTastingsBySchedule((tastingsData ?? []) as TastingRow[]);
+  const detallesCelebracion =
+    (detallesCelebracionData as DetallesCelebracionRow | null) ?? null;
   const providerIds = contratados.map((provider) => provider.id);
   let pagosByProveedor: Record<string, PagoRow[]> = {};
 
@@ -171,6 +181,10 @@ export default async function ClienteBodaPage({ params }: PageProps) {
         <ClienteBodaEstado estado={estadoBoda} />
         <ClienteCronograma resumen={cronogramaResumen} />
         <ClienteTastingsSection tastings={tastings} />
+        <ClienteDetallesCelebracionSection
+          bodaId={id}
+          initialDetalles={detallesCelebracion}
+        />
         {mostrarSeatingPlan && (
           <ClienteSeatingPlanSection link={seatingPlanLink} />
         )}

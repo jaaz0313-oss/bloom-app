@@ -210,6 +210,15 @@ export type ClienteUiCopy = {
   tastingsTitle: string;
   tastingsSubtitle: (count: number, days: number) => string;
   tastingsNextItem: string;
+  detallesCelebracionTitle: string;
+  detallesCelebracionSubtitle: (filled: number, total: number) => string;
+  detallesCelebracionIntro: string;
+  detallesCelebracionSave: string;
+  detallesCelebracionSaving: string;
+  detallesCelebracionSaved: string;
+  detallesCelebracionSaveError: string;
+  detallesCelebracionUnsaved: string;
+  detallesCelebracionDiscard: string;
   paymentOverviewTitle: string;
   paymentOverviewSubtitle: string;
   paymentCompleted: string;
@@ -274,6 +283,19 @@ const UI_ES: ClienteUiCopy = {
       ? `1 tasting · ${days === 1 ? "1 día" : `${days} días`}`
       : `${count} tastings · ${days === 1 ? "1 día" : `${days} días`}`,
   tastingsNextItem: "Siguiente tasting",
+  detallesCelebracionTitle: "Detalles de su celebración",
+  detallesCelebracionSubtitle: (filled, total) =>
+    filled === 0
+      ? `${total} preguntas por completar`
+      : `${filled} de ${total} completadas`,
+  detallesCelebracionIntro:
+    "Compartan con nosotros las canciones y detalles de protocolo para que su celebración refleje su estilo.",
+  detallesCelebracionSave: "Guardar",
+  detallesCelebracionSaving: "Guardando…",
+  detallesCelebracionSaved: "Detalles guardados correctamente",
+  detallesCelebracionSaveError: "No se pudieron guardar los detalles.",
+  detallesCelebracionUnsaved: "Cambios sin guardar",
+  detallesCelebracionDiscard: "Descartar",
   paymentOverviewTitle: "Proyección de pagos",
   paymentOverviewSubtitle: "Resumen de lo contratado y el avance de tus pagos",
   paymentCompleted: "completado",
@@ -342,6 +364,19 @@ const UI_EN: ClienteUiCopy = {
       ? `1 tasting · ${days === 1 ? "1 day" : `${days} days`}`
       : `${count} tastings · ${days === 1 ? "1 day" : `${days} days`}`,
   tastingsNextItem: "Next tasting",
+  detallesCelebracionTitle: "Your celebration details",
+  detallesCelebracionSubtitle: (filled, total) =>
+    filled === 0
+      ? `${total} questions to complete`
+      : `${filled} of ${total} completed`,
+  detallesCelebracionIntro:
+    "Share your songs and ceremony protocol details with us so your celebration reflects your style.",
+  detallesCelebracionSave: "Save",
+  detallesCelebracionSaving: "Saving…",
+  detallesCelebracionSaved: "Details saved successfully",
+  detallesCelebracionSaveError: "Could not save the details.",
+  detallesCelebracionUnsaved: "Unsaved changes",
+  detallesCelebracionDiscard: "Discard",
   paymentOverviewTitle: "Payment overview",
   paymentOverviewSubtitle: "Summary of what's contracted and your payment progress",
   paymentCompleted: "completed",

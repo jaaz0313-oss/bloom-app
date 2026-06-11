@@ -8,6 +8,7 @@ import {
 } from "@/app/components/bodas/BodaAccordionSection";
 import { ClientInfoSection } from "@/app/components/bodas/ClientInfoSection";
 import { ContratoSection } from "@/app/components/bodas/ContratoSection";
+import { DetallesCelebracionSection } from "@/app/components/bodas/DetallesCelebracionSection";
 import { NotasInternas } from "@/app/components/bodas/NotasInternas";
 import { PaymentProjection } from "@/app/components/bodas/PaymentProjection";
 import { TastingsSection } from "@/app/components/bodas/TastingsSection";
@@ -17,6 +18,10 @@ import { CitasSection } from "@/app/components/citas/CitasSection";
 import type { CitaRow } from "@/app/data/citas";
 import type { BriefBodaRow } from "@/app/data/brief-boda";
 import type { ContratoRow } from "@/app/data/contratos";
+import {
+  hasDetallesCelebracionContent,
+  type DetallesCelebracionRow,
+} from "@/app/data/detalles-celebracion";
 import type { NotaBodaRow } from "@/app/data/notas-boda";
 import {
   groupNotasReunionByProveedor,
@@ -46,6 +51,7 @@ type BodaDetailSectionsProps = {
   notas: NotaBodaRow[];
   notasReunion: NotaReunionRow[];
   tastings: TastingRow[];
+  detallesCelebracion: DetallesCelebracionRow | null;
   brief: BriefBodaRow | null;
   contrato: ContratoRow | null;
   citas: CitaRow[];
@@ -76,6 +82,7 @@ export function BodaDetailSections({
   notas,
   notasReunion,
   tastings,
+  detallesCelebracion,
   brief,
   contrato,
   citas,
@@ -172,6 +179,17 @@ export function BodaDetailSections({
           initialTastings={tastings}
           equipo={equipo}
           role={role}
+        />
+      </BodaAccordionSection>
+
+      <BodaAccordionSection
+        title="Detalles de celebración"
+        defaultOpen={false}
+        hasContent={hasDetallesCelebracionContent(detallesCelebracion)}
+      >
+        <DetallesCelebracionSection
+          embedded
+          detalles={detallesCelebracion}
         />
       </BodaAccordionSection>
 
