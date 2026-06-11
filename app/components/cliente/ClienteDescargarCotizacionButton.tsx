@@ -2,21 +2,34 @@
 
 import { useState } from "react";
 import { useClienteLocale } from "@/app/components/cliente/ClienteLocaleProvider";
+import { CLIENTE_DOWNLOAD_BUTTON_CLASS } from "@/app/components/cliente/cliente-download-styles";
 
 type ClienteDescargarCotizacionButtonProps = {
   bodaId: string;
+  inline?: boolean;
+  onError?: (message: string | null) => void;
 };
 
 export function ClienteDescargarCotizacionButton({
   bodaId,
+  inline = false,
+  onError,
 }: ClienteDescargarCotizacionButtonProps) {
   const { t } = useClienteLocale();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  function reportError(message: string | null) {
+    if (inline && onError) {
+      onError(message);
+    } else {
+      setError(message);
+    }
+  }
+
   async function handleDownload() {
     setLoading(true);
-    setError(null);
+    reportError(null);
 
     try {
       const response = await fetch(`/api/cliente/${bodaId}/cotizacion-pdf`);
@@ -40,7 +53,7 @@ export function ClienteDescargarCotizacionButton({
       anchor.click();
       URL.revokeObjectURL(url);
     } catch (downloadError) {
-      setError(
+      reportError(
         downloadError instanceof Error
           ? downloadError.message
           : t.downloadQuoteError,
@@ -50,17 +63,25 @@ export function ClienteDescargarCotizacionButton({
     }
   }
 
+  const button = (
+    <button
+      type="button"
+      onClick={handleDownload}
+      disabled={loading}
+      className={CLIENTE_DOWNLOAD_BUTTON_CLASS}
+    >
+      <DownloadIcon />
+      {loading ? t.generatingPdf : t.downloadQuote}
+    </button>
+  );
+
+  if (inline) {
+    return button;
+  }
+
   return (
     <div className="flex shrink-0 flex-col items-center gap-2">
-      <button
-        type="button"
-        onClick={handleDownload}
-        disabled={loading}
-        className="inline-flex min-h-[44px] items-center justify-center gap-2.5 rounded-full border border-bloom-accent/30 bg-bloom-surface px-6 py-2.5 text-sm font-medium text-bloom-accent shadow-sm transition-colors hover:border-bloom-accent hover:bg-bloom-canvas disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        <DownloadIcon />
-        {loading ? t.generatingPdf : t.downloadQuote}
-      </button>
+      {button}
       {error && (
         <p className="text-center text-sm text-red-700" role="alert">
           {error}

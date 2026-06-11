@@ -9,12 +9,14 @@ type ClientePageHeaderProps = {
   nombrePareja: string;
   fechaBoda: string;
   ciudad?: string | null;
+  showLanguageToggle?: boolean;
 };
 
 export function ClientePageHeader({
   nombrePareja,
   fechaBoda,
   ciudad,
+  showLanguageToggle = true,
 }: ClientePageHeaderProps) {
   const { locale, t } = useClienteLocale();
   const fechaFormateada = formatClienteWeddingDate(fechaBoda, locale);
@@ -26,9 +28,11 @@ export function ClientePageHeader({
         aria-hidden
       />
 
-      <div className="absolute right-4 top-4 z-10 sm:right-8 sm:top-5">
-        <ClienteLanguageToggle />
-      </div>
+      {showLanguageToggle && (
+        <div className="absolute right-4 top-4 z-10 sm:right-8 sm:top-5">
+          <ClienteLanguageToggle />
+        </div>
+      )}
 
       <div className="relative mx-auto flex max-w-3xl flex-col items-center gap-2 px-5 py-6 text-center sm:px-8">
         <CelestiaLogo variant="header" />

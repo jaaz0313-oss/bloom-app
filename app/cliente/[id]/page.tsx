@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ClienteCotizacionBar } from "@/app/components/cliente/ClienteCotizacionBar";
-import { ClienteDescargarProyeccionButton } from "@/app/components/cliente/ClienteDescargarProyeccionButton";
 import { ClienteBodaEstado } from "@/app/components/cliente/ClienteBodaEstado";
 import { ClienteCronograma } from "@/app/components/cliente/ClienteCronograma";
 import { ClientePageFooter } from "@/app/components/cliente/ClientePageFooter";
@@ -137,8 +136,10 @@ export default async function ClienteBodaPage({ params }: PageProps) {
     Boolean(seatingPlanLink) &&
     shouldShowClienteSeatingPlan(cronogramaItems, bodaRow.fecha_boda);
 
-  const showCotizacionBar =
-    cotizacionDisponible || (mostrarSeatingPlan && !cotizacionDisponible);
+  const showDownloadBar =
+    cotizacionDisponible ||
+    contratados.length > 0 ||
+    (mostrarSeatingPlan && !cotizacionDisponible);
 
   return (
     <div className="flex min-h-full flex-col bg-bloom-canvas">
@@ -146,12 +147,14 @@ export default async function ClienteBodaPage({ params }: PageProps) {
         nombrePareja={bodaRow.nombre_pareja}
         fechaBoda={bodaRow.fecha_boda}
         ciudad={bodaRow.ciudad}
+        showLanguageToggle={!showDownloadBar}
       />
 
-      {showCotizacionBar && (
+      {showDownloadBar && (
         <ClienteCotizacionBar
           bodaId={id}
           cotizacionDisponible={cotizacionDisponible}
+          hasProyeccionActual={contratados.length > 0}
           seatingPlanLink={mostrarSeatingPlan ? seatingPlanLink : null}
         />
       )}
@@ -167,11 +170,6 @@ export default async function ClienteBodaPage({ params }: PageProps) {
           totalPagado={totalPagado}
           saldoPendiente={saldoPendiente}
         />
-        {contratados.length > 0 && (
-          <div className="flex justify-center">
-            <ClienteDescargarProyeccionButton bodaId={id} />
-          </div>
-        )}
         <ClienteProximosPagos pagosPendientes={pagosPendientes} />
         <ClienteProveedoresSection
           contratados={contratados}
