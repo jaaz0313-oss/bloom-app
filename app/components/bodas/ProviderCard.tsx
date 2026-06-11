@@ -989,9 +989,6 @@ export function ProviderCard({
         />
       )}
 
-      <div className="mt-4 rounded bg-yellow-100 p-3 text-sm text-yellow-800">
-        DEBUG: Sección notas de reunión
-      </div>
       <ProviderNotasReunion
         bodaId={bodaId}
         bodaNombre={boda.nombrePareja}
