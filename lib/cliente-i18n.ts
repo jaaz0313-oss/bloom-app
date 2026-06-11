@@ -230,8 +230,10 @@ export type ClienteUiCopy = {
   seatingSubtitle: string;
   viewSeatingPlan: string;
   downloadQuote: string;
+  downloadProjection: string;
   generatingPdf: string;
   downloadQuoteError: string;
+  downloadProjectionError: string;
   languageToggleLabel: string;
 };
 
@@ -290,8 +292,10 @@ const UI_ES: ClienteUiCopy = {
   seatingSubtitle: "Distribución de mesas e invitados para su celebración",
   viewSeatingPlan: "Ver seating plan",
   downloadQuote: "Descargar cotización",
+  downloadProjection: "Descargar proyección actual",
   generatingPdf: "Generando PDF…",
   downloadQuoteError: "No se pudo descargar la cotización.",
+  downloadProjectionError: "No se pudo descargar la proyección.",
   languageToggleLabel: "Idioma",
 };
 
@@ -350,8 +354,10 @@ const UI_EN: ClienteUiCopy = {
   seatingSubtitle: "Table layout and guest seating for your celebration",
   viewSeatingPlan: "View seating plan",
   downloadQuote: "Download quote",
+  downloadProjection: "Download current projection",
   generatingPdf: "Generating PDF…",
   downloadQuoteError: "Could not download the quote.",
+  downloadProjectionError: "Could not download the projection.",
   languageToggleLabel: "Language",
 };
 

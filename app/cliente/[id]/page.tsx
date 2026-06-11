@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ClienteCotizacionBar } from "@/app/components/cliente/ClienteCotizacionBar";
+import { ClienteDescargarProyeccionButton } from "@/app/components/cliente/ClienteDescargarProyeccionButton";
 import { ClienteBodaEstado } from "@/app/components/cliente/ClienteBodaEstado";
 import { ClienteCronograma } from "@/app/components/cliente/ClienteCronograma";
 import { ClientePageFooter } from "@/app/components/cliente/ClientePageFooter";
@@ -166,6 +167,11 @@ export default async function ClienteBodaPage({ params }: PageProps) {
           totalPagado={totalPagado}
           saldoPendiente={saldoPendiente}
         />
+        {contratados.length > 0 && (
+          <div className="flex justify-center">
+            <ClienteDescargarProyeccionButton bodaId={id} />
+          </div>
+        )}
         <ClienteProximosPagos pagosPendientes={pagosPendientes} />
         <ClienteProveedoresSection
           contratados={contratados}
