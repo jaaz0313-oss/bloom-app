@@ -194,3 +194,91 @@ export async function deleteCalendarEvent(googleEventId: string): Promise<void> 
     sendUpdates: "none",
   });
 }
+
+export type TastingForCalendar = {
+  nombre_proveedor: string;
+  categoria: string | null;
+  fecha: string;
+  hora_inicio: string;
+  hora_fin: string | null;
+  direccion: string | null;
+  notas: string | null;
+  asignado_nombre: string | null;
+};
+
+function buildTastingEventTimes(tasting: TastingForCalendar) {
+  const startDateTime = buildDateTime(tasting.fecha, tasting.hora_inicio);
+  const endDateTime = tasting.hora_fin
+    ? buildDateTime(tasting.fecha, tasting.hora_fin)
+    : buildDateTime(
+        tasting.fecha,
+        addMinutesToTime(
+          citaTimeFromDb(tasting.hora_inicio),
+          DEFAULT_DURATION_MINUTES,
+        ),
+      );
+
+  return { startDateTime, endDateTime };
+}
+
+function buildTastingEventDescription(
+  tasting: TastingForCalendar,
+  bodaNombre: string | null,
+): string {
+  const lines: string[] = ["Tipo: Tasting"];
+
+  if (bodaNombre?.trim()) {
+    lines.push(`Boda: ${bodaNombre.trim()}`);
+  }
+
+  if (tasting.categoria?.trim()) {
+    lines.push(`Categoría: ${tasting.categoria.trim()}`);
+  }
+
+  if (tasting.asignado_nombre?.trim()) {
+    lines.push(`Asignado a: ${tasting.asignado_nombre.trim()}`);
+  }
+
+  if (tasting.direccion?.trim()) {
+    lines.push(`Dirección: ${tasting.direccion.trim()}`);
+  }
+
+  if (tasting.notas?.trim()) {
+    lines.push("", "Notas:", tasting.notas.trim());
+  }
+
+  return lines.join("\n");
+}
+
+function buildTastingEventResource(
+  tasting: TastingForCalendar,
+  bodaNombre: string | null,
+): calendar_v3.Schema$Event {
+  const timeZone = getCalendarTimezone();
+  const { startDateTime, endDateTime } = buildTastingEventTimes(tasting);
+  const summary = `Tasting · ${tasting.nombre_proveedor.trim() || "Proveedor"}`;
+
+  return {
+    summary,
+    description: buildTastingEventDescription(tasting, bodaNombre),
+    location: tasting.direccion?.trim() || undefined,
+    start: { dateTime: startDateTime, timeZone },
+    end: { dateTime: endDateTime, timeZone },
+  };
+}
+
+export async function createTastingCalendarEvent(
+  tasting: TastingForCalendar,
+  bodaNombre: string | null,
+): Promise<CalendarEventResult> {
+  const calendar = getCalendarClient();
+  const calendarId = getCalendarId();
+
+  const response = await calendar.events.insert({
+    calendarId,
+    sendUpdates: "none",
+    requestBody: buildTastingEventResource(tasting, bodaNombre),
+  });
+
+  return mapEventResult(response.data);
+}

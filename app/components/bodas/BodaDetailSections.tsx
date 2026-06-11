@@ -9,7 +9,7 @@ import {
 import { ClientInfoSection } from "@/app/components/bodas/ClientInfoSection";
 import { ContratoSection } from "@/app/components/bodas/ContratoSection";
 import { NotasInternas } from "@/app/components/bodas/NotasInternas";
-import { PaymentProjection } from "@/app/components/bodas/PaymentProjection";
+import { TastingsSection } from "@/app/components/bodas/TastingsSection";
 import { ProviderList } from "@/app/components/bodas/ProviderList";
 import { CronogramaContratacion } from "@/app/components/CronogramaContratacion";
 import { CitasSection } from "@/app/components/citas/CitasSection";
@@ -26,7 +26,7 @@ import {
   computePaymentProjection,
   type ProveedorRow,
 } from "@/app/data/providers";
-import type { BodaRow } from "@/app/data/weddings";
+import type { TastingRow } from "@/app/data/tastings";
 import { hasPermission, type UserRole } from "@/lib/auth/roles";
 import type { EquipoUsuarioMencion } from "@/lib/notas-menciones";
 import type { CitaLookupBoda, CitaLookupEquipo, CitaLookupLead } from "@/app/components/citas/CitaFormModal";
@@ -43,6 +43,7 @@ type BodaDetailSectionsProps = {
   pagosByProveedor: Record<string, PagoRow[]>;
   notas: NotaBodaRow[];
   notasReunion: NotaReunionRow[];
+  tastings: TastingRow[];
   brief: BriefBodaRow | null;
   contrato: ContratoRow | null;
   citas: CitaRow[];
@@ -72,6 +73,7 @@ export function BodaDetailSections({
   pagosByProveedor,
   notas,
   notasReunion,
+  tastings,
   brief,
   contrato,
   citas,
@@ -152,6 +154,21 @@ export function BodaDetailSections({
           equipo={equipo}
           currentUserId={currentUserId}
           currentUserNombre={plannerName}
+          role={role}
+        />
+      </BodaAccordionSection>
+
+      <BodaAccordionSection
+        title="Semana de Tastings"
+        defaultOpen={false}
+        hasContent={tastings.length > 0}
+      >
+        <TastingsSection
+          embedded
+          bodaId={bodaId}
+          bodaNombre={boda.nombre_pareja}
+          initialTastings={tastings}
+          equipo={equipo}
           role={role}
         />
       </BodaAccordionSection>

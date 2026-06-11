@@ -10,6 +10,7 @@ import type { BriefBodaRow } from "@/app/data/brief-boda";
 import type { ContratoRow } from "@/app/data/contratos";
 import type { NotaBodaRow } from "@/app/data/notas-boda";
 import { fetchNotasReunionForBoda } from "@/app/data/notas-reunion";
+import { sortTastingsBySchedule, type TastingRow } from "@/app/data/tastings";
 import type { BodaRow } from "@/app/data/weddings";
 import { groupPagosByProveedor, type PagoRow } from "@/app/data/pagos";
 import type { ProveedorRow } from "@/app/data/providers";
@@ -98,6 +99,17 @@ export default async function BodaDetailPage({ params, searchParams }: PageProps
   const notas = (notasData ?? []) as NotaBodaRow[];
 
   const notasReunion = await fetchNotasReunionForBoda(supabase, id);
+
+  const { data: tastingsData } = await supabase
+    .from("tastings")
+    .select("*")
+    .eq("boda_id", id)
+    .order("fecha", { ascending: true })
+    .order("hora_inicio", { ascending: true });
+
+  const tastings = sortTastingsBySchedule(
+    (tastingsData ?? []) as TastingRow[],
+  );
 
   const { data: briefData } = await supabase
     .from("brief_boda")
@@ -232,6 +244,7 @@ export default async function BodaDetailPage({ params, searchParams }: PageProps
           pagosByProveedor={pagosByProveedor}
           notas={notas}
           notasReunion={notasReunion}
+          tastings={tastings}
           brief={brief}
           contrato={contrato}
           citas={(citasData ?? []) as CitaRow[]}

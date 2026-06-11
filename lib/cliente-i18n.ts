@@ -29,6 +29,16 @@ export function formatClienteShortDate(
   }).format(date);
 }
 
+export function getClienteTastingsDayLabel(
+  isoDate: string,
+  locale: ClienteLocale,
+): string {
+  const date = new Date(isoDate + "T12:00:00");
+  return new Intl.DateTimeFormat(locale === "en" ? "en-US" : "es-CO", {
+    weekday: "long",
+  }).format(date);
+}
+
 export function formatClienteCurrency(
   amount: number,
   locale: ClienteLocale,
@@ -197,6 +207,9 @@ export type ClienteUiCopy = {
   cronogramaGroupInProgress: string;
   cronogramaGroupPending: string;
   cronogramaWithProvider: string;
+  tastingsTitle: string;
+  tastingsSubtitle: (count: number, days: number) => string;
+  tastingsNextItem: string;
   paymentOverviewTitle: string;
   paymentOverviewSubtitle: string;
   paymentCompleted: string;
@@ -255,6 +268,12 @@ const UI_ES: ClienteUiCopy = {
   cronogramaGroupInProgress: "En proceso",
   cronogramaGroupPending: "Pendientes",
   cronogramaWithProvider: "con",
+  tastingsTitle: "Semana de tastings",
+  tastingsSubtitle: (count, days) =>
+    count === 1
+      ? `1 tasting · ${days === 1 ? "1 día" : `${days} días`}`
+      : `${count} tastings · ${days === 1 ? "1 día" : `${days} días`}`,
+  tastingsNextItem: "Siguiente tasting",
   paymentOverviewTitle: "Proyección de pagos",
   paymentOverviewSubtitle: "Resumen de lo contratado y el avance de tus pagos",
   paymentCompleted: "completado",
@@ -317,6 +336,12 @@ const UI_EN: ClienteUiCopy = {
   cronogramaGroupInProgress: "In progress",
   cronogramaGroupPending: "Pending",
   cronogramaWithProvider: "with",
+  tastingsTitle: "Tasting week",
+  tastingsSubtitle: (count, days) =>
+    count === 1
+      ? `1 tasting · ${days === 1 ? "1 day" : `${days} days`}`
+      : `${count} tastings · ${days === 1 ? "1 day" : `${days} days`}`,
+  tastingsNextItem: "Next tasting",
   paymentOverviewTitle: "Payment overview",
   paymentOverviewSubtitle: "Summary of what's contracted and your payment progress",
   paymentCompleted: "completed",

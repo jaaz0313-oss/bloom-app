@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ClienteCotizacionBar } from "@/app/components/cliente/ClienteCotizacionBar";
 import { ClienteBodaEstado } from "@/app/components/cliente/ClienteBodaEstado";
 import { ClienteCronograma } from "@/app/components/cliente/ClienteCronograma";
+import { ClienteTastingsSection } from "@/app/components/cliente/ClienteTastingsSection";
 import { ClientePageFooter } from "@/app/components/cliente/ClientePageFooter";
 import { ClientePageHeader } from "@/app/components/cliente/ClientePageHeader";
 import { ClientePaymentOverview } from "@/app/components/cliente/ClientePaymentOverview";
@@ -10,6 +11,7 @@ import { ClienteProveedoresSection } from "@/app/components/cliente/ClienteProve
 import { ClienteProximosPagos } from "@/app/components/cliente/ClienteProximosPagos";
 import { ClienteSeatingPlanSection } from "@/app/components/cliente/ClienteSeatingPlanSection";
 import type { CronogramaItemRow } from "@/app/data/cronograma";
+import { sortTastingsBySchedule, type TastingRow } from "@/app/data/tastings";
 import type { BodaRow } from "@/app/data/weddings";
 import {
   computePaymentProjection,
@@ -91,10 +93,16 @@ export default async function ClienteBodaPage({ params }: PageProps) {
     .eq("boda_id", id)
     .order("fecha_limite", { ascending: true });
 
+  const { data: tastingsData } = await supabase
+    .from("tastings")
+    .select("*")
+    .eq("boda_id", id);
+
   const contratados = (proveedoresContratadosData ?? []) as ProveedorRow[];
   const proveedoresCronograma = (proveedoresCronogramaData ??
     []) as ClienteCronogramaProveedor[];
   const cronogramaItems = (cronogramaData ?? []) as CronogramaItemRow[];
+  const tastings = sortTastingsBySchedule((tastingsData ?? []) as TastingRow[]);
   const providerIds = contratados.map((provider) => provider.id);
   let pagosByProveedor: Record<string, PagoRow[]> = {};
 
@@ -162,6 +170,7 @@ export default async function ClienteBodaPage({ params }: PageProps) {
       <main className="mx-auto w-full max-w-3xl flex-1 space-y-12 px-5 py-12 sm:space-y-14 sm:px-8 sm:py-16">
         <ClienteBodaEstado estado={estadoBoda} />
         <ClienteCronograma resumen={cronogramaResumen} />
+        <ClienteTastingsSection tastings={tastings} />
         {mostrarSeatingPlan && (
           <ClienteSeatingPlanSection link={seatingPlanLink} />
         )}
