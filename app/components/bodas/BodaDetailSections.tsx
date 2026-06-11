@@ -28,6 +28,7 @@ import {
   type ProveedorRow,
 } from "@/app/data/providers";
 import type { TastingRow } from "@/app/data/tastings";
+import type { BodaRow } from "@/app/data/weddings";
 import { hasPermission, type UserRole } from "@/lib/auth/roles";
 import type { EquipoUsuarioMencion } from "@/lib/notas-menciones";
 import type { CitaLookupBoda, CitaLookupEquipo, CitaLookupLead } from "@/app/components/citas/CitaFormModal";
