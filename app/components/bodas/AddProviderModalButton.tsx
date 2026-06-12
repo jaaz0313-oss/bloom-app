@@ -71,6 +71,32 @@ type DirectorioProveedorLookup = {
 
 type EntryMode = "directorio" | "manual";
 
+type PendingDirectorioSave = {
+  nombre: string;
+  categoria: string;
+  telefono: string | null;
+  email: string | null;
+};
+
+async function existsInDirectorioByNombre(nombre: string): Promise<boolean> {
+  if (!supabase) return false;
+
+  const { data, error } = await supabase
+    .from("directorio_proveedores")
+    .select("id, nombre")
+    .ilike("nombre", nombre);
+
+  if (error) {
+    console.error(error);
+    return false;
+  }
+
+  const normalized = nombre.trim().toLowerCase();
+  return (data ?? []).some(
+    (row) => row.nombre.trim().toLowerCase() === normalized,
+  );
+}
+
 export function AddProviderModalButton({
   bodaId,
   bodaNombre,
@@ -90,6 +116,16 @@ export function AddProviderModalButton({
     null,
   );
   const [directoryPickerDismissed, setDirectoryPickerDismissed] = useState(false);
+  const [selectedDirectorioId, setSelectedDirectorioId] = useState<string | null>(
+    null,
+  );
+  const [pendingDirectorioSave, setPendingDirectorioSave] =
+    useState<PendingDirectorioSave | null>(null);
+  const [savingToDirectorio, setSavingToDirectorio] = useState(false);
+  const [directorioSaveError, setDirectorioSaveError] = useState<string | null>(
+    null,
+  );
+  const [directorioSavedNotice, setDirectorioSavedNotice] = useState(false);
 
   function resetDirectorySearch() {
     setDirectoryQuery("");
@@ -101,6 +137,7 @@ export function AddProviderModalButton({
   function resetFormKeepingCategory(categoria: string) {
     setForm({ ...emptyForm, categoria });
     resetDirectorySearch();
+    setSelectedDirectorioId(null);
     setError(null);
   }
 
@@ -108,6 +145,7 @@ export function AddProviderModalButton({
     setForm({ ...emptyForm, categoria });
     setEntryMode(null);
     resetDirectorySearch();
+    setSelectedDirectorioId(null);
     setError(null);
   }
 
@@ -164,7 +202,82 @@ export function AddProviderModalButton({
     };
   }, [directoryPickerDismissed, directoryQuery, entryMode, form.categoria, open]);
 
+  useEffect(() => {
+    if (!directorioSavedNotice) return;
+    const timeout = window.setTimeout(() => setDirectorioSavedNotice(false), 5000);
+    return () => window.clearTimeout(timeout);
+  }, [directorioSavedNotice]);
+
+  function resetAddProviderForm() {
+    setForm(emptyForm);
+    setEntryMode(null);
+    setSelectedDirectorioId(null);
+    resetDirectorySearch();
+    setError(null);
+  }
+
+  function finishProviderSave() {
+    setOpen(false);
+    resetAddProviderForm();
+    router.refresh();
+  }
+
+  async function promptSaveToDirectorioIfNeeded(provider: PendingDirectorioSave) {
+    if (selectedDirectorioId) {
+      finishProviderSave();
+      return;
+    }
+
+    const exists = await existsInDirectorioByNombre(provider.nombre);
+    if (exists) {
+      finishProviderSave();
+      return;
+    }
+
+    setOpen(false);
+    setDirectorioSaveError(null);
+    setPendingDirectorioSave(provider);
+  }
+
+  async function handleSaveToDirectorio() {
+    if (!pendingDirectorioSave || !supabase) return;
+
+    setSavingToDirectorio(true);
+    setDirectorioSaveError(null);
+    try {
+      const { error: insertError } = await supabase
+        .from("directorio_proveedores")
+        .insert({
+          nombre: pendingDirectorioSave.nombre,
+          categoria: pendingDirectorioSave.categoria,
+          telefono: pendingDirectorioSave.telefono,
+          email: pendingDirectorioSave.email,
+          activo: true,
+        });
+
+      if (insertError) {
+        setDirectorioSaveError(insertError.message);
+        return;
+      }
+
+      setPendingDirectorioSave(null);
+      setDirectorioSavedNotice(true);
+      resetAddProviderForm();
+      router.refresh();
+    } finally {
+      setSavingToDirectorio(false);
+    }
+  }
+
+  function handleSkipDirectorioSave() {
+    setPendingDirectorioSave(null);
+    setDirectorioSaveError(null);
+    resetAddProviderForm();
+    router.refresh();
+  }
+
   function applyDirectoryProvider(provider: DirectorioProveedorLookup) {
+    setSelectedDirectorioId(provider.id);
     setForm((current) => ({
       ...current,
       nombre: provider.nombre ?? current.nombre,
@@ -288,11 +401,12 @@ export function AddProviderModalButton({
         detalle: `${nombre} · ${categoria}`,
       });
 
-      setOpen(false);
-      setForm(emptyForm);
-      setEntryMode(null);
-      resetDirectorySearch();
-      router.refresh();
+      await promptSaveToDirectorioIfNeeded({
+        nombre,
+        categoria,
+        telefono: telefono || null,
+        email: email || null,
+      });
     } finally {
       setSubmitting(false);
     }
@@ -300,6 +414,15 @@ export function AddProviderModalButton({
 
   return (
     <>
+      {directorioSavedNotice && (
+        <p
+          className="mb-3 rounded-xl border border-bloom-success/30 bg-bloom-success/10 px-4 py-2 text-sm font-medium text-bloom-success"
+          role="status"
+        >
+          ✓ Proveedor guardado en el directorio
+        </p>
+      )}
+
       <button
         type="button"
         onClick={() => setOpen(true)}
@@ -670,6 +793,56 @@ export function AddProviderModalButton({
                 </div>
               )}
             </form>
+          </div>
+        </div>
+      )}
+
+      {pendingDirectorioSave && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Guardar en directorio"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !savingToDirectorio) {
+              handleSkipDirectorioSave();
+            }
+          }}
+        >
+          <div className="w-full max-w-md rounded-2xl border border-bloom-border bg-bloom-surface p-6 shadow-lg">
+            <h2 className="font-display text-xl text-bloom-ink">
+              Guardar en directorio
+            </h2>
+            <p className="mt-3 text-sm leading-relaxed text-bloom-muted">
+              ¿Deseas guardar{" "}
+              <span className="font-medium text-bloom-ink">
+                {pendingDirectorioSave.nombre}
+              </span>{" "}
+              en el directorio global de Celestia?
+            </p>
+            {directorioSaveError && (
+              <p className="mt-3 text-sm text-red-700" role="alert">
+                {directorioSaveError}
+              </p>
+            )}
+            <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={handleSkipDirectorioSave}
+                disabled={savingToDirectorio}
+                className="rounded-full border border-bloom-border px-5 py-2.5 text-sm font-medium text-bloom-ink transition-colors hover:bg-bloom-canvas disabled:opacity-60"
+              >
+                No, solo para esta boda
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveToDirectorio}
+                disabled={savingToDirectorio}
+                className="rounded-full bg-bloom-accent px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-bloom-accent-hover disabled:opacity-60"
+              >
+                {savingToDirectorio ? "Guardando…" : "Sí, guardar en directorio"}
+              </button>
+            </div>
           </div>
         </div>
       )}
