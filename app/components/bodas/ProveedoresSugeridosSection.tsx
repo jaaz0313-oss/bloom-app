@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AgregarProveedorSugeridoModal } from "@/app/components/bodas/AgregarProveedorSugeridoModal";
+import { SugerirProveedoresAutomaticosModal } from "@/app/components/bodas/SugerirProveedoresAutomaticosModal";
 import {
   getMaxProveedorSugeridoRonda,
   normalizeProveedorSugeridoRow,
@@ -17,6 +18,10 @@ import {
   formatInstagramDisplay,
   groupProveedoresSugeridosByRonda,
 } from "@/lib/proveedores-sugeridos";
+import {
+  sugerenciasAutomaticasToPreview,
+  type SugerenciasAutomaticasResult,
+} from "@/lib/proveedores-sugeridos-automaticos";
 import { supabase } from "@/lib/supabase";
 
 type ProveedoresSugeridosSectionProps = {
@@ -42,6 +47,13 @@ export function ProveedoresSugeridosSection({
     sortProveedoresSugeridos(initialProveedores),
   );
   const [modalOpen, setModalOpen] = useState(false);
+  const [autoModalOpen, setAutoModalOpen] = useState(false);
+  const [autoLoading, setAutoLoading] = useState(false);
+  const [autoError, setAutoError] = useState<string | null>(null);
+  const [autoPreview, setAutoPreview] = useState<{
+    categorias: ReturnType<typeof sugerenciasAutomaticasToPreview>;
+    ronda: number;
+  } | null>(null);
   const [activeRonda, setActiveRonda] = useState(() =>
     getMaxProveedorSugeridoRonda(initialProveedores),
   );
@@ -121,6 +133,99 @@ export function ProveedoresSugeridosSection({
     setModalOpen(true);
   }
 
+  async function handleSugerirAutomaticamente() {
+    setAutoLoading(true);
+    setAutoError(null);
+
+    try {
+      const response = await fetch(`/api/bodas/${bodaId}/sugerir-proveedores`, {
+        method: "POST",
+      });
+      const data = (await response.json()) as
+        | SugerenciasAutomaticasResult
+        | { error?: string };
+
+      if (!response.ok) {
+        throw new Error(
+          "error" in data && data.error
+            ? data.error
+            : "No se pudieron generar las sugerencias.",
+        );
+      }
+
+      const result = data as SugerenciasAutomaticasResult;
+      setAutoPreview({
+        categorias: sugerenciasAutomaticasToPreview(result),
+        ronda: result.ronda_propuesta,
+      });
+      setAutoModalOpen(true);
+    } catch (suggestError) {
+      setAutoError(
+        suggestError instanceof Error
+          ? suggestError.message
+          : "No se pudieron generar las sugerencias.",
+      );
+    } finally {
+      setAutoLoading(false);
+    }
+  }
+
+  async function handleConfirmAutomaticSuggestions(
+    items: Array<{
+      directorio_proveedor_id: string | null;
+      nombre_proveedor: string;
+      categoria: string;
+      instagram: string | null;
+      ronda: number;
+      orden: number;
+    }>,
+  ) {
+    if (!supabase) {
+      throw new Error("Supabase no está configurado.");
+    }
+
+    const { data, error: insertError } = await supabase
+      .from("proveedores_sugeridos")
+      .insert(
+        items.map((item) => ({
+          boda_id: bodaId,
+          directorio_proveedor_id: item.directorio_proveedor_id,
+          nombre_proveedor: item.nombre_proveedor,
+          categoria: item.categoria,
+          instagram: item.instagram,
+          ronda: item.ronda,
+          orden: item.orden,
+          created_by: currentUserId,
+        })),
+      )
+      .select("*");
+
+    if (insertError || !data) {
+      throw new Error(
+        insertError?.message ?? "No se pudieron guardar las sugerencias.",
+      );
+    }
+
+    const inserted = data.map((row) => ({
+      ...normalizeProveedorSugeridoRow(row),
+      seleccionado: false,
+    }));
+
+    setProveedores((current) =>
+      sortProveedoresSugeridos([...current, ...inserted]),
+    );
+    setActiveRonda(items[0]?.ronda ?? activeRonda);
+
+    await logAuditoria({
+      accion: AUDITORIA_ACCIONES.PROVEEDOR_SUGERIDO_AGREGADO,
+      entidad: "proveedor_sugerido",
+      bodaNombre,
+      detalle: `Sugerencias automáticas · Ronda ${items[0]?.ronda ?? activeRonda} · ${inserted.length} proveedores`,
+    });
+
+    router.refresh();
+  }
+
   const Shell = embedded ? "div" : "section";
   const shellClass = embedded
     ? "space-y-5"
@@ -147,6 +252,14 @@ export function ProveedoresSugeridosSection({
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
+              onClick={handleSugerirAutomaticamente}
+              disabled={autoLoading}
+              className="rounded-full border border-bloom-accent/40 bg-bloom-canvas px-4 py-2 text-sm font-medium text-bloom-accent transition-colors hover:bg-bloom-accent/10 disabled:opacity-60"
+            >
+              {autoLoading ? "Generando…" : "✨ Sugerir automáticamente"}
+            </button>
+            <button
+              type="button"
               onClick={() => setModalOpen(true)}
               className="rounded-full bg-bloom-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-bloom-accent-hover"
             >
@@ -162,6 +275,12 @@ export function ProveedoresSugeridosSection({
           </div>
         )}
       </div>
+
+      {autoError && (
+        <p className="text-sm text-red-700" role="alert">
+          {autoError}
+        </p>
+      )}
 
       {proveedores.length === 0 ? (
         <p className="rounded-xl border border-dashed border-bloom-border bg-bloom-canvas/50 px-4 py-8 text-center text-sm text-bloom-muted">
@@ -236,12 +355,23 @@ export function ProveedoresSugeridosSection({
       )}
 
       {canManage && (
-        <AgregarProveedorSugeridoModal
-          open={modalOpen}
-          onClose={() => setModalOpen(false)}
-          defaultRonda={activeRonda}
-          onSubmit={handleAddSuggestion}
-        />
+        <>
+          <AgregarProveedorSugeridoModal
+            open={modalOpen}
+            onClose={() => setModalOpen(false)}
+            defaultRonda={activeRonda}
+            onSubmit={handleAddSuggestion}
+          />
+          {autoPreview && (
+            <SugerirProveedoresAutomaticosModal
+              open={autoModalOpen}
+              onClose={() => setAutoModalOpen(false)}
+              categorias={autoPreview.categorias}
+              ronda={autoPreview.ronda}
+              onConfirm={handleConfirmAutomaticSuggestions}
+            />
+          )}
+        </>
       )}
     </Shell>
   );
