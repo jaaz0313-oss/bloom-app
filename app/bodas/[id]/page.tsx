@@ -11,6 +11,7 @@ import type { ContratoRow } from "@/app/data/contratos";
 import type { NotaBodaRow } from "@/app/data/notas-boda";
 import { fetchNotasReunionForBoda } from "@/app/data/notas-reunion";
 import type { DetallesCelebracionRow } from "@/app/data/detalles-celebracion";
+import { fetchProveedoresSugeridosForBoda } from "@/app/data/proveedores-sugeridos";
 import { sortTastingsBySchedule, type TastingRow } from "@/app/data/tastings";
 import type { BodaRow } from "@/app/data/weddings";
 import { groupPagosByProveedor, type PagoRow } from "@/app/data/pagos";
@@ -120,6 +121,11 @@ export default async function BodaDetailPage({ params, searchParams }: PageProps
 
   const detallesCelebracion =
     (detallesCelebracionData as DetallesCelebracionRow | null) ?? null;
+
+  const proveedoresSugeridos = await fetchProveedoresSugeridosForBoda(
+    supabase,
+    id,
+  );
 
   const { data: briefData } = await supabase
     .from("brief_boda")
@@ -255,6 +261,7 @@ export default async function BodaDetailPage({ params, searchParams }: PageProps
           notas={notas}
           notasReunion={notasReunion}
           tastings={tastings}
+          proveedoresSugeridos={proveedoresSugeridos}
           detallesCelebracion={detallesCelebracion}
           brief={brief}
           contrato={contrato}

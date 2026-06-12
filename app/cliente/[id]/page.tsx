@@ -4,6 +4,7 @@ import { ClienteCotizacionBar } from "@/app/components/cliente/ClienteCotizacion
 import { ClienteBodaEstado } from "@/app/components/cliente/ClienteBodaEstado";
 import { ClienteCronograma } from "@/app/components/cliente/ClienteCronograma";
 import { ClienteDetallesCelebracionSection } from "@/app/components/cliente/ClienteDetallesCelebracionSection";
+import { ClienteProveedoresSugeridosSection } from "@/app/components/cliente/ClienteProveedoresSugeridosSection";
 import { ClienteTastingsSection } from "@/app/components/cliente/ClienteTastingsSection";
 import { ClientePageFooter } from "@/app/components/cliente/ClientePageFooter";
 import { ClientePageHeader } from "@/app/components/cliente/ClientePageHeader";
@@ -13,6 +14,7 @@ import { ClienteProximosPagos } from "@/app/components/cliente/ClienteProximosPa
 import { ClienteSeatingPlanSection } from "@/app/components/cliente/ClienteSeatingPlanSection";
 import type { CronogramaItemRow } from "@/app/data/cronograma";
 import type { DetallesCelebracionRow } from "@/app/data/detalles-celebracion";
+import { fetchProveedoresSugeridosForBoda } from "@/app/data/proveedores-sugeridos";
 import { sortTastingsBySchedule, type TastingRow } from "@/app/data/tastings";
 import type { BodaRow } from "@/app/data/weddings";
 import {
@@ -113,6 +115,10 @@ export default async function ClienteBodaPage({ params }: PageProps) {
   const tastings = sortTastingsBySchedule((tastingsData ?? []) as TastingRow[]);
   const detallesCelebracion =
     (detallesCelebracionData as DetallesCelebracionRow | null) ?? null;
+  const proveedoresSugeridos = await fetchProveedoresSugeridosForBoda(
+    supabase,
+    id,
+  );
   const providerIds = contratados.map((provider) => provider.id);
   let pagosByProveedor: Record<string, PagoRow[]> = {};
 
@@ -184,6 +190,10 @@ export default async function ClienteBodaPage({ params }: PageProps) {
         <ClienteDetallesCelebracionSection
           bodaId={id}
           initialDetalles={detallesCelebracion}
+        />
+        <ClienteProveedoresSugeridosSection
+          bodaId={id}
+          initialProveedores={proveedoresSugeridos}
         />
         {mostrarSeatingPlan && (
           <ClienteSeatingPlanSection link={seatingPlanLink} />

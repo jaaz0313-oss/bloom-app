@@ -11,6 +11,7 @@ import { ContratoSection } from "@/app/components/bodas/ContratoSection";
 import { DetallesCelebracionSection } from "@/app/components/bodas/DetallesCelebracionSection";
 import { NotasInternas } from "@/app/components/bodas/NotasInternas";
 import { PaymentProjection } from "@/app/components/bodas/PaymentProjection";
+import { ProveedoresSugeridosSection } from "@/app/components/bodas/ProveedoresSugeridosSection";
 import { TastingsSection } from "@/app/components/bodas/TastingsSection";
 import { ProviderList } from "@/app/components/bodas/ProviderList";
 import { CronogramaContratacion } from "@/app/components/CronogramaContratacion";
@@ -28,6 +29,7 @@ import {
   type NotaReunionRow,
 } from "@/app/data/notas-reunion";
 import { groupPagosByProveedor, type PagoRow } from "@/app/data/pagos";
+import type { ProveedorSugeridoWithSelection } from "@/app/data/proveedores-sugeridos";
 import {
   computePaymentProjection,
   type ProveedorRow,
@@ -39,6 +41,7 @@ import type { EquipoUsuarioMencion } from "@/lib/notas-menciones";
 import type { CitaLookupBoda, CitaLookupEquipo, CitaLookupLead } from "@/app/components/citas/CitaFormModal";
 import { BODA_SECTION_PROVEEDORES } from "@/lib/boda-url";
 import { filterCitasFuturas } from "@/lib/citas";
+import { canManageProveedoresSugeridos } from "@/lib/proveedores-sugeridos";
 
 type BodaDetailSectionsProps = {
   bodaId: string;
@@ -51,6 +54,7 @@ type BodaDetailSectionsProps = {
   notas: NotaBodaRow[];
   notasReunion: NotaReunionRow[];
   tastings: TastingRow[];
+  proveedoresSugeridos: ProveedorSugeridoWithSelection[];
   detallesCelebracion: DetallesCelebracionRow | null;
   brief: BriefBodaRow | null;
   contrato: ContratoRow | null;
@@ -82,6 +86,7 @@ export function BodaDetailSections({
   notas,
   notasReunion,
   tastings,
+  proveedoresSugeridos,
   detallesCelebracion,
   brief,
   contrato,
@@ -107,6 +112,7 @@ export function BodaDetailSections({
     projection.totalContratado > 0 ||
     projection.totalPagado > 0 ||
     providers.length > 0;
+  const canManageSugeridos = canManageProveedoresSugeridos(role);
 
   return (
     <div className="mt-8 space-y-4">
@@ -181,6 +187,23 @@ export function BodaDetailSections({
           role={role}
         />
       </BodaAccordionSection>
+
+      {canManageSugeridos && (
+        <BodaAccordionSection
+          title="Proveedores sugeridos"
+          defaultOpen={false}
+          hasContent={proveedoresSugeridos.length > 0}
+        >
+          <ProveedoresSugeridosSection
+            embedded
+            bodaId={bodaId}
+            bodaNombre={boda.nombre_pareja}
+            initialProveedores={proveedoresSugeridos}
+            role={role}
+            currentUserId={currentUserId}
+          />
+        </BodaAccordionSection>
+      )}
 
       <BodaAccordionSection
         title="Detalles de la boda"

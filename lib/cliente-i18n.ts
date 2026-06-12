@@ -219,6 +219,12 @@ export type ClienteUiCopy = {
   detallesCelebracionSaveError: string;
   detallesCelebracionUnsaved: string;
   detallesCelebracionDiscard: string;
+  proveedoresSugeridosTitle: string;
+  proveedoresSugeridosSubtitle: (selected: number, total: number) => string;
+  proveedoresSugeridosIntro: string;
+  proveedoresSugeridosSelect: string;
+  proveedoresSugeridosUnselect: string;
+  proveedoresSugeridosSaveError: string;
   paymentOverviewTitle: string;
   paymentOverviewSubtitle: string;
   paymentCompleted: string;
@@ -296,6 +302,16 @@ const UI_ES: ClienteUiCopy = {
   detallesCelebracionSaveError: "No se pudieron guardar los detalles.",
   detallesCelebracionUnsaved: "Cambios sin guardar",
   detallesCelebracionDiscard: "Descartar",
+  proveedoresSugeridosTitle: "Selecciona tus favoritos",
+  proveedoresSugeridosSubtitle: (selected, total) =>
+    selected === 0
+      ? `${total} opciones para explorar`
+      : `${selected} de ${total} seleccionados`,
+  proveedoresSugeridosIntro:
+    "Marquen con ✓ los proveedores que les interesen. Su selección se guarda automáticamente.",
+  proveedoresSugeridosSelect: "Marcar como favorito",
+  proveedoresSugeridosUnselect: "Quitar de favoritos",
+  proveedoresSugeridosSaveError: "No se pudo guardar su selección.",
   paymentOverviewTitle: "Proyección de pagos",
   paymentOverviewSubtitle: "Resumen de lo contratado y el avance de tus pagos",
   paymentCompleted: "completado",
@@ -377,6 +393,16 @@ const UI_EN: ClienteUiCopy = {
   detallesCelebracionSaveError: "Could not save the details.",
   detallesCelebracionUnsaved: "Unsaved changes",
   detallesCelebracionDiscard: "Discard",
+  proveedoresSugeridosTitle: "Select your favorites",
+  proveedoresSugeridosSubtitle: (selected, total) =>
+    selected === 0
+      ? `${total} options to explore`
+      : `${selected} of ${total} selected`,
+  proveedoresSugeridosIntro:
+    "Mark with ✓ the vendors you're interested in. Your selection saves automatically.",
+  proveedoresSugeridosSelect: "Mark as favorite",
+  proveedoresSugeridosUnselect: "Remove from favorites",
+  proveedoresSugeridosSaveError: "Could not save your selection.",
   paymentOverviewTitle: "Payment overview",
   paymentOverviewSubtitle: "Summary of what's contracted and your payment progress",
   paymentCompleted: "completed",
