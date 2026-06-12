@@ -7,6 +7,11 @@ import { supabase } from "@/lib/supabase";
 import { MencionesNotificaciones } from "@/app/components/MencionesNotificaciones";
 import { UserEmailEditor } from "@/app/components/UserEmailEditor";
 import { UserPhoneEditor } from "@/app/components/UserPhoneEditor";
+import { ResponsiveModal } from "@/app/components/ui/ResponsiveModal";
+import {
+  isAdminPanelUnlocked,
+  setAdminPanelUnlocked,
+} from "@/lib/admin-panel-session";
 import { ROLE_LABELS, type UserRole } from "@/lib/auth/roles";
 
 type DashboardHeaderProps = {
@@ -21,19 +26,23 @@ type DashboardHeaderProps = {
 
 type NavItem = { href: string; label: string };
 
-function buildNavItems(rol: UserRole): NavItem[] {
-  const items: NavItem[] = [
-    { href: "/", label: "Dashboard" },
-    { href: "/calendario", label: "Calendario" },
-    { href: "/directorio", label: "Directorio" },
-  ];
-  if (rol === "admin") {
-    items.push(
-      { href: "/admin/reporte-financiero", label: "Reporte financiero" },
-      { href: "/admin/comisiones", label: "Comisiones" },
-      { href: "/admin/auditoria", label: "Auditoría" },
-      { href: "/admin/usuarios", label: "Usuarios" },
-    );
+const BASE_NAV_ITEMS: NavItem[] = [
+  { href: "/", label: "Dashboard" },
+  { href: "/calendario", label: "Calendario" },
+  { href: "/directorio", label: "Directorio" },
+];
+
+const ADMIN_NAV_ITEMS: NavItem[] = [
+  { href: "/admin/reporte-financiero", label: "Reporte financiero" },
+  { href: "/admin/comisiones", label: "Comisiones" },
+  { href: "/admin/auditoria", label: "Auditoría" },
+  { href: "/admin/usuarios", label: "Usuarios" },
+];
+
+function buildNavItems(rol: UserRole, adminUnlocked: boolean): NavItem[] {
+  const items = [...BASE_NAV_ITEMS];
+  if (rol === "admin" && adminUnlocked) {
+    items.push(...ADMIN_NAV_ITEMS);
   }
   return items;
 }
@@ -42,7 +51,18 @@ export function DashboardHeader({ user }: DashboardHeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
-  const navItems = buildNavItems(user.rol);
+  const [adminUnlocked, setAdminUnlocked] = useState(false);
+  const [adminModalOpen, setAdminModalOpen] = useState(false);
+  const [adminPassword, setAdminPassword] = useState("");
+  const [adminError, setAdminError] = useState<string | null>(null);
+  const [adminLoading, setAdminLoading] = useState(false);
+
+  const isAdmin = user.rol === "admin";
+  const navItems = buildNavItems(user.rol, adminUnlocked);
+
+  useEffect(() => {
+    setAdminUnlocked(isAdminPanelUnlocked());
+  }, []);
 
   useEffect(() => {
     setMenuOpen(false);
@@ -57,6 +77,53 @@ export function DashboardHeader({ user }: DashboardHeaderProps) {
     };
   }, [menuOpen]);
 
+  function openAdminModal() {
+    setAdminPassword("");
+    setAdminError(null);
+    setAdminModalOpen(true);
+  }
+
+  function closeAdminModal() {
+    if (adminLoading) return;
+    setAdminModalOpen(false);
+    setAdminPassword("");
+    setAdminError(null);
+  }
+
+  async function handleAdminAccess() {
+    if (!adminPassword.trim()) {
+      setAdminError("Ingresa la contraseña");
+      return;
+    }
+
+    setAdminLoading(true);
+    setAdminError(null);
+
+    try {
+      const res = await fetch("/api/admin/verify-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: adminPassword }),
+      });
+
+      const data = (await res.json()) as { error?: string };
+
+      if (!res.ok) {
+        setAdminError(data.error ?? "Contraseña incorrecta");
+        return;
+      }
+
+      setAdminPanelUnlocked();
+      setAdminUnlocked(true);
+      setAdminModalOpen(false);
+      setAdminPassword("");
+    } catch {
+      setAdminError("No se pudo verificar la contraseña");
+    } finally {
+      setAdminLoading(false);
+    }
+  }
+
   async function handleSignOut() {
     await supabase.auth.signOut();
     router.replace("/login");
@@ -65,71 +132,82 @@ export function DashboardHeader({ user }: DashboardHeaderProps) {
 
   return (
     <>
-    <header className="sticky top-0 z-40 border-b border-bloom-border bg-bloom-surface/95 backdrop-blur-sm">
-      <div className="bloom-header-inner">
-        <div className="flex items-center justify-between gap-3">
-          {/* Móvil + desktop: logo */}
-          <Link href="/" className="flex min-w-0 items-center gap-2.5 md:gap-4">
-            <div
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-bloom-accent text-base font-semibold text-white shadow-sm md:h-11 md:w-11 md:text-lg"
-              aria-hidden
-            >
-              B
-            </div>
-            <div className="min-w-0">
-              <p className="font-display text-lg tracking-wide text-bloom-ink sm:text-xl md:text-2xl">
-                Bloom by Celestia
-              </p>
-              <p className="hidden text-sm text-bloom-muted md:block">
-                Wedding Planner &amp; Events
-              </p>
-            </div>
-          </Link>
+      <header className="sticky top-0 z-40 border-b border-bloom-border bg-bloom-surface/95 backdrop-blur-sm">
+        <div className="bloom-header-inner">
+          <div className="flex items-center justify-between gap-3">
+            {/* Móvil + desktop: logo */}
+            <Link href="/" className="flex min-w-0 items-center gap-2.5 md:gap-4">
+              <div
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-bloom-accent text-base font-semibold text-white shadow-sm md:h-11 md:w-11 md:text-lg"
+                aria-hidden
+              >
+                B
+              </div>
+              <div className="min-w-0">
+                <p className="font-display text-lg tracking-wide text-bloom-ink sm:text-xl md:text-2xl">
+                  Bloom by Celestia
+                </p>
+                <p className="hidden text-sm text-bloom-muted md:block">
+                  Wedding Planner &amp; Events
+                </p>
+              </div>
+            </Link>
 
-          {/* Móvil: campana + hamburguesa */}
-          <div className="flex shrink-0 items-center gap-1 md:hidden">
-            <MencionesNotificaciones userId={user.id} />
-            <button
-              type="button"
-              className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-bloom-border bg-bloom-surface text-bloom-ink transition-colors hover:bg-bloom-canvas"
-              onClick={() => setMenuOpen((o) => !o)}
-              aria-expanded={menuOpen}
-              aria-controls="bloom-mobile-nav"
-              aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"}
-            >
-              {menuOpen ? <CloseIcon /> : <MenuIcon />}
-            </button>
-          </div>
-
-          {/* Desktop: usuario, campana, nav inline, cerrar sesión */}
-          <div className="hidden min-w-0 pr-6 text-right md:block">
-            <p className="text-xs font-medium uppercase tracking-wider text-bloom-muted">
-              {ROLE_LABELS[user.rol]}
-            </p>
-            <p className="font-medium text-bloom-ink">{user.nombre}</p>
-            <div className="mt-3 hidden border-t border-bloom-border pt-3 md:block">
-              <UserEmailEditor initialEmail={user.email} />
-              <UserPhoneEditor initialTelefono={user.telefono} />
-            </div>
-            <div className="mt-2 flex items-center justify-end gap-2">
+            {/* Móvil: campana + hamburguesa */}
+            <div className="flex shrink-0 items-center gap-1 md:hidden">
               <MencionesNotificaciones userId={user.id} />
-              {navItems.map((item) => (
-                <NavLink key={item.href} href={item.href} pathname={pathname}>
-                  {item.label}
-                </NavLink>
-              ))}
               <button
                 type="button"
-                onClick={handleSignOut}
-                className="rounded-full border border-bloom-border px-3 py-1 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-canvas"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-bloom-border bg-bloom-surface text-bloom-ink transition-colors hover:bg-bloom-canvas"
+                onClick={() => setMenuOpen((o) => !o)}
+                aria-expanded={menuOpen}
+                aria-controls="bloom-mobile-nav"
+                aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"}
               >
-                Cerrar sesión
+                {menuOpen ? <CloseIcon /> : <MenuIcon />}
               </button>
+            </div>
+
+            {/* Desktop: usuario, campana, nav inline, cerrar sesión */}
+            <div className="hidden min-w-0 pr-6 text-right md:block">
+              <p className="text-xs font-medium uppercase tracking-wider text-bloom-muted">
+                {ROLE_LABELS[user.rol]}
+              </p>
+              <p className="font-medium text-bloom-ink">{user.nombre}</p>
+              <div className="mt-3 hidden border-t border-bloom-border pt-3 md:block">
+                <UserEmailEditor initialEmail={user.email} />
+                <UserPhoneEditor initialTelefono={user.telefono} />
+              </div>
+              <div className="mt-2 flex flex-wrap items-center justify-end gap-2">
+                <MencionesNotificaciones userId={user.id} />
+                {navItems.map((item) => (
+                  <NavLink key={item.href} href={item.href} pathname={pathname}>
+                    {item.label}
+                  </NavLink>
+                ))}
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={openAdminModal}
+                    className="rounded-full border border-transparent px-2 py-1 text-xs font-medium text-bloom-muted transition-colors hover:border-bloom-border hover:bg-bloom-canvas hover:text-bloom-ink"
+                    aria-label="Acceso admin"
+                    title="Acceso admin"
+                  >
+                    ⚙️
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={handleSignOut}
+                  className="rounded-full border border-bloom-border px-3 py-1 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-canvas"
+                >
+                  Cerrar sesión
+                </button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-    </header>
+      </header>
 
       {menuOpen && (
         <div className="md:hidden">
@@ -185,6 +263,21 @@ export function DashboardHeader({ user }: DashboardHeaderProps) {
                     </Link>
                   </li>
                 ))}
+                {isAdmin && (
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        openAdminModal();
+                      }}
+                      className="flex min-h-11 w-full items-center gap-2 rounded-xl px-4 text-base font-medium text-bloom-muted transition-colors hover:bg-bloom-canvas hover:text-bloom-ink"
+                    >
+                      <span aria-hidden>⚙️</span>
+                      Admin
+                    </button>
+                  </li>
+                )}
               </ul>
             </nav>
 
@@ -209,6 +302,66 @@ export function DashboardHeader({ user }: DashboardHeaderProps) {
           </aside>
         </div>
       )}
+
+      <ResponsiveModal
+        open={adminModalOpen}
+        onClose={closeAdminModal}
+        title="Acceso admin"
+        subtitle="Ingresa la contraseña para ver las secciones de administración"
+        size="md"
+        closeDisabled={adminLoading}
+        footer={
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={closeAdminModal}
+              disabled={adminLoading}
+              className="rounded-full border border-bloom-border px-4 py-2 text-sm font-medium text-bloom-muted transition-colors hover:bg-bloom-canvas hover:text-bloom-ink disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={handleAdminAccess}
+              disabled={adminLoading}
+              className="rounded-full bg-bloom-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-bloom-accent/90 disabled:opacity-50"
+            >
+              {adminLoading ? "Verificando…" : "Acceder"}
+            </button>
+          </div>
+        }
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void handleAdminAccess();
+          }}
+          className="space-y-3"
+        >
+          <label className="block">
+            <span className="mb-1.5 block text-sm font-medium text-bloom-ink">
+              Contraseña
+            </span>
+            <input
+              type="password"
+              value={adminPassword}
+              onChange={(e) => {
+                setAdminPassword(e.target.value);
+                setAdminError(null);
+              }}
+              autoComplete="current-password"
+              disabled={adminLoading}
+              className="w-full rounded-xl border border-bloom-border bg-bloom-canvas px-3 py-2.5 text-sm text-bloom-ink outline-none transition-colors focus:border-bloom-accent focus:ring-1 focus:ring-bloom-accent/30 disabled:opacity-50"
+              placeholder="Contraseña del panel"
+            />
+          </label>
+          {adminError && (
+            <p className="text-sm text-red-600" role="alert">
+              {adminError}
+            </p>
+          )}
+        </form>
+      </ResponsiveModal>
     </>
   );
 }
