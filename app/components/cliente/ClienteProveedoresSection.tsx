@@ -9,8 +9,8 @@ import {
 } from "@/app/data/providers";
 import {
   formatClienteCurrency,
-  formatClienteShortDate,
 } from "@/lib/cliente-i18n";
+import { formatShortDateStable } from "@/lib/format";
 
 type ClienteProveedoresSectionProps = {
   contratados: ProveedorRow[];
@@ -78,10 +78,7 @@ export function ClienteProveedoresSection({
                       <dt className="text-bloom-muted">{t.balanceDueDate}</dt>
                       <dd className="font-medium text-bloom-ink">
                         {provider.fecha_saldo
-                          ? formatClienteShortDate(
-                              provider.fecha_saldo,
-                              locale,
-                            )
+                          ? formatShortDateStable(provider.fecha_saldo)
                           : t.toBeConfirmed}
                       </dd>
                     </div>
@@ -140,10 +137,7 @@ export function ClienteProveedoresSection({
                               {formatClienteCurrency(pago.monto, locale)}
                             </p>
                             <p className="text-bloom-muted">
-                              {formatClienteShortDate(
-                                pago.fecha_pago,
-                                locale,
-                              )}
+                              {formatShortDateStable(pago.fecha_pago)}
                             </p>
                           </div>
                           <p className="mt-1 text-bloom-muted">
