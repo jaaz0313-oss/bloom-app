@@ -356,6 +356,9 @@ const UI_ES: ClienteUiCopy = {
   downloadQuoteError: "No se pudo descargar la cotización.",
   downloadProjectionError: "No se pudo descargar la proyección.",
   languageToggleLabel: "Idioma",
+  pwaInstallBanner:
+    "Agrega esta página a tu pantalla de inicio para acceder fácilmente",
+  pwaInstallBannerDismiss: "Ahora no",
 };
 
 const UI_EN: ClienteUiCopy = {
@@ -448,8 +451,8 @@ const UI_EN: ClienteUiCopy = {
   downloadProjectionError: "Could not download the projection.",
   languageToggleLabel: "Language",
   pwaInstallBanner:
-    "Add this page to your home screen for quick access.",
-  pwaInstallBannerDismiss: "Dismiss notice",
+    "Add this page to your home screen for easy access",
+  pwaInstallBannerDismiss: "Not now",
 };
 
 export function getClienteUiCopy(locale: ClienteLocale): ClienteUiCopy {
