@@ -29,6 +29,7 @@ function buildNavItems(rol: UserRole): NavItem[] {
   ];
   if (rol === "admin") {
     items.push(
+      { href: "/admin/reporte-financiero", label: "Reporte financiero" },
       { href: "/admin/comisiones", label: "Comisiones" },
       { href: "/admin/auditoria", label: "Auditoría" },
       { href: "/admin/usuarios", label: "Usuarios" },
