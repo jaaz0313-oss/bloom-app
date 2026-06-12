@@ -263,6 +263,8 @@ export type ClienteUiCopy = {
   downloadQuoteError: string;
   downloadProjectionError: string;
   languageToggleLabel: string;
+  pwaInstallBanner: string;
+  pwaInstallBannerDismiss: string;
 };
 
 const UI_ES: ClienteUiCopy = {
@@ -445,6 +447,9 @@ const UI_EN: ClienteUiCopy = {
   downloadQuoteError: "Could not download the quote.",
   downloadProjectionError: "Could not download the projection.",
   languageToggleLabel: "Language",
+  pwaInstallBanner:
+    "Add this page to your home screen for quick access.",
+  pwaInstallBannerDismiss: "Dismiss notice",
 };
 
 export function getClienteUiCopy(locale: ClienteLocale): ClienteUiCopy {

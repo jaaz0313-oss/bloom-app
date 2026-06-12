@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ClienteCotizacionBar } from "@/app/components/cliente/ClienteCotizacionBar";
+import { ClientePwaInstallBanner } from "@/app/components/cliente/ClientePwaInstallBanner";
 import { ClienteBodaEstado } from "@/app/components/cliente/ClienteBodaEstado";
 import { ClienteCronograma } from "@/app/components/cliente/ClienteCronograma";
 import { ClienteDetallesCelebracionSection } from "@/app/components/cliente/ClienteDetallesCelebracionSection";
@@ -167,6 +168,7 @@ export default async function ClienteBodaPage({ params }: PageProps) {
 
   return (
     <div className="flex min-h-full flex-col bg-bloom-canvas">
+      <ClientePwaInstallBanner bodaId={id} />
       <ClientePageHeader
         nombrePareja={bodaRow.nombre_pareja}
         fechaBoda={bodaRow.fecha_boda}
