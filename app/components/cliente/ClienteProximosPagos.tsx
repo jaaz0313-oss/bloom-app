@@ -8,9 +8,9 @@ import {
 } from "@/lib/cliente-pagos";
 import {
   formatClienteCurrency,
-  formatClienteShortDate,
   getClientePagoUrgencyLabel,
 } from "@/lib/cliente-i18n";
+import { formatShortDateStable } from "@/lib/format";
 
 type ClienteProximosPagosProps = {
   pagosPendientes: ClientePagoPendiente[];
@@ -93,7 +93,7 @@ function ProximoPagoCard({ item }: { item: ClientePagoPendiente }) {
             </dt>
             <dd className="mt-1 text-lg font-medium text-bloom-ink">
               {fechaLimite
-                ? formatClienteShortDate(fechaLimite, locale)
+                ? formatShortDateStable(fechaLimite)
                 : t.toBeConfirmed}
             </dd>
           </div>
