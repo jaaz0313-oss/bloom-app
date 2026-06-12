@@ -263,7 +263,9 @@ export type ClienteUiCopy = {
   downloadQuoteError: string;
   downloadProjectionError: string;
   languageToggleLabel: string;
-  pwaInstallBanner: string;
+  pwaInstallBannerIos: string;
+  pwaInstallBannerAndroid: string;
+  pwaInstallBannerOther: string;
   pwaInstallBannerDismiss: string;
 };
 
@@ -356,8 +358,12 @@ const UI_ES: ClienteUiCopy = {
   downloadQuoteError: "No se pudo descargar la cotización.",
   downloadProjectionError: "No se pudo descargar la proyección.",
   languageToggleLabel: "Idioma",
-  pwaInstallBanner:
-    "Agrega esta página a tu pantalla de inicio para acceder fácilmente",
+  pwaInstallBannerIos:
+    "Para acceder fácilmente: toca el botón compartir (□↑) en Safari y selecciona 'Añadir a pantalla de inicio' 🌸",
+  pwaInstallBannerAndroid:
+    "Para acceder fácilmente: toca el menú (⋮) en Chrome y selecciona 'Añadir a pantalla de inicio' 🌸",
+  pwaInstallBannerOther:
+    "Guarda este link para acceder fácilmente a tu portal 🌸",
   pwaInstallBannerDismiss: "Ahora no",
 };
 
@@ -450,8 +456,12 @@ const UI_EN: ClienteUiCopy = {
   downloadQuoteError: "Could not download the quote.",
   downloadProjectionError: "Could not download the projection.",
   languageToggleLabel: "Language",
-  pwaInstallBanner:
-    "Add this page to your home screen for easy access",
+  pwaInstallBannerIos:
+    "For easy access: tap the share button (□↑) in Safari and select 'Add to Home Screen' 🌸",
+  pwaInstallBannerAndroid:
+    "For easy access: tap the menu (⋮) in Chrome and select 'Add to Home Screen' 🌸",
+  pwaInstallBannerOther:
+    "Save this link for easy access to your portal 🌸",
   pwaInstallBannerDismiss: "Not now",
 };
 
