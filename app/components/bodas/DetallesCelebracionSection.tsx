@@ -19,7 +19,7 @@ export function DetallesCelebracionSection({
     <Shell className={shellClass}>
       {!embedded && (
         <h2 className="font-display text-xl text-bloom-ink">
-          Detalles de celebración
+          Detalles de la boda
         </h2>
       )}
 

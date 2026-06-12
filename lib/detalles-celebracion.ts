@@ -7,6 +7,19 @@ export type DetallesCelebracionFieldDef = {
   labelEn: string;
 };
 
+export const DETALLES_CELEBRACION_SECTION_TITLE = {
+  es: "Detalles de la boda",
+  en: "Wedding Details",
+} as const;
+
+export function getDetallesCelebracionSectionTitle(
+  locale: ClienteLocale,
+): string {
+  return locale === "en"
+    ? DETALLES_CELEBRACION_SECTION_TITLE.en
+    : DETALLES_CELEBRACION_SECTION_TITLE.es;
+}
+
 export const DETALLES_CELEBRACION_FIELDS: DetallesCelebracionFieldDef[] = [
   {
     key: "cancion_ingreso_novio",

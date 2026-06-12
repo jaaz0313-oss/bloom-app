@@ -283,7 +283,7 @@ const UI_ES: ClienteUiCopy = {
       ? `1 tasting · ${days === 1 ? "1 día" : `${days} días`}`
       : `${count} tastings · ${days === 1 ? "1 día" : `${days} días`}`,
   tastingsNextItem: "Siguiente tasting",
-  detallesCelebracionTitle: "Detalles de su celebración",
+  detallesCelebracionTitle: "Detalles de la boda",
   detallesCelebracionSubtitle: (filled, total) =>
     filled === 0
       ? `${total} preguntas por completar`
@@ -364,7 +364,7 @@ const UI_EN: ClienteUiCopy = {
       ? `1 tasting · ${days === 1 ? "1 day" : `${days} days`}`
       : `${count} tastings · ${days === 1 ? "1 day" : `${days} days`}`,
   tastingsNextItem: "Next tasting",
-  detallesCelebracionTitle: "Your celebration details",
+  detallesCelebracionTitle: "Wedding Details",
   detallesCelebracionSubtitle: (filled, total) =>
     filled === 0
       ? `${total} questions to complete`

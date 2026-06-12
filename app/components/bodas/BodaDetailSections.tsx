@@ -183,7 +183,7 @@ export function BodaDetailSections({
       </BodaAccordionSection>
 
       <BodaAccordionSection
-        title="Detalles de celebración"
+        title="Detalles de la boda"
         defaultOpen={false}
         hasContent={hasDetallesCelebracionContent(detallesCelebracion)}
       >

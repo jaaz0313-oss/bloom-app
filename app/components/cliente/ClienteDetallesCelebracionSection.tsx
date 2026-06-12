@@ -11,6 +11,7 @@ import {
 import {
   DETALLES_CELEBRACION_FIELDS,
   getDetallesCelebracionFieldLabel,
+  getDetallesCelebracionSectionTitle,
 } from "@/lib/detalles-celebracion";
 
 type ClienteDetallesCelebracionSectionProps = {
@@ -118,7 +119,7 @@ export function ClienteDetallesCelebracionSection({
           <span className="flex w-full items-start justify-between gap-4">
             <span className="min-w-0 flex-1">
               <span className="font-display text-2xl text-bloom-ink sm:text-3xl">
-                {t.detallesCelebracionTitle}
+                {getDetallesCelebracionSectionTitle(locale)}
               </span>
             </span>
             <AccordionChevron open={open} />
