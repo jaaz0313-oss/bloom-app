@@ -9,6 +9,7 @@ import { UserEmailEditor } from "@/app/components/UserEmailEditor";
 import { UserPhoneEditor } from "@/app/components/UserPhoneEditor";
 import { ResponsiveModal } from "@/app/components/ui/ResponsiveModal";
 import {
+  clearAdminPanelUnlocked,
   isAdminPanelUnlocked,
   setAdminPanelUnlocked,
 } from "@/lib/admin-panel-session";
@@ -130,6 +131,11 @@ export function DashboardHeader({ user }: DashboardHeaderProps) {
     router.refresh();
   }
 
+  function handleAdminLock() {
+    clearAdminPanelUnlocked();
+    setAdminUnlocked(false);
+  }
+
   return (
     <>
       <header className="sticky top-0 z-40 border-b border-bloom-border bg-bloom-surface/95 backdrop-blur-sm">
@@ -185,7 +191,18 @@ export function DashboardHeader({ user }: DashboardHeaderProps) {
                     {item.label}
                   </NavLink>
                 ))}
-                {isAdmin && (
+                {isAdmin && adminUnlocked && (
+                  <button
+                    type="button"
+                    onClick={handleAdminLock}
+                    className="rounded-full border border-transparent px-2 py-1 text-xs font-medium text-bloom-muted transition-colors hover:border-bloom-border hover:bg-bloom-canvas hover:text-bloom-ink"
+                    aria-label="Bloquear panel admin"
+                    title="Bloquear panel admin"
+                  >
+                    🔒 Bloquear
+                  </button>
+                )}
+                {isAdmin && !adminUnlocked && (
                   <button
                     type="button"
                     onClick={openAdminModal}
@@ -263,7 +280,22 @@ export function DashboardHeader({ user }: DashboardHeaderProps) {
                     </Link>
                   </li>
                 ))}
-                {isAdmin && (
+                {isAdmin && adminUnlocked && (
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleAdminLock();
+                        setMenuOpen(false);
+                      }}
+                      className="flex min-h-11 w-full items-center gap-2 rounded-xl px-4 text-base font-medium text-bloom-muted transition-colors hover:bg-bloom-canvas hover:text-bloom-ink"
+                    >
+                      <span aria-hidden>🔒</span>
+                      Bloquear
+                    </button>
+                  </li>
+                )}
+                {isAdmin && !adminUnlocked && (
                   <li>
                     <button
                       type="button"

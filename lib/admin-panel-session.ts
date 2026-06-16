@@ -17,3 +17,11 @@ export function setAdminPanelUnlocked(): void {
     // ignore
   }
 }
+
+export function clearAdminPanelUnlocked(): void {
+  try {
+    window.sessionStorage.removeItem(ADMIN_PANEL_SESSION_KEY);
+  } catch {
+    // ignore
+  }
+}
