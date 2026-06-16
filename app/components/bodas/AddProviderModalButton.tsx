@@ -6,7 +6,10 @@ import { supabase } from "@/lib/supabase";
 import { hasPermission, type UserRole } from "@/lib/auth/roles";
 import { AUDITORIA_ACCIONES, logAuditoria } from "@/lib/auditoria";
 import { PROVIDER_CATEGORIES } from "@/lib/provider-categories";
-import { buildDirectorioInsertFromBodaProveedor } from "@/lib/directorio-proveedor-from-boda";
+import {
+  buildDirectorioInsertFromBodaProveedor,
+  type BodaProveedorDirectorioSource,
+} from "@/lib/directorio-proveedor-from-boda";
 import { ProviderComisionFields } from "./ProviderComisionFields";
 
 type FormState = {
@@ -77,7 +80,7 @@ type PendingDirectorioSave = {
   categoria: string;
   telefono: string | null;
   email: string | null;
-};
+} & BodaProveedorDirectorioSource;
 
 async function existsInDirectorioByNombre(nombre: string): Promise<boolean> {
   if (!supabase) return false;
@@ -246,14 +249,17 @@ export function AddProviderModalButton({
     setSavingToDirectorio(true);
     setDirectorioSaveError(null);
     try {
+      const {
+        nombre,
+        categoria,
+        telefono,
+        email,
+        ...directorioBankingSource
+      } = pendingDirectorioSave;
+
       const payload = buildDirectorioInsertFromBodaProveedor(
-        {
-          nombre: pendingDirectorioSave.nombre,
-          categoria: pendingDirectorioSave.categoria,
-          telefono: pendingDirectorioSave.telefono,
-          email: pendingDirectorioSave.email,
-        },
-        pendingDirectorioSave,
+        { nombre, categoria, telefono, email },
+        directorioBankingSource,
       );
 
       const { error: insertError } = await supabase
