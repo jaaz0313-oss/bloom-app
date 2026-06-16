@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { hasPermission, type UserRole } from "@/lib/auth/roles";
 import { AUDITORIA_ACCIONES, logAuditoria } from "@/lib/auditoria";
 import { PROVIDER_CATEGORIES } from "@/lib/provider-categories";
+import { buildDirectorioInsertFromBodaProveedor } from "@/lib/directorio-proveedor-from-boda";
 import { ProviderComisionFields } from "./ProviderComisionFields";
 
 type FormState = {
@@ -245,15 +246,19 @@ export function AddProviderModalButton({
     setSavingToDirectorio(true);
     setDirectorioSaveError(null);
     try {
-      const { error: insertError } = await supabase
-        .from("directorio_proveedores")
-        .insert({
+      const payload = buildDirectorioInsertFromBodaProveedor(
+        {
           nombre: pendingDirectorioSave.nombre,
           categoria: pendingDirectorioSave.categoria,
           telefono: pendingDirectorioSave.telefono,
           email: pendingDirectorioSave.email,
-          activo: true,
-        });
+        },
+        pendingDirectorioSave,
+      );
+
+      const { error: insertError } = await supabase
+        .from("directorio_proveedores")
+        .insert(payload);
 
       if (insertError) {
         setDirectorioSaveError(insertError.message);
@@ -406,6 +411,12 @@ export function AddProviderModalButton({
         categoria,
         telefono: telefono || null,
         email: email || null,
+        banco: banco || null,
+        tipo_cuenta: tipoCuenta || null,
+        numero_cuenta: numeroCuenta || null,
+        titular_cuenta: titular || null,
+        documento_nit: documentoNit || null,
+        anticipo: anticipo > 0 ? anticipo : null,
       });
     } finally {
       setSubmitting(false);
