@@ -5,6 +5,7 @@ import { BodaDetailSections } from "@/app/components/bodas/BodaDetailSections";
 import { DeleteWeddingButton } from "@/app/components/bodas/DeleteWeddingButton";
 import { RevertirALeadButton } from "@/app/components/bodas/RevertirALeadButton";
 import { ClientePortalQrButton } from "@/app/components/bodas/ClientePortalQrButton";
+import { BodaCotizacionInicialButton } from "@/app/components/bodas/BodaCotizacionInicialButton";
 import { ShareWithClientButton } from "@/app/components/bodas/ShareWithClientButton";
 import type { CitaRow } from "@/app/data/citas";
 import type { BriefBodaRow } from "@/app/data/brief-boda";
@@ -249,6 +250,9 @@ export default async function BodaDetailPage({ params, searchParams }: PageProps
                 <ShareWithClientButton bodaId={id} />
                 <ClientePortalQrButton bodaId={id} />
               </>
+            )}
+            {bodaRow.lead_id && (
+              <BodaCotizacionInicialButton leadId={bodaRow.lead_id} />
             )}
             {isAdmin && <RevertirALeadButton boda={revertBodaPayload} />}
           </div>
