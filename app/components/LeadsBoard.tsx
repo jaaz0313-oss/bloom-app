@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   LEAD_SEGUIMIENTO_LABELS,
@@ -86,6 +86,7 @@ export function LeadsBoard({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<LeadFormState>(emptyLeadForm);
+  const [fechaConflicto, setFechaConflicto] = useState<string[]>([]);
   const [anticipoTouched, setAnticipoTouched] = useState(false);
   const canManageAcuerdos = role === "admin" || role === "lider";
   const canManageLeads = hasPermission(role, "leads.create");
@@ -108,9 +109,42 @@ export function LeadsBoard({
   function openCreateModal() {
     setError(null);
     setForm(emptyLeadForm);
+    setFechaConflicto([]);
     setAnticipoTouched(false);
     setCreateOpen(true);
   }
+
+  useEffect(() => {
+    if (!createOpen || !form.fechaTentativa) {
+      setFechaConflicto([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function checkFechaConflicto() {
+      if (!supabase) return;
+
+      const { data } = await supabase
+        .from("bodas")
+        .select("nombre_pareja")
+        .eq("fecha_boda", form.fechaTentativa);
+
+      if (cancelled) return;
+
+      if (data && data.length > 0) {
+        setFechaConflicto(data.map((boda) => boda.nombre_pareja));
+      } else {
+        setFechaConflicto([]);
+      }
+    }
+
+    void checkFechaConflicto();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [createOpen, form.fechaTentativa]);
 
   function openEditModal(lead: LeadRow) {
     setError(null);
@@ -738,7 +772,12 @@ export function LeadsBoard({
           onClose={() => setCreateOpen(false)}
         >
           <form className="mt-5 space-y-4" onSubmit={handleCreate}>
-            <LeadBaseFields form={form} setForm={setForm} submitting={submitting} />
+            <LeadBaseFields
+              form={form}
+              setForm={setForm}
+              submitting={submitting}
+              fechaConflicto={fechaConflicto}
+            />
             {canManageAcuerdos && (
               <LeadAcuerdosFields
                 form={form}
@@ -918,10 +957,12 @@ function LeadBaseFields({
   form,
   setForm,
   submitting,
+  fechaConflicto = [],
 }: {
   form: LeadFormState;
   setForm: React.Dispatch<React.SetStateAction<LeadFormState>>;
   submitting: boolean;
+  fechaConflicto?: string[];
 }) {
   return (
     <>
@@ -935,7 +976,10 @@ function LeadBaseFields({
         />
       </Field>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Fecha tentativa">
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-bloom-ink">
+            Fecha tentativa
+          </label>
           <input
             type="date"
             className={inputClass}
@@ -946,7 +990,17 @@ function LeadBaseFields({
             required
             disabled={submitting}
           />
-        </Field>
+          {fechaConflicto.length > 0 && (
+            <p
+              className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900"
+              role="status"
+            >
+              ⚠️ Ya tienes una boda agendada para esta fecha:{" "}
+              {fechaConflicto.join(", ")}. Verifica disponibilidad antes de
+              confirmar.
+            </p>
+          )}
+        </div>
         <Field label="Ciudad">
           <input
             className={inputClass}
