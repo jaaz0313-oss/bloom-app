@@ -15,7 +15,7 @@ import { formatCurrency } from "@/lib/format";
 import {
   resolveClienteFromBoda,
 } from "@/lib/contrato-celestia-template";
-import { downloadContratoDocx } from "@/lib/download-contrato-docx";
+import { downloadContratoFile } from "@/lib/download-contrato-docx";
 import { WhatsAppLocaleToggle } from "@/app/components/ui/WhatsAppLocaleToggle";
 import { EmailShareModal } from "@/app/components/ui/EmailShareModal";
 import {
@@ -97,7 +97,9 @@ export function ContratoSection({
     buildInitialForm(boda, initialContrato),
   );
   const [saving, setSaving] = useState(false);
-  const [generating, setGenerating] = useState(false);
+  const [generatingFormat, setGeneratingFormat] = useState<
+    "word" | "pdf" | null
+  >(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [shareWarning, setShareWarning] = useState<string | null>(null);
@@ -155,6 +157,8 @@ export function ContratoSection({
   );
 
   const showShareActions = hasGeneratedOnce || estado !== "borrador";
+
+  const generating = generatingFormat !== null;
 
   function handleShareWhatsApp() {
     setShareWarning(null);
@@ -299,7 +303,7 @@ export function ContratoSection({
     await saveChanges(nextEstado);
   }
 
-  async function handleGenerateDocx() {
+  async function handleDownloadContrato(format: "word" | "pdf") {
     setError(null);
     setSuccess(null);
 
@@ -317,56 +321,69 @@ export function ContratoSection({
       return;
     }
 
-    setGenerating(true);
+    setGeneratingFormat(format);
     try {
       const saved = await saveChanges();
       if (!saved) return;
 
       const bodaForDoc = { ...boda, ciudad: parsed.ciudad };
       const cliente = resolveClienteFromBoda(bodaForDoc, parsed.firmante);
+      const payload = {
+        boda: bodaForDoc,
+        firmante: parsed.firmante,
+        cliente,
+        honorarios: parsed.honorarios,
+        anticipo: parsed.anticipo ?? 0,
+        saldo: parsed.saldo ?? parsed.honorarios,
+        fechaFirma: parsed.fechaFirma,
+      };
 
-      const response = await fetch("/api/contrato/generar", {
+      const endpoint =
+        format === "pdf" ? "/api/contrato/generar-pdf" : "/api/contrato/generar";
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          boda: bodaForDoc,
-          firmante: parsed.firmante,
-          cliente,
-          honorarios: parsed.honorarios,
-          anticipo: parsed.anticipo ?? 0,
-          saldo: parsed.saldo ?? parsed.honorarios,
-          fechaFirma: parsed.fechaFirma,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as {
+        const errorPayload = (await response.json().catch(() => null)) as {
           error?: string;
         } | null;
-        setError(payload?.error ?? "No se pudo generar el contrato.");
+        setError(
+          errorPayload?.error ??
+            (format === "pdf"
+              ? "No se pudo generar el contrato en PDF."
+              : "No se pudo generar el contrato."),
+        );
         return;
       }
 
       const blob = await response.blob();
+      const defaultExtension = format === "pdf" ? ".pdf" : ".docx";
       const filename =
         response.headers.get("X-Filename") ??
-        `Contrato_Celestia_${bodaForDoc.nombre_pareja.replace(/\s+/g, "_")}.docx`;
-      downloadContratoDocx(blob, filename);
+        `Contrato_Celestia_${bodaForDoc.nombre_pareja.replace(/\s+/g, "_")}${defaultExtension}`;
+      downloadContratoFile(blob, filename);
       await logAuditoria({
         accion: AUDITORIA_ACCIONES.CONTRATO_GENERADO,
         entidad: "contrato",
         entidadId: contratoId ?? bodaId,
         bodaNombre: bodaForDoc.nombre_pareja,
-        detalle: `${cliente.nombre} · ${formatCurrency(parsed.honorarios)} · ${parsed.ciudad}`,
+        detalle: `${cliente.nombre} · ${formatCurrency(parsed.honorarios)} · ${parsed.ciudad} · ${format.toUpperCase()}`,
       });
       setHasGeneratedOnce(true);
-      setSuccess("Contrato generado y descargado.");
+      setSuccess(
+        format === "pdf"
+          ? "Contrato PDF generado y descargado."
+          : "Contrato Word generado y descargado.",
+      );
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "No se pudo generar el contrato.",
       );
     } finally {
-      setGenerating(false);
+      setGeneratingFormat(null);
     }
   }
 
@@ -551,16 +568,29 @@ export function ContratoSection({
             </button>
             <button
               type="button"
-              onClick={handleGenerateDocx}
+              onClick={() => handleDownloadContrato("word")}
               disabled={saving || generating}
               className="inline-flex items-center justify-center rounded-full bg-bloom-accent px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-bloom-accent-hover disabled:opacity-60"
             >
-              {generating ? "Generando..." : "Generar contrato"}
+              {generatingFormat === "word" ? "Generando..." : "Descargar Word"}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleDownloadContrato("pdf")}
+              disabled={saving || generating}
+              className="inline-flex items-center justify-center rounded-full border border-bloom-border bg-bloom-surface px-5 py-2.5 text-sm font-medium text-bloom-ink transition-colors hover:bg-bloom-border disabled:opacity-60"
+            >
+              {generatingFormat === "pdf" ? "Generando..." : "Descargar PDF"}
             </button>
           </div>
 
           {showShareActions && (
-            <div className="flex flex-wrap items-center justify-end gap-2">
+            <div className="flex flex-col items-end gap-2">
+              <p className="text-xs text-bloom-muted">
+                Descarga el contrato en Word o PDF y adjunta el archivo que prefieras
+                al enviarlo.
+              </p>
+              <div className="flex flex-wrap items-center justify-end gap-2">
               <button
                 type="button"
                 onClick={handleShareWhatsApp}
@@ -583,6 +613,7 @@ export function ContratoSection({
                 <EmailIcon />
                 Enviar por Email
               </button>
+              </div>
             </div>
           )}
 
@@ -604,7 +635,7 @@ export function ContratoSection({
           recipientEmail={contratoRecipientEmail}
           subject={contratoEmailSubject}
           initialMessage={contratoEmailMessage}
-          instructions="1. Copia el mensaje 2. Abre Gmail 3. Pega el mensaje 4. Adjunta el contrato Word"
+          instructions="1. Descarga el contrato en Word o PDF 2. Copia el mensaje 3. Abre Gmail 4. Pega el mensaje 5. Adjunta el archivo descargado"
         />
       )}
     </Shell>

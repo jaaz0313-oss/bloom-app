@@ -523,3 +523,9 @@ export function buildContratoFilename(boda: Pick<BodaRow, "nombre_pareja">): str
     .replace(/[^A-Za-z0-9_ÁÉÍÓÚáéíóúÑñ-]/g, "");
   return `Contrato_Celestia_${slug || "boda"}.docx`;
 }
+
+export function buildContratoPdfFilename(
+  boda: Pick<BodaRow, "nombre_pareja">,
+): string {
+  return buildContratoFilename(boda).replace(/\.docx$/i, ".pdf");
+}

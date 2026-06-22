@@ -1,4 +1,4 @@
-export function downloadContratoDocx(blob: Blob, filename: string) {
+export function downloadContratoFile(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
@@ -6,3 +6,6 @@ export function downloadContratoDocx(blob: Blob, filename: string) {
   anchor.click();
   URL.revokeObjectURL(url);
 }
+
+/** @deprecated Use downloadContratoFile */
+export const downloadContratoDocx = downloadContratoFile;
