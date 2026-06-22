@@ -32,6 +32,7 @@ export type BodaRow = {
   honorarios: number | null;
   anticipo_honorarios: number | null;
   lugar_venue: string | null;
+  num_invitados: number | null;
   created_at: string;
 };
 
