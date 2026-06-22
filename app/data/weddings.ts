@@ -33,6 +33,9 @@ export type BodaRow = {
   anticipo_honorarios: number | null;
   lugar_venue: string | null;
   num_invitados: number | null;
+  fecha_confirmada: boolean;
+  google_event_id_fecha: string | null;
+  fecha_boda_confirmada: string | null;
   created_at: string;
 };
 

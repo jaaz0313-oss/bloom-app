@@ -6,6 +6,7 @@ import { DeleteWeddingButton } from "@/app/components/bodas/DeleteWeddingButton"
 import { RevertirALeadButton } from "@/app/components/bodas/RevertirALeadButton";
 import { ClientePortalQrButton } from "@/app/components/bodas/ClientePortalQrButton";
 import { BodaCotizacionInicialButton } from "@/app/components/bodas/BodaCotizacionInicialButton";
+import { BodaFechaConfirmada } from "@/app/components/bodas/BodaFechaConfirmada";
 import { ShareWithClientButton } from "@/app/components/bodas/ShareWithClientButton";
 import type { CitaRow } from "@/app/data/citas";
 import type { BriefBodaRow } from "@/app/data/brief-boda";
@@ -18,7 +19,6 @@ import { sortTastingsBySchedule, type TastingRow } from "@/app/data/tastings";
 import type { BodaRow } from "@/app/data/weddings";
 import { groupPagosByProveedor, type PagoRow } from "@/app/data/pagos";
 import type { ProveedorRow } from "@/app/data/providers";
-import { formatWeddingDate } from "@/lib/format";
 import {
   hasBriefContent,
   hasClientInfoContent,
@@ -233,10 +233,19 @@ export default async function BodaDetailPage({ params, searchParams }: PageProps
             {bodaRow.nombre_pareja}
           </h1>
           <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-sm">
-            <div className="flex gap-2">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
               <dt className="text-bloom-muted">Fecha</dt>
-              <dd className="font-medium text-bloom-ink">
-                {formatWeddingDate(bodaRow.fecha_boda)}
+              <dd>
+                <BodaFechaConfirmada
+                  bodaId={id}
+                  boda={{
+                    fecha_boda: bodaRow.fecha_boda,
+                    fecha_confirmada: bodaRow.fecha_confirmada ?? false,
+                    google_event_id_fecha: bodaRow.google_event_id_fecha,
+                    fecha_boda_confirmada: bodaRow.fecha_boda_confirmada,
+                  }}
+                  role={user.rol}
+                />
               </dd>
             </div>
             <div className="flex gap-2">

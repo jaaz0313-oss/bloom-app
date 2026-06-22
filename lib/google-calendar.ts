@@ -282,3 +282,56 @@ export async function createTastingCalendarEvent(
 
   return mapEventResult(response.data);
 }
+
+function normalizeBodaFecha(fecha: string): string {
+  const trimmed = fecha.trim();
+  const match = trimmed.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (!match) {
+    throw new Error("La fecha de la boda no tiene un formato válido (YYYY-MM-DD).");
+  }
+  return match[1];
+}
+
+function addDaysToIsoDate(isoDate: string, days: number): string {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day + days));
+  return date.toISOString().slice(0, 10);
+}
+
+export async function createBodaFechaConfirmadaEvent(
+  fechaBoda: string,
+  nombrePareja: string,
+): Promise<CalendarEventResult> {
+  const calendar = getCalendarClient();
+  const calendarId = getCalendarId();
+  const fecha = normalizeBodaFecha(fechaBoda);
+  const nombre = nombrePareja.trim() || "Boda";
+
+  const response = await calendar.events.insert({
+    calendarId,
+    sendUpdates: "none",
+    requestBody: {
+      summary: `🔒 Boda - ${nombre}`,
+      description: `Fecha confirmada - Boda de ${nombre}`,
+      start: { date: fecha },
+      end: { date: addDaysToIsoDate(fecha, 1) },
+    },
+  });
+
+  return mapEventResult(response.data);
+}
+
+export async function deleteCalendarEventIfExists(
+  googleEventId: string | null | undefined,
+): Promise<void> {
+  if (!googleEventId?.trim()) return;
+
+  try {
+    await deleteCalendarEvent(googleEventId.trim());
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (!message.includes("404") && !message.toLowerCase().includes("not found")) {
+      throw err;
+    }
+  }
+}
