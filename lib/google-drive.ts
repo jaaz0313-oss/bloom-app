@@ -14,6 +14,11 @@ export type BodaDriveFolderRow = {
 
 const SUBFOLDERS = ["Cotizaciones", "Comprobantes de pago", "Contratos"];
 
+export const BODA_DRIVE_TEAM_WRITER_EMAILS = [
+  "infocelestia@gmail.com",
+  "contabilidadcelestia@gmail.com",
+] as const;
+
 export const COMPROBANTES_PAGO_SUBFOLDER = "Comprobantes de pago";
 
 function getDriveClient() {
@@ -36,6 +41,49 @@ async function shareFolderWithLink(drive: ReturnType<typeof getDriveClient>, fil
       type: "anyone",
     },
   });
+}
+
+function isDrivePermissionAlreadyExistsError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    message.includes("already exists") ||
+    message.includes("already has access") ||
+    message.includes("409")
+  );
+}
+
+async function shareFolderWithTeamWriters(
+  drive: ReturnType<typeof getDriveClient>,
+  fileId: string,
+) {
+  for (const emailAddress of BODA_DRIVE_TEAM_WRITER_EMAILS) {
+    try {
+      await drive.permissions.create({
+        fileId,
+        sendNotificationEmail: false,
+        requestBody: {
+          type: "user",
+          role: "writer",
+          emailAddress,
+        },
+      });
+    } catch (error) {
+      if (!isDrivePermissionAlreadyExistsError(error)) {
+        console.error(
+          `No se pudo compartir la carpeta ${fileId} con ${emailAddress}:`,
+          error,
+        );
+      }
+    }
+  }
+}
+
+async function configureFolderSharing(
+  drive: ReturnType<typeof getDriveClient>,
+  fileId: string,
+) {
+  await shareFolderWithLink(drive, fileId);
+  await shareFolderWithTeamWriters(drive, fileId);
 }
 
 export async function copyTimingTemplate(
@@ -110,7 +158,7 @@ export async function createDriveFolderForBoda(
     throw new Error("Google Drive no devolvió el ID de la carpeta principal.");
   }
 
-  await shareFolderWithLink(drive, parentId);
+  await configureFolderSharing(drive, parentId);
 
   for (const subfolderName of SUBFOLDERS) {
     const subfolder = await drive.files.create({
@@ -123,7 +171,7 @@ export async function createDriveFolderForBoda(
     });
 
     if (subfolder.data.id) {
-      await shareFolderWithLink(drive, subfolder.data.id);
+      await configureFolderSharing(drive, subfolder.data.id);
     }
   }
 
