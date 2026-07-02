@@ -1,40 +1,40 @@
 "use client";
 
-import type { CitaRow } from "@/app/data/citas";
+import type { CalendarioEvento } from "@/lib/calendario-eventos";
+import { CalendarioEventoPill } from "./CalendarioEventoPill";
 import { normalizeCitaFecha } from "@/lib/citas";
 import {
   getWeekdayShort,
   isToday,
   parseIsoDate,
 } from "@/lib/citas-calendar";
-import { CitaPill } from "./CitaPill";
 
 const MAX_CITAS_VISIBLE = 2;
 const CELL_HEIGHT_CLASS = "min-h-[180px] h-[180px]";
 
 type CalendarioSemanaProps = {
   weekDays: string[];
-  citasByDate: Map<string, CitaRow[]>;
+  eventosByDate: Map<string, CalendarioEvento[]>;
   onDayClick: (fechaKey: string) => void;
-  onCitaClick: (cita: CitaRow) => void;
-  onVerMasClick: (fechaKey: string, citas: CitaRow[]) => void;
+  onEventoClick: (evento: CalendarioEvento) => void;
+  onVerMasClick: (fechaKey: string, eventos: CalendarioEvento[]) => void;
 };
 
 export function CalendarioSemana({
   weekDays,
-  citasByDate,
+  eventosByDate,
   onDayClick,
-  onCitaClick,
+  onEventoClick,
   onVerMasClick,
 }: CalendarioSemanaProps) {
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-7">
       {weekDays.map((iso) => {
         const fechaKey = normalizeCitaFecha(iso);
-        const dayCitasList = citasByDate.get(fechaKey) ?? [];
+        const dayEventosList = eventosByDate.get(fechaKey) ?? [];
         const today = isToday(fechaKey);
-        const visibleCitas = dayCitasList.slice(0, MAX_CITAS_VISIBLE);
-        const hiddenCount = dayCitasList.length - MAX_CITAS_VISIBLE;
+        const visibleEventos = dayEventosList.slice(0, MAX_CITAS_VISIBLE);
+        const hiddenCount = dayEventosList.length - MAX_CITAS_VISIBLE;
 
         return (
           <div
@@ -68,17 +68,17 @@ export function CalendarioSemana({
             </div>
 
             <div className="relative z-10 mt-2 flex min-h-0 flex-1 flex-col gap-1 overflow-hidden">
-              {visibleCitas.map((cita) => (
-                <CitaPill
-                  key={cita.id}
-                  cita={cita}
-                  onClick={() => onCitaClick(cita)}
+              {visibleEventos.map((evento) => (
+                <CalendarioEventoPill
+                  key={evento.kind === "cita" ? evento.cita.id : evento.tasting.id}
+                  evento={evento}
+                  onClick={() => onEventoClick(evento)}
                 />
               ))}
               {hiddenCount > 0 && (
                 <button
                   type="button"
-                  onClick={() => onVerMasClick(fechaKey, dayCitasList)}
+                  onClick={() => onVerMasClick(fechaKey, dayEventosList)}
                   className="shrink-0 text-left text-[10px] font-medium text-bloom-accent hover:underline"
                 >
                   Ver {hiddenCount} más

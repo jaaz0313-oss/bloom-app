@@ -22,8 +22,9 @@ import { formatShortDateStable } from "@/lib/format";
 import type { UserRole } from "@/lib/auth/roles";
 import { CalendarioMensual } from "./CalendarioMensual";
 import { CalendarioSemana } from "./CalendarioSemana";
+import { CalendarioDiaOverflowModal } from "./CalendarioDiaOverflowModal";
 import { CitaCalendarioDetalleModal } from "./CitaCalendarioDetalleModal";
-import { CitaDiaOverflowModal } from "./CitaDiaOverflowModal";
+import { TastingCalendarioDetalleModal } from "./TastingCalendarioDetalleModal";
 import {
   CitaFormModal,
   type CitaLookupBoda,
@@ -31,9 +32,18 @@ import {
   type CitaLookupLead,
 } from "./CitaFormModal";
 import { CitaConAcciones } from "./CitaConAcciones";
+import { TastingCalendarioItem } from "./TastingCalendarioItem";
+import {
+  buildCalendarioEventosByDate,
+  getCalendarioEventoId,
+  TASTING_CALENDARIO_DOT,
+  type CalendarioEvento,
+  type TastingCalendarioRow,
+} from "@/lib/calendario-eventos";
 
 type CalendarioClientProps = {
   citas: CitaRow[];
+  tastings: TastingCalendarioRow[];
   bodas: CitaLookupBoda[];
   leads: CitaLookupLead[];
   equipo: CitaLookupEquipo[];
@@ -44,6 +54,7 @@ type CalendarioClientProps = {
 
 export function CalendarioClient({
   citas: initialCitas,
+  tastings,
   bodas,
   leads,
   equipo,
@@ -72,22 +83,17 @@ export function CalendarioClient({
   const [anchorDate, setAnchorDate] = useState(() => getTodayIso());
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedCita, setSelectedCita] = useState<CitaRow | null>(null);
+  const [selectedTasting, setSelectedTasting] =
+    useState<TastingCalendarioRow | null>(null);
   const [overflowDay, setOverflowDay] = useState<{
     fecha: string;
-    citas: CitaRow[];
+    eventos: CalendarioEvento[];
   } | null>(null);
 
-  const citasByDate = useMemo(() => {
-    const map = new Map<string, CitaRow[]>();
-    for (const cita of sortCitasBySchedule(citas)) {
-      const fechaKey = normalizeCitaFecha(cita.fecha);
-      if (!fechaKey) continue;
-      const list = map.get(fechaKey) ?? [];
-      list.push({ ...cita, fecha: fechaKey });
-      map.set(fechaKey, list);
-    }
-    return map;
-  }, [citas]);
+  const eventosByDate = useMemo(
+    () => buildCalendarioEventosByDate(citas, tastings),
+    [citas, tastings],
+  );
 
   const monthAnchorIso = getMonthAnchor(anchorDate);
   const monthAnchor = parseIsoDate(monthAnchorIso);
@@ -117,7 +123,17 @@ export function CalendarioClient({
         ? `${formatShortDateStable(weekDays[0])} – ${formatShortDateStable(weekDays[6])}`
         : formatShortDateStable(anchorDate);
 
-  const dayCitas = citasByDate.get(normalizeCitaFecha(anchorDate)) ?? [];
+  const dayEventos = eventosByDate.get(normalizeCitaFecha(anchorDate)) ?? [];
+
+  function handleEventoClick(evento: CalendarioEvento) {
+    if (evento.kind === "cita") {
+      setSelectedTasting(null);
+      setSelectedCita(evento.cita);
+      return;
+    }
+    setSelectedCita(null);
+    setSelectedTasting(evento.tasting);
+  }
 
   function handleCitaChange(citaId: string, next: CitaRow | null) {
     setCitas((prev) => {
@@ -190,14 +206,14 @@ export function CalendarioClient({
         <CalendarioMensual
           year={year}
           month={month}
-          citasByDate={citasByDate}
+          eventosByDate={eventosByDate}
           onDayClick={(fechaKey) => {
             setAnchorDate(fechaKey);
             setView("dia");
           }}
-          onCitaClick={(cita) => setSelectedCita(cita)}
-          onVerMasClick={(fechaKey, dayCitas) =>
-            setOverflowDay({ fecha: fechaKey, citas: dayCitas })
+          onEventoClick={handleEventoClick}
+          onVerMasClick={(fechaKey, dayEventos) =>
+            setOverflowDay({ fecha: fechaKey, eventos: dayEventos })
           }
         />
       )}
@@ -205,38 +221,45 @@ export function CalendarioClient({
       {view === "semana" && (
         <CalendarioSemana
           weekDays={weekDays}
-          citasByDate={citasByDate}
+          eventosByDate={eventosByDate}
           onDayClick={(fechaKey) => {
             setAnchorDate(fechaKey);
             setView("dia");
           }}
-          onCitaClick={(cita) => setSelectedCita(cita)}
-          onVerMasClick={(fechaKey, dayCitas) =>
-            setOverflowDay({ fecha: fechaKey, citas: dayCitas })
+          onEventoClick={handleEventoClick}
+          onVerMasClick={(fechaKey, dayEventos) =>
+            setOverflowDay({ fecha: fechaKey, eventos: dayEventos })
           }
         />
       )}
 
       {view === "dia" && (
         <div className="space-y-3">
-          {dayCitas.length === 0 ? (
+          {dayEventos.length === 0 ? (
             <p className="rounded-xl border border-dashed border-bloom-border px-6 py-10 text-center text-sm text-bloom-muted">
-              No hay citas este día.
+              No hay eventos este día.
             </p>
           ) : (
-            dayCitas.map((c) => (
-              <CitaConAcciones
-                key={c.id}
-                cita={c}
-                bodas={bodas}
-                leads={leads}
-                equipo={equipo}
-                role={role}
-                currentUserId={currentUserId}
-                currentUserNombre={currentUserNombre}
-                onChange={(next) => handleCitaChange(c.id, next)}
-              />
-            ))
+            dayEventos.map((evento) =>
+              evento.kind === "cita" ? (
+                <CitaConAcciones
+                  key={evento.cita.id}
+                  cita={evento.cita}
+                  bodas={bodas}
+                  leads={leads}
+                  equipo={equipo}
+                  role={role}
+                  currentUserId={currentUserId}
+                  currentUserNombre={currentUserNombre}
+                  onChange={(next) => handleCitaChange(evento.cita.id, next)}
+                />
+              ) : (
+                <TastingCalendarioItem
+                  key={evento.tasting.id}
+                  tasting={evento.tasting}
+                />
+              ),
+            )
           )}
         </div>
       )}
@@ -252,6 +275,12 @@ export function CalendarioClient({
             {label}
           </span>
         ))}
+        {tastings.length > 0 && (
+          <span className="inline-flex items-center gap-1.5">
+            <span className={`h-2 w-2 rounded-full ${TASTING_CALENDARIO_DOT}`} />
+            Tasting
+          </span>
+        )}
       </div>
 
       <CitaFormModal
@@ -289,13 +318,18 @@ export function CalendarioClient({
         }}
       />
 
-      <CitaDiaOverflowModal
+      <TastingCalendarioDetalleModal
+        tasting={selectedTasting}
+        onClose={() => setSelectedTasting(null)}
+      />
+
+      <CalendarioDiaOverflowModal
         fecha={overflowDay?.fecha ?? null}
-        citas={overflowDay?.citas ?? []}
+        eventos={overflowDay?.eventos ?? []}
         onClose={() => setOverflowDay(null)}
-        onSelectCita={(cita) => {
+        onSelectEvento={(evento) => {
           setOverflowDay(null);
-          setSelectedCita(cita);
+          handleEventoClick(evento);
         }}
       />
     </div>

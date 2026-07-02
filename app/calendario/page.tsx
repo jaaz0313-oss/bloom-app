@@ -2,6 +2,9 @@ import Link from "next/link";
 import { DashboardHeader } from "@/app/components/DashboardHeader";
 import { CalendarioClient } from "@/app/components/citas/CalendarioClient";
 import type { CitaRow } from "@/app/data/citas";
+import type { TastingRow } from "@/app/data/tastings";
+import type { TastingCalendarioRow } from "@/lib/calendario-eventos";
+import { canViewTastings } from "@/lib/tastings";
 import { requireAuthUser } from "@/lib/auth/user-profiles";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 
@@ -39,6 +42,26 @@ export default async function CalendarioPage() {
     .eq("activo", true)
     .order("nombre", { ascending: true });
 
+  let tastings: TastingCalendarioRow[] = [];
+  if (canViewTastings(user.rol)) {
+    const { data: tastingsData, error: tastingsError } = await supabase
+      .from("tastings")
+      .select("*, bodas(nombre_pareja)")
+      .order("fecha", { ascending: true })
+      .order("hora_inicio", { ascending: true });
+
+    if (tastingsError) {
+      throw new Error(tastingsError.message);
+    }
+
+    tastings = ((tastingsData ?? []) as Array<
+      TastingRow & { bodas: { nombre_pareja: string } | null }
+    >).map((row) => ({
+      ...row,
+      boda_nombre: row.bodas?.nombre_pareja?.trim() || "Boda sin nombre",
+    }));
+  }
+
   return (
     <div className="min-h-full bg-bloom-canvas font-sans">
       <DashboardHeader user={user} />
@@ -52,11 +75,12 @@ export default async function CalendarioPage() {
 
         <h1 className="mt-6 font-display text-3xl text-bloom-ink">Calendario</h1>
         <p className="mt-1 text-sm text-bloom-muted">
-          Citas y reuniones del equipo.
+          Citas, tastings y reuniones del equipo.
         </p>
 
         <CalendarioClient
           citas={(citas ?? []) as CitaRow[]}
+          tastings={tastings}
           bodas={bodas ?? []}
           leads={leads ?? []}
           equipo={equipo ?? []}

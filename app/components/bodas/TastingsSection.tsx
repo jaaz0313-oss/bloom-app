@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   TastingProveedorPicker,
@@ -22,8 +22,16 @@ import {
 import { formatCurrency, formatShortDateStable } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
 import { crearEventoCalendarTasting } from "@/lib/tasting-google-calendar";
-import { checkTastingScheduleConflict } from "@/lib/tastings-conflict";
-import { canManageTastings, canViewTastings, validateTastingSchedule } from "@/lib/tastings";
+import {
+  checkTastingScheduleConflict,
+  checkTastingScheduleWarnings,
+} from "@/lib/tastings-conflict";
+import {
+  canManageTastings,
+  canViewTastings,
+  type TastingScheduleWarning,
+  validateTastingSchedule,
+} from "@/lib/tastings";
 import { AUDITORIA_ACCIONES, logAuditoria } from "@/lib/auditoria";
 
 type TastingsSectionProps = {
@@ -102,7 +110,12 @@ export function TastingsSection({
   const [form, setForm] = useState<FormState>(emptyForm);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [conflictWarning, setConflictWarning] = useState<string | null>(null);
+  const [scheduleWarnings, setScheduleWarnings] = useState<TastingScheduleWarning[]>(
+    [],
+  );
+  const [assigneeConflictWarning, setAssigneeConflictWarning] = useState<
+    string | null
+  >(null);
   const [calendarWarning, setCalendarWarning] = useState<string | null>(null);
 
   const endTimeOptions = useMemo(
@@ -115,10 +128,79 @@ export function TastingsSection({
     return equipo.find((member) => member.id === form.asignadoId)?.nombre ?? "";
   }, [form.asignadoId, equipo]);
 
+  useEffect(() => {
+    if (!formOpen || !supabase) {
+      setScheduleWarnings([]);
+      setAssigneeConflictWarning(null);
+      return;
+    }
+
+    if (!form.fecha.trim() || !form.horaInicio.trim()) {
+      setScheduleWarnings([]);
+      setAssigneeConflictWarning(null);
+      return;
+    }
+
+    const scheduleError = validateTastingSchedule(form.horaInicio, form.horaFin);
+    if (scheduleError) {
+      setScheduleWarnings([]);
+      setAssigneeConflictWarning(null);
+      return;
+    }
+
+    let cancelled = false;
+    const horaInicioDb = citaTimeToDb(form.horaInicio);
+    const horaFinDb = form.horaFin ? citaTimeToDb(form.horaFin) : null;
+
+    void (async () => {
+      try {
+        const warnings = await checkTastingScheduleWarnings(supabase, {
+          fecha: form.fecha,
+          horaInicio: horaInicioDb,
+          horaFin: horaFinDb,
+        });
+
+        let assigneeMessage: string | null = null;
+        if (form.asignadoId && asignadoNombre) {
+          const assigneeConflict = await checkTastingScheduleConflict(supabase, {
+            asignadoId: form.asignadoId,
+            asignadoNombre,
+            fecha: form.fecha,
+            horaInicio: horaInicioDb,
+            horaFin: horaFinDb,
+          });
+          assigneeMessage = assigneeConflict.message;
+        }
+
+        if (!cancelled) {
+          setScheduleWarnings(warnings);
+          setAssigneeConflictWarning(assigneeMessage);
+        }
+      } catch {
+        if (!cancelled) {
+          setScheduleWarnings([]);
+          setAssigneeConflictWarning(null);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    formOpen,
+    form.fecha,
+    form.horaInicio,
+    form.horaFin,
+    form.asignadoId,
+    asignadoNombre,
+  ]);
+
   function openForm() {
     if (!canManage) return;
     setError(null);
-    setConflictWarning(null);
+    setScheduleWarnings([]);
+    setAssigneeConflictWarning(null);
     setCalendarWarning(null);
     setForm(emptyForm());
     setFormOpen(true);
@@ -128,7 +210,6 @@ export function TastingsSection({
     e.preventDefault();
     if (!canManage) return;
     setError(null);
-    setConflictWarning(null);
     setCalendarWarning(null);
 
     if (!form.proveedor) {
@@ -159,19 +240,6 @@ export function TastingsSection({
 
     setSubmitting(true);
     try {
-      if (form.asignadoId && asignadoNombre) {
-        const conflict = await checkTastingScheduleConflict(supabase, {
-          asignadoId: form.asignadoId,
-          asignadoNombre,
-          fecha: form.fecha,
-          horaInicio: citaTimeToDb(form.horaInicio),
-          horaFin: form.horaFin ? citaTimeToDb(form.horaFin) : null,
-        });
-        if (conflict.message) {
-          setConflictWarning(conflict.message);
-        }
-      }
-
       const { data, error: insertError } = await supabase
         .from("tastings")
         .insert({
@@ -335,6 +403,28 @@ export function TastingsSection({
             </Field>
           </div>
 
+          {(scheduleWarnings.length > 0 || assigneeConflictWarning) && (
+            <div className="space-y-2">
+              {scheduleWarnings.map((warning) => (
+                <p
+                  key={`${warning.type}-${warning.message}`}
+                  className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900"
+                  role="alert"
+                >
+                  {warning.message}
+                </p>
+              ))}
+              {assigneeConflictWarning && (
+                <p
+                  className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900"
+                  role="alert"
+                >
+                  {assigneeConflictWarning}
+                </p>
+              )}
+            </div>
+          )}
+
           <Field label="Dirección">
             <input
               type="text"
@@ -448,15 +538,6 @@ export function TastingsSection({
             </button>
           </div>
         </form>
-      )}
-
-      {conflictWarning && (
-        <p
-          className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900"
-          role="alert"
-        >
-          {conflictWarning}
-        </p>
       )}
 
       {calendarWarning && (

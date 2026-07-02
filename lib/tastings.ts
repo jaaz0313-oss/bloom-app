@@ -3,6 +3,8 @@ import { compareCitaTimeSlots, citaTimeFromDb } from "@/lib/cita-time-slots";
 
 const DEFAULT_DURATION_MINUTES = 60;
 
+export const TASTING_MIN_GAP_MINUTES = 30;
+
 function normalizeTastingRole(role: UserRole | string): string {
   return role?.trim().toLowerCase() ?? "";
 }
@@ -64,6 +66,120 @@ export function validateTastingSchedule(
 
 export function buildGoogleMapsUrl(direccion: string): string {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(direccion.trim())}`;
+}
+
+export function formatTastingTimeLabel(value: string): string {
+  const match = citaTimeFromDb(value).match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return value;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  const period = hour >= 12 ? "PM" : "AM";
+  const hour12 = hour % 12 === 0 ? 12 : hour % 12;
+  return `${hour12}:${String(minute).padStart(2, "0")} ${period}`;
+}
+
+export function formatTastingHorarioRange(
+  horaInicio: string,
+  horaFin: string | null,
+): string {
+  const start = formatTastingTimeLabel(horaInicio);
+  const end = formatTastingTimeLabel(getTastingEndTime(horaInicio, horaFin));
+  return `${start} a ${end}`;
+}
+
+export type TastingScheduleEntry = {
+  id: string;
+  bodaNombre: string;
+  hora_inicio: string;
+  hora_fin: string | null;
+};
+
+export type TastingScheduleWarning = {
+  type: "crossover" | "gap_before" | "gap_after";
+  message: string;
+};
+
+function minutesToTimeLabel(totalMinutes: number): string {
+  const hours = Math.floor(totalMinutes / 60) % 24;
+  const mins = totalMinutes % 60;
+  return formatTastingTimeLabel(
+    `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`,
+  );
+}
+
+export function computeTastingScheduleWarnings(
+  tastings: TastingScheduleEntry[],
+  horaInicio: string,
+  horaFin: string | null,
+  excludeTastingId?: string | null,
+): TastingScheduleWarning[] {
+  if (!horaInicio.trim()) return [];
+
+  const warnings: TastingScheduleWarning[] = [];
+  const proposedStart = timeToMinutes(horaInicio);
+  const proposedEnd = timeToMinutes(getTastingEndTime(horaInicio, horaFin));
+
+  const others = tastings.filter(
+    (tasting) => !excludeTastingId || tasting.id !== excludeTastingId,
+  );
+
+  for (const tasting of others) {
+    if (
+      tastingTimesOverlap(
+        horaInicio,
+        horaFin,
+        tasting.hora_inicio,
+        tasting.hora_fin,
+      )
+    ) {
+      warnings.push({
+        type: "crossover",
+        message: `⚠️ Este tasting se cruza con ${tasting.bodaNombre} agendado de ${formatTastingHorarioRange(tasting.hora_inicio, tasting.hora_fin)}`,
+      });
+    }
+  }
+
+  if (warnings.some((warning) => warning.type === "crossover")) {
+    return warnings;
+  }
+
+  let previousEnd: number | null = null;
+  let nextStart: number | null = null;
+
+  for (const tasting of others) {
+    const start = timeToMinutes(tasting.hora_inicio);
+    const end = timeToMinutes(
+      getTastingEndTime(tasting.hora_inicio, tasting.hora_fin),
+    );
+
+    if (end <= proposedStart) {
+      if (previousEnd == null || end > previousEnd) {
+        previousEnd = end;
+      }
+    }
+
+    if (start >= proposedEnd) {
+      if (nextStart == null || start < nextStart) {
+        nextStart = start;
+      }
+    }
+  }
+
+  if (previousEnd != null && proposedStart - previousEnd < TASTING_MIN_GAP_MINUTES) {
+    warnings.push({
+      type: "gap_before",
+      message: `⚠️ Debe haber al menos ${TASTING_MIN_GAP_MINUTES} minutos entre tastings. El tasting anterior termina a las ${minutesToTimeLabel(previousEnd)}.`,
+    });
+  }
+
+  if (nextStart != null && nextStart - proposedEnd < TASTING_MIN_GAP_MINUTES) {
+    warnings.push({
+      type: "gap_after",
+      message: `⚠️ Debe haber al menos ${TASTING_MIN_GAP_MINUTES} minutos entre tastings. El tasting siguiente empieza a las ${minutesToTimeLabel(nextStart)}.`,
+    });
+  }
+
+  return warnings;
 }
 
 export type TastingScheduleConflict = {
