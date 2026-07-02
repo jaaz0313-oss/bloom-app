@@ -39,6 +39,7 @@ import {
 } from "@/lib/cotizacion-lead";
 import { supabase } from "@/lib/supabase";
 import { WhatsAppLocaleToggle } from "@/app/components/ui/WhatsAppLocaleToggle";
+import { CotizacionPresupuestoAlerta } from "@/app/components/leads/CotizacionPresupuestoAlerta";
 import type { WhatsAppLocale } from "@/lib/whatsapp-locale";
 
 type CotizacionEditorProps = {
@@ -597,6 +598,10 @@ export function CotizacionEditor({
         <p className="text-3xl font-semibold text-bloom-ink">
           {formatCurrency(totalEstimado)}
         </p>
+        <CotizacionPresupuestoAlerta
+          totalCotizado={totalEstimado}
+          presupuestoEstimado={lead.presupuesto_estimado}
+        />
         <p className="mt-3 text-xs text-bloom-muted">
           Fecha mostrada al cliente:{" "}
           {fechaEstimada

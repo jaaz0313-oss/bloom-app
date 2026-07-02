@@ -224,6 +224,14 @@ export function computeCotizacionTotal(items: CotizacionItemRow[]): number {
   return total;
 }
 
+export function cotizacionSuperaPresupuesto(
+  totalCotizado: number,
+  presupuestoEstimado: number | null | undefined,
+): boolean {
+  if (presupuestoEstimado == null || presupuestoEstimado <= 0) return false;
+  return totalCotizado > presupuestoEstimado;
+}
+
 function formatItemLine(item: CotizacionItemRow): string {
   const precio = getItemPrecioEstimado(item);
   if (precio == null) return "";

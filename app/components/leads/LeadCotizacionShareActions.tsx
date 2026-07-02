@@ -9,8 +9,10 @@ import type { LeadRow } from "@/app/data/leads";
 import {
   buildCotizacionLeadEmail,
   buildCotizacionLeadWhatsAppMessage,
+  computeCotizacionTotal,
   openCotizacionLeadWhatsApp,
 } from "@/lib/cotizacion-lead";
+import { CotizacionPresupuestoAlerta } from "@/app/components/leads/CotizacionPresupuestoAlerta";
 import { COTIZACION_ESTADO_LABELS } from "@/app/data/cotizaciones";
 
 type LeadCotizacionShareActionsProps = {
@@ -36,6 +38,11 @@ export function LeadCotizacionShareActions({
   const displayItems = useMemo(
     () => items.filter((item) => item.incluido),
     [items],
+  );
+
+  const totalCotizado = useMemo(
+    () => computeCotizacionTotal(displayItems),
+    [displayItems],
   );
 
   const whatsappMessage = useMemo(
@@ -178,6 +185,12 @@ export function LeadCotizacionShareActions({
           {whatsappWarning ?? emailWarning}
         </p>
       )}
+
+      <CotizacionPresupuestoAlerta
+        totalCotizado={totalCotizado}
+        presupuestoEstimado={lead.presupuesto_estimado}
+        className="mt-3"
+      />
 
       {lead.email?.trim() && cotizacionEmail && (
         <EmailShareModal
