@@ -42,6 +42,7 @@ import type { CitaLookupBoda, CitaLookupEquipo, CitaLookupLead } from "@/app/com
 import { BODA_SECTION_PROVEEDORES } from "@/lib/boda-url";
 import { filterCitasFuturas } from "@/lib/citas";
 import { canManageProveedoresSugeridos } from "@/lib/proveedores-sugeridos";
+import { canViewTastings } from "@/lib/tastings";
 
 type BodaDetailSectionsProps = {
   bodaId: string;
@@ -173,20 +174,22 @@ export function BodaDetailSections({
         />
       </BodaAccordionSection>
 
-      <BodaAccordionSection
-        title="Semana de Tastings"
-        defaultOpen={false}
-        hasContent={tastings.length > 0}
-      >
-        <TastingsSection
-          embedded
-          bodaId={bodaId}
-          bodaNombre={boda.nombre_pareja}
-          initialTastings={tastings}
-          equipo={equipo}
-          role={role}
-        />
-      </BodaAccordionSection>
+      {canViewTastings(role) && (
+        <BodaAccordionSection
+          title="Semana de Tastings"
+          defaultOpen={false}
+          hasContent={tastings.length > 0}
+        >
+          <TastingsSection
+            embedded
+            bodaId={bodaId}
+            bodaNombre={boda.nombre_pareja}
+            initialTastings={tastings}
+            equipo={equipo}
+            role={role}
+          />
+        </BodaAccordionSection>
+      )}
 
       {canManageSugeridos && (
         <BodaAccordionSection

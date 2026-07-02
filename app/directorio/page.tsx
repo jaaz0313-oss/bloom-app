@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { DashboardHeader } from "@/app/components/DashboardHeader";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { requireAuthUser } from "@/lib/auth/user-profiles";
@@ -10,9 +9,6 @@ export const dynamic = "force-dynamic";
 
 export default async function DirectorioPage() {
   const user = await requireAuthUser();
-  if (user.rol !== "admin" && user.rol !== "lider") {
-    redirect("/");
-  }
 
   const supabase = await createServerSupabaseClient();
   const { data, error } = await supabase
@@ -36,7 +32,10 @@ export default async function DirectorioPage() {
           <ChevronLeftIcon />
           Volver
         </Link>
-        <DirectorioPageClient initialRows={(data ?? []) as DirectorioProveedorRow[]} />
+        <DirectorioPageClient
+          initialRows={(data ?? []) as DirectorioProveedorRow[]}
+          role={user.rol}
+        />
       </main>
     </div>
   );

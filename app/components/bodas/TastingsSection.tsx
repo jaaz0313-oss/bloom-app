@@ -23,7 +23,7 @@ import { formatCurrency, formatShortDateStable } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
 import { crearEventoCalendarTasting } from "@/lib/tasting-google-calendar";
 import { checkTastingScheduleConflict } from "@/lib/tastings-conflict";
-import { canManageTastings, validateTastingSchedule } from "@/lib/tastings";
+import { canManageTastings, canViewTastings, validateTastingSchedule } from "@/lib/tastings";
 import { AUDITORIA_ACCIONES, logAuditoria } from "@/lib/auditoria";
 
 type TastingsSectionProps = {
@@ -93,6 +93,7 @@ export function TastingsSection({
   embedded = false,
 }: TastingsSectionProps) {
   const router = useRouter();
+  const canView = canViewTastings(role);
   const canManage = canManageTastings(role);
   const [tastings, setTastings] = useState(() =>
     sortTastingsBySchedule(initialTastings.map(normalizeTastingRow)),
@@ -115,6 +116,7 @@ export function TastingsSection({
   }, [form.asignadoId, equipo]);
 
   function openForm() {
+    if (!canManage) return;
     setError(null);
     setConflictWarning(null);
     setCalendarWarning(null);
@@ -124,6 +126,7 @@ export function TastingsSection({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!canManage) return;
     setError(null);
     setConflictWarning(null);
     setCalendarWarning(null);
@@ -524,7 +527,7 @@ export function TastingsSection({
                     </dd>
                   </div>
                 )}
-                {canManage && (
+                {canView && (
                   <div>
                     <dt className="text-bloom-muted">Costo</dt>
                     <dd className="font-medium text-bloom-ink">
@@ -548,7 +551,7 @@ export function TastingsSection({
                 )}
               </dl>
 
-              {canManage && tasting.notas && (
+              {canView && tasting.notas && (
                 <p className="mt-3 whitespace-pre-wrap text-sm text-bloom-muted">
                   {tasting.notas}
                 </p>

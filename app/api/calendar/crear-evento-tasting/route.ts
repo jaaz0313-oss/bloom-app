@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentAuthUser } from "@/lib/auth/user-profiles";
+import { canManageTastings } from "@/lib/tastings";
 import { createTastingCalendarEvent } from "@/lib/google-calendar";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import type { TastingRow } from "@/app/data/tastings";
@@ -8,6 +9,10 @@ export async function POST(request: Request) {
   const user = await getCurrentAuthUser();
   if (!user) {
     return NextResponse.json({ error: "No autenticado" }, { status: 401 });
+  }
+
+  if (!canManageTastings(user.rol)) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
 
   let tastingId: string | undefined;

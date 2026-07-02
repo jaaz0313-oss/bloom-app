@@ -3,8 +3,21 @@ import { compareCitaTimeSlots, citaTimeFromDb } from "@/lib/cita-time-slots";
 
 const DEFAULT_DURATION_MINUTES = 60;
 
-export function canManageTastings(role: UserRole): boolean {
-  return role === "admin" || role === "lider";
+function normalizeTastingRole(role: UserRole | string): string {
+  return role?.trim().toLowerCase() ?? "";
+}
+
+export function canViewTastings(role: UserRole | string): boolean {
+  const normalized = normalizeTastingRole(role);
+  return (
+    normalized === "admin" ||
+    normalized === "lider" ||
+    normalized === "coordinadora"
+  );
+}
+
+export function canManageTastings(role: UserRole | string): boolean {
+  return canViewTastings(role);
 }
 
 function timeToMinutes(value: string): number {

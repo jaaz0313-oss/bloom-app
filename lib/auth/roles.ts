@@ -64,3 +64,18 @@ export function hasPermission(role: UserRole, permission: Permission): boolean {
 export function isAdminRole(role: string | null | undefined): role is UserRole {
   return role?.trim().toLowerCase() === "admin";
 }
+
+export function canEditDirectorio(role: UserRole | string): boolean {
+  const normalized = role?.trim().toLowerCase();
+  return (
+    normalized === "admin" ||
+    normalized === "lider" ||
+    normalized === "coordinadora" ||
+    normalized === "finanzas"
+  );
+}
+
+export function canDeactivateDirectorio(role: UserRole | string): boolean {
+  const normalized = role?.trim().toLowerCase();
+  return normalized === "admin" || normalized === "lider";
+}

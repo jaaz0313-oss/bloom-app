@@ -5,10 +5,16 @@ import { useRouter } from "next/navigation";
 import type { DirectorioProveedorRow } from "@/app/data/directorio";
 import { ProviderComisionFields } from "@/app/components/bodas/ProviderComisionFields";
 import { PROVIDER_CATEGORIES } from "@/lib/provider-categories";
+import {
+  canDeactivateDirectorio,
+  canEditDirectorio,
+  type UserRole,
+} from "@/lib/auth/roles";
 import { supabase } from "@/lib/supabase";
 
 type Props = {
   initialRows: DirectorioProveedorRow[];
+  role: UserRole;
 };
 
 type FormState = {
@@ -99,7 +105,12 @@ function groupProvidersByCategory(
   }));
 }
 
-export function DirectorioPageClient({ initialRows }: Props) {
+export function DirectorioPageClient({
+  initialRows,
+  role,
+}: Props) {
+  const canEdit = canEditDirectorio(role);
+  const canDeactivate = canDeactivateDirectorio(role);
   const router = useRouter();
   const [rows, setRows] = useState(initialRows);
 
@@ -167,6 +178,7 @@ export function DirectorioPageClient({ initialRows }: Props) {
   };
 
   function openCreateModal() {
+    if (!canEdit) return;
     setEditing(null);
     setForm(emptyForm);
     setError(null);
@@ -174,6 +186,7 @@ export function DirectorioPageClient({ initialRows }: Props) {
   }
 
   function openEditModal(row: DirectorioProveedorRow) {
+    if (!canEdit) return;
     setEditing(row);
     setForm({
       nombre: row.nombre,
@@ -212,6 +225,7 @@ export function DirectorioPageClient({ initialRows }: Props) {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!canEdit) return;
     setError(null);
     if (!supabase) {
       setError("Supabase no está configurado.");
@@ -325,7 +339,7 @@ export function DirectorioPageClient({ initialRows }: Props) {
   }
 
   async function toggleActive(row: DirectorioProveedorRow) {
-    if (!supabase || rowUpdatingId) return;
+    if (!canDeactivate || !supabase || rowUpdatingId) return;
     setRowUpdatingId(row.id);
     const next = !row.activo;
     try {
@@ -357,13 +371,15 @@ export function DirectorioPageClient({ initialRows }: Props) {
             Base global de proveedores por categoría.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={openCreateModal}
-          className="inline-flex items-center justify-center rounded-full bg-bloom-accent px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-bloom-accent-hover"
-        >
-          Agregar proveedor
-        </button>
+        {canEdit && (
+          <button
+            type="button"
+            onClick={openCreateModal}
+            className="inline-flex items-center justify-center rounded-full bg-bloom-accent px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-bloom-accent-hover"
+          >
+            Agregar proveedor
+          </button>
+        )}
       </div>
 
       <div className="rounded-2xl border border-bloom-border bg-bloom-surface p-4">
@@ -440,23 +456,29 @@ export function DirectorioPageClient({ initialRows }: Props) {
                                 {row.telefono || "Sin teléfono"}
                               </p>
                             </div>
-                            <div className="flex shrink-0 flex-wrap items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() => openEditModal(row)}
-                                className="rounded-full border border-bloom-border bg-bloom-surface px-3 py-1.5 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-border"
-                              >
-                                Editar
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => toggleActive(row)}
-                                disabled={rowUpdatingId === row.id}
-                                className="rounded-full border border-bloom-border bg-bloom-surface px-3 py-1.5 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-border disabled:opacity-60"
-                              >
-                                {row.activo ? "Desactivar" : "Activar"}
-                              </button>
-                            </div>
+                            {canEdit || canDeactivate ? (
+                              <div className="flex shrink-0 flex-wrap items-center gap-2">
+                                {canEdit && (
+                                  <button
+                                    type="button"
+                                    onClick={() => openEditModal(row)}
+                                    className="rounded-full border border-bloom-border bg-bloom-surface px-3 py-1.5 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-border"
+                                  >
+                                    Editar
+                                  </button>
+                                )}
+                                {canDeactivate && (
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleActive(row)}
+                                    disabled={rowUpdatingId === row.id}
+                                    className="rounded-full border border-bloom-border bg-bloom-surface px-3 py-1.5 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-border disabled:opacity-60"
+                                  >
+                                    {row.activo ? "Desactivar" : "Activar"}
+                                  </button>
+                                )}
+                              </div>
+                            ) : null}
                           </div>
                         </li>
                       ))}
@@ -469,7 +491,7 @@ export function DirectorioPageClient({ initialRows }: Props) {
         </div>
       )}
 
-      {open && (
+      {canEdit && open && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
           role="dialog"
