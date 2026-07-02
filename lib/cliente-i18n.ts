@@ -210,6 +210,8 @@ export type ClienteUiCopy = {
   tastingsTitle: string;
   tastingsSubtitle: (count: number, days: number) => string;
   tastingsNextItem: string;
+  tastingsCost: string;
+  tastingsNotes: string;
   detallesCelebracionTitle: string;
   detallesCelebracionSubtitle: (filled: number, total: number) => string;
   detallesCelebracionIntro: string;
@@ -293,6 +295,8 @@ const UI_ES: ClienteUiCopy = {
       ? `1 tasting · ${days === 1 ? "1 día" : `${days} días`}`
       : `${count} tastings · ${days === 1 ? "1 día" : `${days} días`}`,
   tastingsNextItem: "Siguiente tasting",
+  tastingsCost: "Valor de la prueba",
+  tastingsNotes: "Notas",
   detallesCelebracionTitle: "Detalles de la boda",
   detallesCelebracionSubtitle: (filled, total) =>
     filled === 0
@@ -391,6 +395,8 @@ const UI_EN: ClienteUiCopy = {
       ? `1 tasting · ${days === 1 ? "1 day" : `${days} days`}`
       : `${count} tastings · ${days === 1 ? "1 day" : `${days} days`}`,
   tastingsNextItem: "Next tasting",
+  tastingsCost: "Tasting fee",
+  tastingsNotes: "Notes",
   detallesCelebracionTitle: "Wedding Details",
   detallesCelebracionSubtitle: (filled, total) =>
     filled === 0

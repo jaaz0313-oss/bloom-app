@@ -15,6 +15,7 @@ type ProviderContratadoConfirmacionModalProps = {
   nombreProveedor: string;
   categoria: string;
   descripcionServicio?: string | null;
+  valorTotal?: number | null;
   telefonoProveedor: string | null;
   onClose: () => void;
 };
@@ -24,6 +25,7 @@ export function ProviderContratadoConfirmacionModal({
   nombreProveedor,
   categoria,
   descripcionServicio,
+  valorTotal,
   telefonoProveedor,
   onClose,
 }: ProviderContratadoConfirmacionModalProps) {
@@ -39,8 +41,9 @@ export function ProviderContratadoConfirmacionModal({
         categoria,
         locale,
         descripcionServicio,
+        valorTotal,
       ),
-    [boda, nombreProveedor, categoria, locale, descripcionServicio],
+    [boda, nombreProveedor, categoria, locale, descripcionServicio, valorTotal],
   );
 
   const mensajeProveedor = useMemo(
@@ -50,8 +53,9 @@ export function ProviderContratadoConfirmacionModal({
         nombreProveedor,
         locale,
         descripcionServicio,
+        valorTotal,
       ),
-    [boda, nombreProveedor, locale, descripcionServicio],
+    [boda, nombreProveedor, locale, descripcionServicio, valorTotal],
   );
 
   const grupoWhatsappUrl = useMemo(() => {

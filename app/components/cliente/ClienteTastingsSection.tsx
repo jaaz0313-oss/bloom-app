@@ -4,9 +4,10 @@ import { useId, useMemo, useState } from "react";
 import { useClienteLocale } from "@/app/components/cliente/ClienteLocaleProvider";
 import type { TastingRow } from "@/app/data/tastings";
 import {
-  formatClienteShortDate,
+  formatClienteCurrency,
   getClienteTastingsDayLabel,
 } from "@/lib/cliente-i18n";
+import { formatShortDateStable } from "@/lib/format";
 import {
   formatClienteTastingTimeRange,
   groupClienteTastingsByDay,
@@ -70,7 +71,7 @@ export function ClienteTastingsSection({ tastings }: ClienteTastingsSectionProps
                   {getClienteTastingsDayLabel(dia.fecha, locale)}
                 </h3>
                 <p className="mt-0.5 text-sm text-bloom-muted">
-                  {formatClienteShortDate(dia.fecha, locale)}
+                  {formatShortDateStable(dia.fecha)}
                 </p>
 
                 <ol className="relative mt-5 space-y-0 border-l border-bloom-accent/20 pl-6">
@@ -112,6 +113,32 @@ export function ClienteTastingsSection({ tastings }: ClienteTastingsSectionProps
                               {tasting.direccion}
                             </a>
                           </p>
+                        )}
+
+                        {((tasting.costo != null && tasting.costo > 0) ||
+                          tasting.notas?.trim()) && (
+                          <dl className="mt-3 space-y-2 border-t border-bloom-border/60 pt-3 text-sm">
+                            {tasting.costo != null && tasting.costo > 0 && (
+                              <div>
+                                <dt className="text-bloom-muted">
+                                  {t.tastingsCost}
+                                </dt>
+                                <dd className="font-medium text-bloom-ink">
+                                  {formatClienteCurrency(tasting.costo, locale)}
+                                </dd>
+                              </div>
+                            )}
+                            {tasting.notas?.trim() && (
+                              <div>
+                                <dt className="text-bloom-muted">
+                                  {t.tastingsNotes}
+                                </dt>
+                                <dd className="whitespace-pre-wrap text-bloom-ink">
+                                  {tasting.notas.trim()}
+                                </dd>
+                              </div>
+                            )}
+                          </dl>
                         )}
 
                         {index < dia.tastings.length - 1 && (
