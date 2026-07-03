@@ -29,6 +29,7 @@ export type ProveedorRow = {
   cotizacion_recibida_at: string | null;
   monto_cotizado: number | null;
   notas_cotizacion: string | null;
+  cotizacion_drive_url: string | null;
   da_comision: boolean;
   porcentaje_comision: number | null;
   comision_recibida: boolean;

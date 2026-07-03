@@ -1,4 +1,5 @@
 import { google } from "googleapis";
+import { Readable } from "stream";
 import { getGoogleServiceAccountCredentials } from "@/lib/google-service-account";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
@@ -20,6 +21,9 @@ export const BODA_DRIVE_TEAM_WRITER_EMAILS = [
 ] as const;
 
 export const COMPROBANTES_PAGO_SUBFOLDER = "Comprobantes de pago";
+export const COTIZACIONES_SUBFOLDER = "Cotizaciones";
+
+const MAX_DRIVE_UPLOAD_BYTES = 500 * 1024;
 
 function getDriveClient() {
   const { email, key } = getGoogleServiceAccountCredentials();
@@ -217,10 +221,10 @@ function buildDriveFolderUrl(folderId: string, webViewLink?: string | null) {
   return webViewLink ?? `https://drive.google.com/drive/folders/${folderId}`;
 }
 
-async function findDriveSubfolderUrl(
+async function findDriveSubfolder(
   parentFolderId: string,
   subfolderName: string,
-): Promise<string | null> {
+): Promise<{ id: string; url: string } | null> {
   const drive = getDriveClient();
   const escapedName = subfolderName.replace(/'/g, "\\'");
   const { data } = await drive.files.list({
@@ -234,7 +238,91 @@ async function findDriveSubfolderUrl(
   const subfolder = data.files?.[0];
   if (!subfolder?.id) return null;
 
-  return buildDriveFolderUrl(subfolder.id, subfolder.webViewLink);
+  return {
+    id: subfolder.id,
+    url: buildDriveFolderUrl(subfolder.id, subfolder.webViewLink),
+  };
+}
+
+async function findDriveSubfolderUrl(
+  parentFolderId: string,
+  subfolderName: string,
+): Promise<string | null> {
+  const subfolder = await findDriveSubfolder(parentFolderId, subfolderName);
+  return subfolder?.url ?? null;
+}
+
+function buildDriveFileUrl(fileId: string, webViewLink?: string | null) {
+  return webViewLink ?? `https://drive.google.com/file/d/${fileId}/view`;
+}
+
+function sanitizeDriveFileName(name: string): string {
+  return name.replace(/[\\/:*?"<>|]/g, "-").replace(/\s+/g, " ").trim();
+}
+
+async function uploadFileToDriveFolder(
+  parentFolderId: string,
+  fileName: string,
+  mimeType: string,
+  content: Buffer,
+): Promise<{ fileId: string; fileUrl: string }> {
+  if (content.byteLength > MAX_DRIVE_UPLOAD_BYTES) {
+    throw new Error("FILE_TOO_LARGE");
+  }
+
+  const drive = getDriveClient();
+  const result = await drive.files.create({
+    requestBody: {
+      name: sanitizeDriveFileName(fileName),
+      parents: [parentFolderId],
+    },
+    media: {
+      mimeType: mimeType || "application/octet-stream",
+      body: Readable.from(content),
+    },
+    fields: "id, webViewLink",
+    supportsAllDrives: true,
+  });
+
+  const fileId = result.data.id;
+  if (!fileId) {
+    throw new Error("Google Drive no devolvió el ID del archivo.");
+  }
+
+  await configureFolderSharing(drive, fileId);
+
+  return {
+    fileId,
+    fileUrl: buildDriveFileUrl(fileId, result.data.webViewLink),
+  };
+}
+
+export async function getCotizacionesFolderId(
+  bodaId: string,
+): Promise<string | null> {
+  const folder = await getDriveFolderForBoda(bodaId);
+  if (!folder?.drive_folder_id) return null;
+
+  const subfolder = await findDriveSubfolder(
+    folder.drive_folder_id,
+    COTIZACIONES_SUBFOLDER,
+  );
+
+  return subfolder?.id ?? null;
+}
+
+export async function uploadFileToCotizacionesFolder(
+  bodaId: string,
+  fileName: string,
+  mimeType: string,
+  content: Buffer,
+): Promise<{ fileId: string; fileUrl: string }> {
+  const folderId = await getCotizacionesFolderId(bodaId);
+  if (!folderId) {
+    throw new Error("NO_DRIVE_FOLDER");
+  }
+
+  return uploadFileToDriveFolder(folderId, fileName, mimeType, content);
 }
 
 export async function getComprobantesPagoFolderUrl(

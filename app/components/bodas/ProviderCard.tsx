@@ -27,6 +27,7 @@ import {
 import type { WhatsAppLocale } from "@/lib/whatsapp-locale";
 import { ProviderContratadoConfirmacionModal } from "./ProviderContratadoConfirmacionModal";
 import { ProviderPayments } from "./ProviderPayments";
+import { SubirCotizacionDriveButton } from "./SubirCotizacionDriveButton";
 import { ProviderComisionFields } from "./ProviderComisionFields";
 import {
   AUDITORIA_ACCIONES,
@@ -780,6 +781,20 @@ export function ProviderCard({
               <p className="mt-1 whitespace-pre-wrap text-sm text-bloom-ink">
                 {provider.notas}
               </p>
+            </div>
+          )}
+
+          {canManage && (
+            <div className="mt-3 max-w-sm">
+              <p className="mb-2 text-xs font-medium uppercase tracking-wider text-bloom-muted">
+                Cotización en Drive
+              </p>
+              <SubirCotizacionDriveButton
+                bodaId={bodaId}
+                proveedorId={provider.id}
+                cotizacionDriveUrl={provider.cotizacion_drive_url}
+                disabled={updating || editSubmitting || deleting || cotizacionSubmitting}
+              />
             </div>
           )}
 
