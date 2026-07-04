@@ -14,22 +14,37 @@ export type ClientePagoPendiente = {
 };
 
 export const CLIENTE_PAGO_URGENCY_LABELS: Record<ClientePagoUrgency, string> = {
-  esta_semana: "Vence esta semana",
-  pronto: "Vence pronto",
+  esta_semana: "🔴 Vence en 7 días o menos",
+  pronto: "🟡 Vence en 15 días o menos",
 };
 
 export const CLIENTE_PAGO_URGENCY_STYLES: Record<ClientePagoUrgency, string> = {
-  esta_semana: "bg-amber-100 text-amber-900 ring-1 ring-amber-200/80",
-  pronto: "bg-orange-50 text-orange-800 ring-1 ring-orange-200/60",
+  esta_semana: "bg-red-100 text-red-800 ring-1 ring-red-200/80",
+  pronto: "bg-amber-100 text-amber-900 ring-1 ring-amber-200/80",
 };
 
+export const CLIENTE_PAGO_URGENCY_CARD_STYLES: Record<
+  ClientePagoUrgency,
+  string
+> = {
+  esta_semana: "border-red-200/90 ring-1 ring-red-100",
+  pronto: "border-amber-200/90 ring-1 ring-amber-100",
+};
+
+/** ≤ 7 días (o vencido) = rojo; ≤ 15 días = amarillo; más de 15 = sin alerta. */
 export function getClientePagoUrgency(
   diasRestantes: number,
 ): ClientePagoUrgency | null {
-  if (diasRestantes < 0) return "esta_semana";
-  if (diasRestantes < 7) return "esta_semana";
-  if (diasRestantes < 30) return "pronto";
+  if (diasRestantes <= 7) return "esta_semana";
+  if (diasRestantes <= 15) return "pronto";
   return null;
+}
+
+export function countClientePagosUrgentes(
+  pagosPendientes: ClientePagoPendiente[],
+): number {
+  return pagosPendientes.filter((item) => item.urgency === "esta_semana")
+    .length;
 }
 
 export function buildClientePagosPendientes(

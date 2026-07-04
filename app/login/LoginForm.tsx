@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { toInternalEmail } from "@/lib/auth/internal-email";
 
@@ -13,6 +14,7 @@ export function LoginForm({ nextPath }: LoginFormProps) {
   const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -72,15 +74,38 @@ export function LoginForm({ nextPath }: LoginFormProps) {
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-sm font-medium text-bloom-ink">Contraseña</label>
-        <input
-          type="password"
-          autoComplete="current-password"
-          className={inputClass}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
+        <label
+          htmlFor="login-password"
+          className="text-sm font-medium text-bloom-ink"
+        >
+          Contraseña
+        </label>
+        <div className="relative">
+          <input
+            id="login-password"
+            type={showPassword ? "text" : "password"}
+            autoComplete="current-password"
+            className={`${inputClass} pr-11`}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((value) => !value)}
+            className="absolute inset-y-0 right-0 flex items-center px-3 text-bloom-muted transition-colors hover:text-bloom-ink"
+            aria-label={
+              showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
+            }
+            aria-pressed={showPassword}
+          >
+            {showPassword ? (
+              <EyeOff className="h-4 w-4" aria-hidden />
+            ) : (
+              <Eye className="h-4 w-4" aria-hidden />
+            )}
+          </button>
+        </div>
       </div>
 
       {error && (

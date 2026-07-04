@@ -79,3 +79,9 @@ export function canDeactivateDirectorio(role: UserRole | string): boolean {
   const normalized = role?.trim().toLowerCase();
   return normalized === "admin" || normalized === "lider";
 }
+
+/** Leads visibles solo para admin y líder. */
+export function canViewLeads(role: UserRole | string): boolean {
+  const normalized = role?.trim().toLowerCase();
+  return normalized === "admin" || normalized === "lider";
+}

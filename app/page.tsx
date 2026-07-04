@@ -19,7 +19,8 @@ import type { ProveedorRow } from "./data/providers";
 import { mapBodaToWedding, type BodaRow } from "./data/weddings";
 import { requireAuthUser } from "@/lib/auth/user-profiles";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
-import { hasPermission } from "@/lib/auth/roles";
+import { canViewLeads, hasPermission } from "@/lib/auth/roles";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +32,14 @@ export default async function Home({ searchParams }: HomeProps) {
   const user = await requireAuthUser();
   const supabase = await createServerSupabaseClient();
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const tab = resolvedSearchParams?.tab === "leads" ? "leads" : "bodas";
+  const wantsLeadsTab = resolvedSearchParams?.tab === "leads";
+  const showLeads = canViewLeads(user.rol);
+
+  if (wantsLeadsTab && !showLeads) {
+    redirect("/");
+  }
+
+  const tab = wantsLeadsTab && showLeads ? "leads" : "bodas";
 
   let activeWeddings: ReturnType<typeof mapBodaToWedding>[] = [];
   let activeLeads: LeadRow[] = [];
@@ -52,29 +60,31 @@ export default async function Home({ searchParams }: HomeProps) {
     activeWeddings = (bodasData as BodaRow[]).map(mapBodaToWedding);
   }
 
-  const { data: leadsData, error: leadsError } = await supabase
-    .from("leads")
-    .select("*")
-    .order("created_at", { ascending: false });
+  if (showLeads) {
+    const { data: leadsData, error: leadsError } = await supabase
+      .from("leads")
+      .select("*")
+      .order("created_at", { ascending: false });
 
-  if (leadsError) {
-    console.error(leadsError);
-  } else if (leadsData) {
-    const { data: bodasConLead } = await supabase
-      .from("bodas")
-      .select("lead_id")
-      .not("lead_id", "is", null);
+    if (leadsError) {
+      console.error(leadsError);
+    } else if (leadsData) {
+      const { data: bodasConLead } = await supabase
+        .from("bodas")
+        .select("lead_id")
+        .not("lead_id", "is", null);
 
-    const convertedLeadIds = new Set(
-      (bodasConLead ?? [])
-        .map((b) => b.lead_id as string)
-        .filter(Boolean),
-    );
+      const convertedLeadIds = new Set(
+        (bodasConLead ?? [])
+          .map((b) => b.lead_id as string)
+          .filter(Boolean),
+      );
 
-    allLeads = (leadsData as Record<string, unknown>[]).map(normalizeLeadRow);
-    const partitioned = partitionLeadsForDashboard(allLeads, convertedLeadIds);
-    activeLeads = partitioned.activeLeads;
-    discardedLeads = partitioned.discardedLeads;
+      allLeads = (leadsData as Record<string, unknown>[]).map(normalizeLeadRow);
+      const partitioned = partitionLeadsForDashboard(allLeads, convertedLeadIds);
+      activeLeads = partitioned.activeLeads;
+      discardedLeads = partitioned.discardedLeads;
+    }
   }
 
   const today = new Date().toISOString().slice(0, 10);
@@ -130,6 +140,26 @@ export default async function Home({ searchParams }: HomeProps) {
     console.error(citasHoyError);
   } else if (citasHoyData) {
     citasHoy = citasHoyData as CitaRow[];
+  }
+
+  // Nombres de leads solo para citas del día (sin exponer el módulo de leads).
+  if (!showLeads) {
+    const leadIdsForCitas = [
+      ...new Set(
+        citasHoy
+          .map((c) => c.lead_id)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ];
+    if (leadIdsForCitas.length > 0) {
+      const { data: leadsCitasData } = await supabase
+        .from("leads")
+        .select("id, nombre_pareja")
+        .in("id", leadIdsForCitas);
+      allLeads = (leadsCitasData ?? []).map((l) =>
+        normalizeLeadRow(l as Record<string, unknown>),
+      );
+    }
   }
 
   const bodasById = Object.fromEntries(
@@ -211,16 +241,18 @@ export default async function Home({ searchParams }: HomeProps) {
           >
             Bodas
           </Link>
-          <Link
-            href="/?tab=leads"
-            className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
-              tab === "leads"
-                ? "bg-bloom-accent text-white"
-                : "text-bloom-ink hover:bg-bloom-border"
-            }`}
-          >
-            Leads
-          </Link>
+          {showLeads && (
+            <Link
+              href="/?tab=leads"
+              className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+                tab === "leads"
+                  ? "bg-bloom-accent text-white"
+                  : "text-bloom-ink hover:bg-bloom-border"
+              }`}
+            >
+              Leads
+            </Link>
+          )}
           <Link
             href="/directorio"
             className="rounded-full px-4 py-2 text-sm font-medium text-bloom-ink transition-colors hover:bg-bloom-border"

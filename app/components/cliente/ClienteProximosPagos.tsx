@@ -3,7 +3,9 @@
 import { ClienteAccordionSection } from "@/app/components/cliente/ClienteAccordionSection";
 import { useClienteLocale } from "@/app/components/cliente/ClienteLocaleProvider";
 import {
+  CLIENTE_PAGO_URGENCY_CARD_STYLES,
   CLIENTE_PAGO_URGENCY_STYLES,
+  countClientePagosUrgentes,
   type ClientePagoPendiente,
 } from "@/lib/cliente-pagos";
 import {
@@ -23,6 +25,8 @@ export function ClienteProximosPagos({
 
   if (pagosPendientes.length === 0) return null;
 
+  const urgentCount = countClientePagosUrgentes(pagosPendientes);
+
   return (
     <ClienteAccordionSection
       title={t.upcomingPaymentsTitle}
@@ -35,6 +39,15 @@ export function ClienteProximosPagos({
         </>
       }
     >
+      {urgentCount > 0 && (
+        <div
+          className="mb-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-900"
+          role="alert"
+        >
+          {t.upcomingPaymentsUrgentBanner(urgentCount)}
+        </div>
+      )}
+
       <ul className="space-y-5">
         {pagosPendientes.map((item) => (
           <li key={item.proveedor.id}>
@@ -57,8 +70,14 @@ function ProximoPagoCard({ item }: { item: ClientePagoPendiente }) {
     proveedor.titular_cuenta ||
     proveedor.documento_nit;
 
+  const cardUrgencyClass = urgency
+    ? CLIENTE_PAGO_URGENCY_CARD_STYLES[urgency]
+    : "border-bloom-border";
+
   return (
-    <article className="overflow-hidden rounded-2xl border border-bloom-border bg-bloom-surface shadow-sm">
+    <article
+      className={`overflow-hidden rounded-2xl border bg-bloom-surface shadow-sm ${cardUrgencyClass}`}
+    >
       <div className="border-b border-bloom-border/70 bg-bloom-canvas/40 px-5 py-5 sm:px-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
@@ -71,7 +90,7 @@ function ProximoPagoCard({ item }: { item: ClientePagoPendiente }) {
           </div>
           {urgency && (
             <span
-              className={`inline-flex w-fit shrink-0 rounded-full px-3 py-1 text-xs font-medium ${CLIENTE_PAGO_URGENCY_STYLES[urgency]}`}
+              className={`inline-flex w-fit shrink-0 items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${CLIENTE_PAGO_URGENCY_STYLES[urgency]}`}
             >
               {getClientePagoUrgencyLabel(urgency, locale)}
             </span>

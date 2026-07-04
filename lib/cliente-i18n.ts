@@ -186,9 +186,9 @@ export function getClientePagoUrgencyLabel(
   locale: ClienteLocale,
 ): string {
   if (locale === "en") {
-    return urgency === "esta_semana" ? "Due this week" : "Due soon";
+    return urgency === "esta_semana" ? "🔴 Urgent" : "🟡 Due soon";
   }
-  return urgency === "esta_semana" ? "Vence esta semana" : "Vence pronto";
+  return urgency === "esta_semana" ? "🔴 Urgente" : "🟡 Vence pronto";
 }
 
 export type ClienteUiCopy = {
@@ -237,6 +237,7 @@ export type ClienteUiCopy = {
   upcomingPaymentsTitle: string;
   upcomingPaymentsSubtitle: string;
   upcomingPaymentsCount: (count: number) => string;
+  upcomingPaymentsUrgentBanner: (count: number) => string;
   pendingAmount: string;
   paymentDueDate: string;
   toBeConfirmed: string;
@@ -331,6 +332,10 @@ const UI_ES: ClienteUiCopy = {
   upcomingPaymentsSubtitle: "Pagos pendientes ordenados por fecha más próxima",
   upcomingPaymentsCount: (count) =>
     count === 1 ? "1 pago pendiente" : `${count} pagos pendientes`,
+  upcomingPaymentsUrgentBanner: (count) =>
+    count === 1
+      ? "⚠️ Tienes 1 pago con vencimiento próximo"
+      : `⚠️ Tienes ${count} pagos con vencimiento próximo`,
   pendingAmount: "Monto pendiente",
   paymentDueDate: "Fecha límite de pago",
   toBeConfirmed: "Por confirmar",
@@ -431,6 +436,10 @@ const UI_EN: ClienteUiCopy = {
   upcomingPaymentsSubtitle: "Pending payments sorted by nearest due date",
   upcomingPaymentsCount: (count) =>
     count === 1 ? "1 pending payment" : `${count} pending payments`,
+  upcomingPaymentsUrgentBanner: (count) =>
+    count === 1
+      ? "⚠️ You have 1 upcoming payment due soon"
+      : `⚠️ You have ${count} upcoming payments due soon`,
   pendingAmount: "Amount due",
   paymentDueDate: "Payment due date",
   toBeConfirmed: "To be confirmed",

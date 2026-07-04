@@ -6,8 +6,10 @@ import type { CotizacionItemRow, CotizacionRow } from "@/app/data/cotizaciones";
 import type { DirectorioProveedorRow } from "@/app/data/directorio";
 import type { LeadRow } from "@/app/data/leads";
 import { buildHistoricoPrecios } from "@/lib/cotizacion-historico";
+import { canViewLeads } from "@/lib/auth/roles";
 import { requireAuthUser } from "@/lib/auth/user-profiles";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +19,9 @@ type PageProps = {
 
 export default async function CotizacionPage({ params }: PageProps) {
   const user = await requireAuthUser();
+  if (!canViewLeads(user.rol)) {
+    redirect("/");
+  }
   const supabase = await createServerSupabaseClient();
   const { id } = await params;
 
