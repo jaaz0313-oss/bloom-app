@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CronogramaAlertsSection } from "./components/CronogramaAlertsSection";
+import { LeadAlertsSection } from "./components/LeadAlertsSection";
 import { LeadsBoard } from "./components/LeadsBoard";
 import { CitasHoySection } from "./components/citas/CitasHoySection";
 import { PaymentAlertsSection } from "./components/PaymentAlertsSection";
@@ -8,6 +9,7 @@ import { ExportarDatosButton } from "./components/ExportarDatosButton";
 import { WeddingCard } from "./components/WeddingCard";
 import { NewWeddingModalButton } from "./components/NewWeddingModalButton";
 import { buildCronogramaAlerts } from "./data/cronograma-alerts";
+import { buildLeadInactivityAlerts } from "./data/lead-alerts";
 import { buildPaymentAlerts } from "./data/payment-alerts";
 import type { LeadRow } from "./data/leads";
 import {
@@ -47,6 +49,7 @@ export default async function Home({ searchParams }: HomeProps) {
   let allLeads: LeadRow[] = [];
   let paymentAlerts: ReturnType<typeof buildPaymentAlerts> = [];
   let cronogramaAlerts: ReturnType<typeof buildCronogramaAlerts> = [];
+  let leadInactivityAlerts: ReturnType<typeof buildLeadInactivityAlerts> = [];
   let citasHoy: CitaRow[] = [];
 
   const { data: bodasData, error: bodasError } = await supabase
@@ -84,6 +87,7 @@ export default async function Home({ searchParams }: HomeProps) {
       const partitioned = partitionLeadsForDashboard(allLeads, convertedLeadIds);
       activeLeads = partitioned.activeLeads;
       discardedLeads = partitioned.discardedLeads;
+      leadInactivityAlerts = buildLeadInactivityAlerts(activeLeads);
     }
   }
 
@@ -229,6 +233,9 @@ export default async function Home({ searchParams }: HomeProps) {
           canSendWhatsApp={hasPermission(user.rol, "whatsapp.send")}
         />
         <CronogramaAlertsSection alerts={cronogramaAlerts} />
+        {showLeads && (
+          <LeadAlertsSection alerts={leadInactivityAlerts} />
+        )}
 
         <div className="inline-flex rounded-full border border-bloom-border bg-bloom-surface p-1">
           <Link
