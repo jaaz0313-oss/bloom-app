@@ -336,7 +336,9 @@ export function AddProviderModalButton({
 
     const nombre = form.nombre.trim();
     const categoria = form.categoria.trim();
-    const valorTotal = Number(form.valorTotal);
+    const valorTotalTrimmed = form.valorTotal.trim();
+    const valorTotal =
+      valorTotalTrimmed === "" ? 0 : Number(valorTotalTrimmed);
     const anticipo = Number(form.anticipo || "0");
     const banco = form.banco.trim();
     const numeroCuenta = form.numeroCuenta.trim();
@@ -651,7 +653,6 @@ export function AddProviderModalButton({
                       setForm((s) => ({ ...s, valorTotal: e.target.value }))
                     }
                     placeholder="Ej: 3500000"
-                    required
                   />
                 </Field>
 
