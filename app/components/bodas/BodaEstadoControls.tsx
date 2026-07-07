@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   BODA_ESTADO_ACTIVA,
   BODA_ESTADO_FINALIZADA,
+  isBodaFechaPasada,
   isBodaFinalizada,
 } from "@/lib/boda-estado";
 import { supabase } from "@/lib/supabase";
@@ -12,12 +13,14 @@ import { supabase } from "@/lib/supabase";
 type BodaEstadoControlsProps = {
   bodaId: string;
   estado: string | null | undefined;
+  fechaBoda: string;
   canManage: boolean;
 };
 
 export function BodaEstadoControls({
   bodaId,
   estado,
+  fechaBoda,
   canManage,
 }: BodaEstadoControlsProps) {
   const router = useRouter();
@@ -27,6 +30,7 @@ export function BodaEstadoControls({
   const [error, setError] = useState<string | null>(null);
 
   const finalizada = isBodaFinalizada(estado);
+  const puedeFinalizar = isBodaFechaPasada(fechaBoda);
 
   useEffect(() => {
     if (!confirmFinalizeOpen && !confirmReactivateOpen) return;
@@ -89,7 +93,7 @@ export function BodaEstadoControls({
         </div>
       )}
 
-      {canManage && !finalizada && (
+      {canManage && !finalizada && puedeFinalizar && (
         <div className="mt-4">
           <button
           type="button"

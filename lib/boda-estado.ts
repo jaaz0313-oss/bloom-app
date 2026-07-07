@@ -15,3 +15,12 @@ export function isBodaActiva(estado: string | null | undefined): boolean {
 export function isBodaFinalizada(estado: string | null | undefined): boolean {
   return normalizeBodaEstado(estado) === BODA_ESTADO_FINALIZADA;
 }
+
+/** True cuando la fecha del evento es anterior a hoy (no incluye el día de hoy). */
+export function isBodaFechaPasada(
+  fechaBoda: string,
+  fromDate = new Date(),
+): boolean {
+  const today = fromDate.toISOString().slice(0, 10);
+  return fechaBoda < today;
+}

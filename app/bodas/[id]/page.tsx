@@ -263,6 +263,7 @@ export default async function BodaDetailPage({ params, searchParams }: PageProps
           <BodaEstadoControls
             bodaId={id}
             estado={bodaRow.estado}
+            fechaBoda={bodaRow.fecha_boda}
             canManage={canManageBodaEstado(user.rol)}
           />
           <div className="mt-4 flex flex-wrap gap-3">
