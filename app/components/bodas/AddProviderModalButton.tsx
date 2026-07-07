@@ -10,6 +10,7 @@ import {
   buildDirectorioInsertFromBodaProveedor,
   type BodaProveedorDirectorioSource,
 } from "@/lib/directorio-proveedor-from-boda";
+import { CONCEPTO_ANTICIPO } from "@/app/data/pagos";
 import { ProviderComisionFields } from "./ProviderComisionFields";
 
 type FormState = {
@@ -75,6 +76,15 @@ type DirectorioProveedorLookup = {
 
 type EntryMode = "directorio" | "manual";
 
+type EstadoInicial = "por_cotizar" | "contratado";
+
+function getFechaHoyLocal(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
+    now.getDate(),
+  ).padStart(2, "0")}`;
+}
+
 type PendingDirectorioSave = {
   nombre: string;
   categoria: string;
@@ -111,6 +121,7 @@ export function AddProviderModalButton({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
+  const [estadoInicial, setEstadoInicial] = useState<EstadoInicial | null>(null);
   const [entryMode, setEntryMode] = useState<EntryMode | null>(null);
   const [directoryQuery, setDirectoryQuery] = useState("");
   const [directoryResults, setDirectoryResults] = useState<DirectorioProveedorLookup[]>(
@@ -147,10 +158,17 @@ export function AddProviderModalButton({
 
   function handleCategoryChange(categoria: string) {
     setForm({ ...emptyForm, categoria });
+    setEstadoInicial(null);
     setEntryMode(null);
     resetDirectorySearch();
     setSelectedDirectorioId(null);
     setError(null);
+  }
+
+  function selectEstadoInicial(estado: EstadoInicial) {
+    setEstadoInicial(estado);
+    setEntryMode(null);
+    resetFormKeepingCategory(form.categoria);
   }
 
   function selectEntryMode(mode: EntryMode) {
@@ -214,6 +232,7 @@ export function AddProviderModalButton({
 
   function resetAddProviderForm() {
     setForm(emptyForm);
+    setEstadoInicial(null);
     setEntryMode(null);
     setSelectedDirectorioId(null);
     resetDirectorySearch();
@@ -351,10 +370,15 @@ export function AddProviderModalButton({
     const descripcionServicio = form.descripcionServicio.trim();
     const notas = form.notas.trim();
 
+    const esContratado = estadoInicial === "contratado";
+
     if (!nombre) return setError("Ingresa el nombre del proveedor.");
     if (!categoria) return setError("Ingresa la categoría.");
     if (!Number.isFinite(valorTotal) || valorTotal < 0) {
       return setError("Ingresa un valor total válido (>= 0).");
+    }
+    if (esContratado && valorTotal <= 0) {
+      return setError("Ingresa el valor contratado.");
     }
     if (!Number.isFinite(anticipo) || anticipo < 0) {
       return setError("Ingresa un anticipo válido (>= 0).");
@@ -382,7 +406,9 @@ export function AddProviderModalButton({
           nombre,
           categoria,
           valor_total: valorTotal,
-          anticipo,
+          // En el flujo "Ya contratado" el anticipo se registra como un pago real,
+          // por lo que la columna anticipo se deja en 0 para no contarlo doble.
+          anticipo: esContratado ? 0 : anticipo,
           fecha_saldo: form.fechaSaldo || null,
           banco: banco || null,
           tipo_cuenta: tipoCuenta || null,
@@ -396,7 +422,7 @@ export function AddProviderModalButton({
           notas: notas || null,
           da_comision: daComision,
           porcentaje_comision: daComision ? porcentajeComision : 10,
-          estado: "pendiente",
+          estado: esContratado ? "contratado" : "pendiente",
         })
         .select("id")
         .single();
@@ -411,8 +437,32 @@ export function AddProviderModalButton({
         entidad: "proveedor",
         entidadId: nuevoProveedor.id,
         bodaNombre,
-        detalle: `${nombre} · ${categoria}`,
+        detalle: `${nombre} · ${categoria}${esContratado ? " · Contratado" : ""}`,
       });
+
+      if (esContratado && anticipo > 0) {
+        const { error: pagoError } = await supabase.from("pagos").insert({
+          proveedor_id: nuevoProveedor.id,
+          monto: anticipo,
+          fecha_pago: getFechaHoyLocal(),
+          concepto: CONCEPTO_ANTICIPO,
+          comprobante_url: null,
+        });
+
+        if (pagoError) {
+          setError(
+            `Proveedor creado, pero no se pudo registrar el anticipo: ${pagoError.message}`,
+          );
+        } else {
+          await logAuditoria({
+            accion: AUDITORIA_ACCIONES.PAGO_REGISTRADO,
+            entidad: "pago",
+            entidadId: nuevoProveedor.id,
+            bodaNombre,
+            detalle: `${nombre}: anticipo`,
+          });
+        }
+      }
 
       await promptSaveToDirectorioIfNeeded({
         nombre,
@@ -501,6 +551,42 @@ export function AddProviderModalButton({
               {form.categoria && (
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-bloom-ink">
+                    ¿En qué estado está este proveedor?
+                  </p>
+                  <div
+                    className="inline-flex w-full rounded-full border border-bloom-border bg-bloom-canvas p-1"
+                    role="group"
+                    aria-label="Estado del proveedor"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => selectEstadoInicial("por_cotizar")}
+                      className={`flex-1 rounded-full px-4 py-2.5 text-sm font-medium transition-colors ${
+                        estadoInicial === "por_cotizar"
+                          ? "bg-bloom-accent text-white shadow-sm"
+                          : "text-bloom-ink hover:bg-bloom-border"
+                      }`}
+                    >
+                      Por cotizar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => selectEstadoInicial("contratado")}
+                      className={`flex-1 rounded-full px-4 py-2.5 text-sm font-medium transition-colors ${
+                        estadoInicial === "contratado"
+                          ? "bg-bloom-accent text-white shadow-sm"
+                          : "text-bloom-ink hover:bg-bloom-border"
+                      }`}
+                    >
+                      Ya contratado
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {form.categoria && estadoInicial && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-bloom-ink">
                     ¿Cómo quieres agregar el proveedor?
                   </p>
                   <div
@@ -587,7 +673,98 @@ export function AddProviderModalButton({
                 </Field>
               )}
 
-              {entryMode && (
+              {entryMode && estadoInicial === "contratado" && (
+                <>
+                  <Field label="Nombre">
+                    <input
+                      className={inputClass}
+                      value={form.nombre}
+                      onChange={(e) =>
+                        setForm((s) => ({ ...s, nombre: e.target.value }))
+                      }
+                      placeholder="Ej: Fotografía Luna"
+                      required
+                    />
+                  </Field>
+
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <Field label="Valor contratado">
+                      <input
+                        type="number"
+                        min={0}
+                        step={1}
+                        className={inputClass}
+                        value={form.valorTotal}
+                        onChange={(e) =>
+                          setForm((s) => ({ ...s, valorTotal: e.target.value }))
+                        }
+                        placeholder="Ej: 3500000"
+                        required
+                      />
+                    </Field>
+
+                    <Field label="Anticipo pagado">
+                      <input
+                        type="number"
+                        min={0}
+                        step={1}
+                        className={inputClass}
+                        value={form.anticipo}
+                        onChange={(e) =>
+                          setForm((s) => ({ ...s, anticipo: e.target.value }))
+                        }
+                        placeholder="Ej: 1000000"
+                      />
+                    </Field>
+                  </div>
+
+                  <p className="text-xs text-bloom-muted">
+                    Si registras un anticipo, se agregará como primer pago del
+                    historial con concepto &quot;Anticipo&quot;.
+                  </p>
+
+                  <Field label="Fecha de saldo">
+                    <input
+                      type="date"
+                      className={inputClass}
+                      value={form.fechaSaldo}
+                      onChange={(e) =>
+                        setForm((s) => ({ ...s, fechaSaldo: e.target.value }))
+                      }
+                    />
+                  </Field>
+
+                  <Field label="Descripción del servicio / plan elegido">
+                    <textarea
+                      className={textareaClass}
+                      value={form.descripcionServicio}
+                      onChange={(e) =>
+                        setForm((s) => ({
+                          ...s,
+                          descripcionServicio: e.target.value,
+                        }))
+                      }
+                      placeholder="Ej: Paquete premium 8 horas, álbum digital y 2 fotógrafos"
+                      rows={3}
+                    />
+                  </Field>
+
+                  <ProviderComisionFields
+                    daComision={form.daComision}
+                    porcentajeComision={form.porcentajeComision}
+                    onDaComisionChange={(daComision) =>
+                      setForm((s) => ({ ...s, daComision }))
+                    }
+                    onPorcentajeChange={(porcentajeComision) =>
+                      setForm((s) => ({ ...s, porcentajeComision }))
+                    }
+                    disabled={submitting}
+                    inputClass={inputClass}
+                  />
+                </>
+              )}
+
+              {entryMode && estadoInicial === "por_cotizar" && (
                 <>
               <Field label="Nombre">
                 <input
@@ -806,7 +983,11 @@ export function AddProviderModalButton({
                     disabled={submitting}
                     className="inline-flex items-center justify-center gap-2 rounded-full bg-bloom-accent px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-bloom-accent-hover disabled:opacity-60"
                   >
-                    {submitting ? "Guardando..." : "Guardar"}
+                    {submitting
+                      ? "Guardando..."
+                      : estadoInicial === "contratado"
+                        ? "Guardar como contratado"
+                        : "Guardar"}
                   </button>
                 </div>
               )}
