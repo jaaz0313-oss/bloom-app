@@ -959,22 +959,16 @@ export function ProviderCard({
             </p>
           )}
 
-          <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 rounded-lg border border-bloom-border bg-bloom-canvas/60 px-3 py-2 text-sm sm:max-w-md">
-            <div>
-              <dt className="text-bloom-muted">Anticipo</dt>
-              <dd className="font-medium text-bloom-ink">
-                {formatCurrency(provider.anticipo)}
-              </dd>
-            </div>
-            {provider.fecha_saldo && (
+          {provider.fecha_saldo && (
+            <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 rounded-lg border border-bloom-border bg-bloom-canvas/60 px-3 py-2 text-sm sm:max-w-md">
               <div>
                 <dt className="text-bloom-muted">Fecha de saldo</dt>
                 <dd className="font-medium text-bloom-ink">
                   {formatShortDateStable(provider.fecha_saldo)}
                 </dd>
               </div>
-            )}
-          </dl>
+            </dl>
+          )}
 
       {showPaymentReminder && (
         <div className="mt-4 border-t border-bloom-border pt-4">
@@ -1010,6 +1004,7 @@ export function ProviderCard({
           pagos={pagos}
           anticipo={provider.anticipo}
           valorTotal={provider.valor_total}
+          createdAt={provider.created_at}
           role={role}
           driveFolderUrl={driveFolderUrl}
         />

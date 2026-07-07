@@ -3,6 +3,7 @@
 import { ClienteAccordionSection } from "@/app/components/cliente/ClienteAccordionSection";
 import { useClienteLocale } from "@/app/components/cliente/ClienteLocaleProvider";
 import type { PagoRow } from "@/app/data/pagos";
+import { buildPagosConAnticipo } from "@/app/data/pagos";
 import {
   getProviderSaldoPendienteConPagos,
   type ProveedorRow,
@@ -37,6 +38,13 @@ export function ClienteProveedoresSection({
           {contratados.map((provider) => {
             const pagos = pagosByProveedor[provider.id] ?? [];
             const saldo = getProviderSaldoPendienteConPagos(provider, pagos);
+            const pagosHistorial = [
+              ...buildPagosConAnticipo(provider, pagos),
+            ].sort(
+              (a, b) =>
+                new Date(a.fecha_pago).getTime() -
+                new Date(b.fecha_pago).getTime(),
+            );
             const titular =
               provider.titular_cuenta?.trim() || provider.nombre;
 
@@ -60,12 +68,6 @@ export function ClienteProveedoresSection({
                       <dt className="text-bloom-muted">{t.totalValue}</dt>
                       <dd className="font-medium text-bloom-ink">
                         {formatClienteCurrency(provider.valor_total, locale)}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-bloom-muted">{t.depositPaid}</dt>
-                      <dd className="font-medium text-bloom-success">
-                        {formatClienteCurrency(provider.anticipo, locale)}
                       </dd>
                     </div>
                     <div>
@@ -121,13 +123,13 @@ export function ClienteProveedoresSection({
                   <h4 className="font-display text-lg text-bloom-ink">
                     {t.paymentHistory}
                   </h4>
-                  {pagos.length === 0 ? (
+                  {pagosHistorial.length === 0 ? (
                     <p className="mt-2 text-sm text-bloom-muted">
                       {t.noPaymentsRecorded}
                     </p>
                   ) : (
                     <ul className="mt-3 space-y-2">
-                      {pagos.map((pago) => (
+                      {pagosHistorial.map((pago) => (
                         <li
                           key={pago.id}
                           className="rounded-lg border border-bloom-border/70 bg-bloom-surface px-3 py-2.5 text-sm"

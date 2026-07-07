@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { PagoRow } from "@/app/data/pagos";
-import { computeTotalPagado } from "@/app/data/pagos";
+import { buildPagosConAnticipo, computeTotalPagado } from "@/app/data/pagos";
 import { formatCurrency, formatShortDateStable } from "@/lib/format";
 import { AUDITORIA_ACCIONES, logAuditoria } from "@/lib/auditoria";
 import { supabase } from "@/lib/supabase";
@@ -19,6 +19,7 @@ type ProviderPaymentsProps = {
   pagos: PagoRow[];
   anticipo: number;
   valorTotal: number;
+  createdAt: string;
   role: UserRole;
   driveFolderUrl?: string | null;
 };
@@ -43,6 +44,7 @@ export function ProviderPayments({
   pagos,
   anticipo,
   valorTotal,
+  createdAt,
   role,
   driveFolderUrl = null,
 }: ProviderPaymentsProps) {
@@ -58,7 +60,11 @@ export function ProviderPayments({
   const totalPagosRegistrados = computeTotalPagado(pagos);
   const totalPagado = anticipo + totalPagosRegistrados;
   const saldoPendiente = Math.max(0, valorTotal - totalPagado);
-  const sortedPagos = [...pagos].sort(
+  const pagosConAnticipo = buildPagosConAnticipo(
+    { id: proveedorId, anticipo, created_at: createdAt },
+    pagos,
+  );
+  const sortedPagos = [...pagosConAnticipo].sort(
     (a, b) =>
       new Date(b.fecha_pago).getTime() - new Date(a.fecha_pago).getTime(),
   );
@@ -300,7 +306,7 @@ export function ProviderPayments({
                     Ver comprobante
                   </a>
                 )}
-                {hasPermission(role, "payments.manage") && (
+                {hasPermission(role, "payments.manage") && !pago.esSintetico && (
                   <>
                     <button
                       type="button"
