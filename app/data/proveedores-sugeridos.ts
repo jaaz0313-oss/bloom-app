@@ -9,6 +9,7 @@ export type ProveedorSugeridoRow = {
   instagram: string | null;
   ronda: number;
   orden: number;
+  sugerido_por_ia: boolean;
   created_by: string | null;
   created_at: string;
 };
@@ -32,6 +33,7 @@ export function normalizeProveedorSugeridoRow(
     ...row,
     ronda: Number(row.ronda ?? 1),
     orden: Number(row.orden ?? 0),
+    sugerido_por_ia: Boolean(row.sugerido_por_ia),
   };
 }
 

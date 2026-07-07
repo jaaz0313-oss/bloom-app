@@ -309,9 +309,16 @@ export function ProveedoresSugeridosSection({
                             className="flex items-start justify-between gap-3 rounded-xl border border-bloom-border/80 bg-bloom-canvas/40 px-4 py-3"
                           >
                             <div className="min-w-0">
-                              <p className="font-medium text-bloom-ink">
-                                {proveedor.nombre_proveedor}
-                              </p>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="font-medium text-bloom-ink">
+                                  {proveedor.nombre_proveedor}
+                                </p>
+                                {proveedor.sugerido_por_ia && (
+                                  <span className="inline-flex shrink-0 rounded-full bg-bloom-accent/10 px-2 py-0.5 text-xs font-medium text-bloom-accent">
+                                    ✨ Sugerido por IA
+                                  </span>
+                                )}
+                              </div>
                               {instagramUrl && (
                                 <a
                                   href={instagramUrl}

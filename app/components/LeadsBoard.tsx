@@ -17,6 +17,10 @@ import { AUDITORIA_ACCIONES, logAuditoria } from "@/lib/auditoria";
 import { insertLeadRow, updateLeadSeguimiento } from "@/lib/leads-mutations";
 import { supabase } from "@/lib/supabase";
 import { hasPermission, type UserRole } from "@/lib/auth/roles";
+import {
+  fetchSugerenciasBodasSimilares,
+  sugerenciasBodasSimilaresToInsertItems,
+} from "@/lib/sugerencias-bodas-similares";
 
 type LeadsBoardProps = {
   activeLeads: LeadRow[];
@@ -88,6 +92,18 @@ export function LeadsBoard({
   const [form, setForm] = useState<LeadFormState>(emptyLeadForm);
   const [fechaConflicto, setFechaConflicto] = useState<string[]>([]);
   const [anticipoTouched, setAnticipoTouched] = useState(false);
+  const [iaPrompt, setIaPrompt] = useState<{
+    bodaId: string;
+    leadNombre: string;
+    items: Array<{
+      directorio_proveedor_id: string | null;
+      nombre_proveedor: string;
+      categoria: string;
+      instagram: string | null;
+      orden: number;
+    }>;
+  } | null>(null);
+  const [iaSubmitting, setIaSubmitting] = useState(false);
   const canManageAcuerdos = role === "admin" || role === "lider";
   const canManageLeads = hasPermission(role, "leads.create");
 
@@ -466,10 +482,71 @@ export function LeadsBoard({
         detalle: `Nueva boda: ${lead.nombre_pareja}`,
       });
 
+      const sugerencias = await fetchSugerenciasBodasSimilares(supabase, lead);
+      const items = sugerenciasBodasSimilaresToInsertItems(sugerencias);
+
+      if (items.length > 0) {
+        setIaPrompt({
+          bodaId: nuevaBoda.id,
+          leadNombre: lead.nombre_pareja,
+          items,
+        });
+        return;
+      }
+
       router.refresh();
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function handleConfirmIaSuggestions() {
+    if (!iaPrompt || !supabase) return;
+    setIaSubmitting(true);
+    setError(null);
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      const { error: insertError } = await supabase
+        .from("proveedores_sugeridos")
+        .insert(
+          iaPrompt.items.map((item) => ({
+            boda_id: iaPrompt.bodaId,
+            directorio_proveedor_id: item.directorio_proveedor_id,
+            nombre_proveedor: item.nombre_proveedor,
+            categoria: item.categoria,
+            instagram: item.instagram,
+            ronda: 1,
+            orden: item.orden,
+            sugerido_por_ia: true,
+            created_by: user?.id ?? null,
+          })),
+        );
+
+      if (insertError) {
+        setError(insertError.message);
+        return;
+      }
+
+      await logAuditoria({
+        accion: AUDITORIA_ACCIONES.PROVEEDOR_SUGERIDO_AGREGADO,
+        entidad: "proveedor_sugerido",
+        bodaNombre: iaPrompt.leadNombre,
+        detalle: `Sugerencias inteligentes por bodas similares · ${iaPrompt.items.length} proveedores`,
+      });
+
+      setIaPrompt(null);
+      router.refresh();
+    } finally {
+      setIaSubmitting(false);
+    }
+  }
+
+  function handleDismissIaSuggestions() {
+    setIaPrompt(null);
+    router.refresh();
   }
 
   return (
@@ -750,6 +827,15 @@ export function LeadsBoard({
           busy={submitting}
           onCancel={() => setDiscardTarget(null)}
           onConfirm={handleDiscardConfirm}
+        />
+      )}
+
+      {iaPrompt && (
+        <IaSuggestionsModal
+          count={iaPrompt.items.length}
+          busy={iaSubmitting}
+          onNo={handleDismissIaSuggestions}
+          onYes={handleConfirmIaSuggestions}
         />
       )}
 
@@ -1238,6 +1324,61 @@ function ConfirmModal({
             }`}
           >
             {busy ? "Procesando…" : confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function IaSuggestionsModal({
+  count,
+  busy,
+  onNo,
+  onYes,
+}: {
+  count: number;
+  busy: boolean;
+  onNo: () => void;
+  onYes: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      role="alertdialog"
+      aria-modal="true"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !busy) onNo();
+      }}
+    >
+      <div className="w-full max-w-md rounded-2xl border border-bloom-border bg-bloom-surface p-6 shadow-xl">
+        <h3 className="font-display text-lg text-bloom-ink">
+          Sugerencias inteligentes disponibles
+        </h3>
+        <p className="mt-2 text-sm text-bloom-muted">
+          ¿Quieres agregar las sugerencias inteligentes al módulo de Proveedores
+          Sugeridos de esta boda?
+        </p>
+        <p className="mt-2 text-xs text-bloom-muted">
+          {count} {count === 1 ? "proveedor sugerido" : "proveedores sugeridos"}{" "}
+          a partir de bodas similares.
+        </p>
+        <div className="mt-6 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onNo}
+            disabled={busy}
+            className="rounded-full border border-bloom-border px-4 py-2 text-sm font-medium text-bloom-ink disabled:opacity-60"
+          >
+            No
+          </button>
+          <button
+            type="button"
+            onClick={onYes}
+            disabled={busy}
+            className="rounded-full bg-bloom-accent px-4 py-2 text-sm font-medium text-white hover:bg-bloom-accent-hover disabled:opacity-60"
+          >
+            {busy ? "Agregando…" : "Sí, agregar"}
           </button>
         </div>
       </div>

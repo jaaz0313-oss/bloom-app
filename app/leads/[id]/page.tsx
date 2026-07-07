@@ -4,6 +4,7 @@ import { DashboardHeader } from "@/app/components/DashboardHeader";
 import { CitasSection } from "@/app/components/citas/CitasSection";
 import { LeadCotizacionesSection } from "@/app/components/leads/LeadCotizacionesSection";
 import { LeadCotizacionPanel } from "@/app/components/leads/LeadCotizacionPanel";
+import { LeadSugerenciasBodasSimilares } from "@/app/components/leads/LeadSugerenciasBodasSimilares";
 import type { CotizacionItemRow } from "@/app/data/cotizaciones";
 import { pickActiveLeadCotizacion } from "@/lib/lead-cotizacion";
 import { buildHistoricoPrecios } from "@/lib/cotizacion-historico";
@@ -12,13 +13,17 @@ import type { DirectorioProveedorRow } from "@/app/data/directorio";
 import {
   LEAD_SEGUIMIENTO_LABELS,
   LEAD_SEGUIMIENTO_STYLES,
-  type LeadRow,
 } from "@/app/data/leads";
 import type { CitaRow } from "@/app/data/citas";
 import type { CotizacionRow } from "@/app/data/cotizaciones";
 import { formatCurrency, formatShortDate } from "@/lib/format";
 import { requireAuthUser } from "@/lib/auth/user-profiles";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { canManageBodaEstado } from "@/lib/auth/roles";
+import {
+  fetchSugerenciasBodasSimilares,
+  type SugerenciasBodasSimilaresResult,
+} from "@/lib/sugerencias-bodas-similares";
 
 export const dynamic = "force-dynamic";
 
@@ -115,6 +120,15 @@ export default async function LeadDetailPage({ params }: PageProps) {
     .select("id, nombre, username, email")
     .eq("activo", true)
     .order("nombre", { ascending: true });
+
+  const canViewSugerencias = canManageBodaEstado(user.rol);
+  let sugerenciasBodasSimilares: SugerenciasBodasSimilaresResult | null = null;
+  if (canViewSugerencias) {
+    sugerenciasBodasSimilares = await fetchSugerenciasBodasSimilares(
+      supabase,
+      leadRow,
+    );
+  }
 
   return (
     <div className="min-h-full bg-bloom-canvas font-sans">
@@ -215,6 +229,10 @@ export default async function LeadDetailPage({ params }: PageProps) {
             directorio={directorio}
             historico={historico}
           />
+        )}
+
+        {sugerenciasBodasSimilares && (
+          <LeadSugerenciasBodasSimilares result={sugerenciasBodasSimilares} />
         )}
 
         <CitasSection
