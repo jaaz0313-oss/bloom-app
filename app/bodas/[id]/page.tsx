@@ -7,6 +7,7 @@ import { RevertirALeadButton } from "@/app/components/bodas/RevertirALeadButton"
 import { ClientePortalQrButton } from "@/app/components/bodas/ClientePortalQrButton";
 import { BodaCotizacionInicialButton } from "@/app/components/bodas/BodaCotizacionInicialButton";
 import { BodaFechaConfirmada } from "@/app/components/bodas/BodaFechaConfirmada";
+import { BodaNumInvitados } from "@/app/components/bodas/BodaNumInvitados";
 import { ShareWithClientButton } from "@/app/components/bodas/ShareWithClientButton";
 import type { CitaRow } from "@/app/data/citas";
 import type { BriefBodaRow } from "@/app/data/brief-boda";
@@ -252,6 +253,11 @@ export default async function BodaDetailPage({ params, searchParams }: PageProps
               <dt className="text-bloom-muted">Ciudad</dt>
               <dd className="font-medium text-bloom-ink">{bodaRow.ciudad}</dd>
             </div>
+            <BodaNumInvitados
+              bodaId={id}
+              numInvitados={bodaRow.num_invitados}
+              role={user.rol}
+            />
           </dl>
           <div className="mt-4 flex flex-wrap gap-3">
             {hasPermission(user.rol, "whatsapp.send") && (
