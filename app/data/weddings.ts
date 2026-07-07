@@ -22,6 +22,8 @@ export type BodaRow = {
   email_novia: string | null;
   email_novio: string | null;
   direccion: string | null;
+  instagram_novia: string | null;
+  instagram_novio: string | null;
   tipo_documento: string | null;
   tipo_documento_novia: string | null;
   tipo_documento_novio: string | null;

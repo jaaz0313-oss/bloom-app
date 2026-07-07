@@ -13,6 +13,8 @@ export function hasClientInfoContent(boda: BodaRow): boolean {
       boda.email_novia?.trim() ||
       boda.email_novio?.trim() ||
       boda.direccion?.trim() ||
+      boda.instagram_novia?.trim() ||
+      boda.instagram_novio?.trim() ||
       boda.documento_novia?.trim() ||
       boda.documento_novio?.trim() ||
       boda.whatsapp_grupo_link?.trim(),

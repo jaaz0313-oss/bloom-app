@@ -12,6 +12,10 @@ import { supabase } from "@/lib/supabase";
 import { hasPermission, type UserRole } from "@/lib/auth/roles";
 import { buildClienteContratoClipboardText } from "@/lib/cliente-contrato-clipboard";
 import { copyTextToClipboard } from "@/lib/copy-to-clipboard";
+import {
+  buildInstagramUrl,
+  formatInstagramDisplay,
+} from "@/lib/proveedores-sugeridos";
 
 const DOCUMENT_TYPES = ["Cédula", "Pasaporte", "ID extranjero"] as const;
 
@@ -36,6 +40,8 @@ type ClientInfoForm = {
   emailNovia: string;
   emailNovio: string;
   direccion: string;
+  instagramNovia: string;
+  instagramNovio: string;
   tipoDocumentoNovia: string;
   tipoDocumentoNovio: string;
   documentoNovia: string;
@@ -136,6 +142,8 @@ export function ClientInfoSection({
           email_novia: form.emailNovia.trim() || null,
           email_novio: form.emailNovio.trim() || null,
           direccion: form.direccion.trim() || null,
+          instagram_novia: form.instagramNovia.trim() || null,
+          instagram_novio: form.instagramNovio.trim() || null,
           tipo_documento_novia: form.tipoDocumentoNovia.trim() || null,
           tipo_documento_novio: form.tipoDocumentoNovio.trim() || null,
           documento_novia: form.documentoNovia.trim() || null,
@@ -292,25 +300,35 @@ export function ClientInfoSection({
         </div>
       </div>
 
-      <dl className="mt-5 grid gap-4 sm:grid-cols-2">
-        <InfoItem label="Nombre completo novia" value={boda.nombre_novia} />
-        <InfoItem label="Nombre completo novio" value={boda.nombre_novio} />
-        <InfoItem label="Teléfono novia" value={boda.telefono_novia} />
-        <InfoItem label="Teléfono novio" value={boda.telefono_novio} />
-        <InfoItem label="Email novia" value={boda.email_novia} />
-        <InfoItem label="Email novio" value={boda.email_novio} />
-        <InfoItem label="Dirección" value={boda.direccion} full />
-        <InfoItem
-          label="Tipo de documento novia"
-          value={boda.tipo_documento_novia ?? boda.tipo_documento}
-        />
-        <InfoItem
-          label="Tipo de documento novio"
-          value={boda.tipo_documento_novio}
-        />
-        <InfoItem label="Número de documento novia" value={boda.documento_novia} />
-        <InfoItem label="Número de documento novio" value={boda.documento_novio} />
-      </dl>
+      <div className="mt-5 space-y-6">
+        <ClientInfoBlock title="Novia">
+          <InfoItem label="Nombre completo" value={boda.nombre_novia} />
+          <InfoItem
+            label="Tipo de documento"
+            value={boda.tipo_documento_novia ?? boda.tipo_documento}
+          />
+          <InfoItem label="Número de documento" value={boda.documento_novia} />
+          <InfoItem label="Teléfono" value={boda.telefono_novia} />
+          <InfoItem label="Email" value={boda.email_novia} />
+          <InstagramInfoItem value={boda.instagram_novia} />
+        </ClientInfoBlock>
+
+        <ClientInfoBlock title="Novio">
+          <InfoItem label="Nombre completo" value={boda.nombre_novio} />
+          <InfoItem
+            label="Tipo de documento"
+            value={boda.tipo_documento_novio}
+          />
+          <InfoItem label="Número de documento" value={boda.documento_novio} />
+          <InfoItem label="Teléfono" value={boda.telefono_novio} />
+          <InfoItem label="Email" value={boda.email_novio} />
+          <InstagramInfoItem value={boda.instagram_novio} />
+        </ClientInfoBlock>
+
+        <ClientInfoBlock title="Información general">
+          <InfoItem label="Dirección" value={boda.direccion} full />
+        </ClientInfoBlock>
+      </div>
 
       <div className="mt-4 flex flex-col gap-3 rounded-xl border border-bloom-border bg-bloom-canvas/50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
@@ -554,9 +572,9 @@ export function ClientInfoSection({
               </button>
             </div>
 
-            <form className="mt-5 space-y-4" onSubmit={handleSave}>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="Nombre completo novia">
+            <form className="mt-5 space-y-6" onSubmit={handleSave}>
+              <FormBlock title="Novia">
+                <Field label="Nombre completo">
                   <input
                     className={inputClass}
                     value={form.nombreNovia}
@@ -566,80 +584,7 @@ export function ClientInfoSection({
                     disabled={submitting}
                   />
                 </Field>
-                <Field label="Nombre completo novio">
-                  <input
-                    className={inputClass}
-                    value={form.nombreNovio}
-                    onChange={(e) =>
-                      setForm((s) => ({ ...s, nombreNovio: e.target.value }))
-                    }
-                    disabled={submitting}
-                  />
-                </Field>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="Teléfono novia">
-                  <input
-                    className={inputClass}
-                    value={form.telefonoNovia}
-                    onChange={(e) =>
-                      setForm((s) => ({ ...s, telefonoNovia: e.target.value }))
-                    }
-                    disabled={submitting}
-                  />
-                </Field>
-                <Field label="Teléfono novio">
-                  <input
-                    className={inputClass}
-                    value={form.telefonoNovio}
-                    onChange={(e) =>
-                      setForm((s) => ({ ...s, telefonoNovio: e.target.value }))
-                    }
-                    disabled={submitting}
-                  />
-                </Field>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="Email novia">
-                  <input
-                    type="email"
-                    className={inputClass}
-                    value={form.emailNovia}
-                    onChange={(e) =>
-                      setForm((s) => ({ ...s, emailNovia: e.target.value }))
-                    }
-                    disabled={submitting}
-                  />
-                </Field>
-                <Field label="Email novio">
-                  <input
-                    type="email"
-                    className={inputClass}
-                    value={form.emailNovio}
-                    onChange={(e) =>
-                      setForm((s) => ({ ...s, emailNovio: e.target.value }))
-                    }
-                    disabled={submitting}
-                  />
-                </Field>
-              </div>
-
-              <Field label="Dirección">
-                <textarea
-                  rows={2}
-                  className={textareaClass}
-                  value={form.direccion}
-                  onChange={(e) =>
-                    setForm((s) => ({ ...s, direccion: e.target.value }))
-                  }
-                  disabled={submitting}
-                />
-              </Field>
-
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="Tipo de documento novia">
+                <Field label="Tipo de documento">
                   <select
                     className={inputClass}
                     value={form.tipoDocumentoNovia}
@@ -659,7 +604,62 @@ export function ClientInfoSection({
                     ))}
                   </select>
                 </Field>
-                <Field label="Tipo de documento novio">
+                <Field label="Número de documento">
+                  <input
+                    className={inputClass}
+                    value={form.documentoNovia}
+                    onChange={(e) =>
+                      setForm((s) => ({ ...s, documentoNovia: e.target.value }))
+                    }
+                    disabled={submitting}
+                  />
+                </Field>
+                <Field label="Teléfono">
+                  <input
+                    className={inputClass}
+                    value={form.telefonoNovia}
+                    onChange={(e) =>
+                      setForm((s) => ({ ...s, telefonoNovia: e.target.value }))
+                    }
+                    disabled={submitting}
+                  />
+                </Field>
+                <Field label="Email">
+                  <input
+                    type="email"
+                    className={inputClass}
+                    value={form.emailNovia}
+                    onChange={(e) =>
+                      setForm((s) => ({ ...s, emailNovia: e.target.value }))
+                    }
+                    disabled={submitting}
+                  />
+                </Field>
+                <Field label="Instagram">
+                  <input
+                    className={inputClass}
+                    value={form.instagramNovia}
+                    onChange={(e) =>
+                      setForm((s) => ({ ...s, instagramNovia: e.target.value }))
+                    }
+                    placeholder="@usuario"
+                    disabled={submitting}
+                  />
+                </Field>
+              </FormBlock>
+
+              <FormBlock title="Novio">
+                <Field label="Nombre completo">
+                  <input
+                    className={inputClass}
+                    value={form.nombreNovio}
+                    onChange={(e) =>
+                      setForm((s) => ({ ...s, nombreNovio: e.target.value }))
+                    }
+                    disabled={submitting}
+                  />
+                </Field>
+                <Field label="Tipo de documento">
                   <select
                     className={inputClass}
                     value={form.tipoDocumentoNovio}
@@ -679,20 +679,7 @@ export function ClientInfoSection({
                     ))}
                   </select>
                 </Field>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="Número de documento novia">
-                  <input
-                    className={inputClass}
-                    value={form.documentoNovia}
-                    onChange={(e) =>
-                      setForm((s) => ({ ...s, documentoNovia: e.target.value }))
-                    }
-                    disabled={submitting}
-                  />
-                </Field>
-                <Field label="Número de documento novio">
+                <Field label="Número de documento">
                   <input
                     className={inputClass}
                     value={form.documentoNovio}
@@ -702,7 +689,53 @@ export function ClientInfoSection({
                     disabled={submitting}
                   />
                 </Field>
-              </div>
+                <Field label="Teléfono">
+                  <input
+                    className={inputClass}
+                    value={form.telefonoNovio}
+                    onChange={(e) =>
+                      setForm((s) => ({ ...s, telefonoNovio: e.target.value }))
+                    }
+                    disabled={submitting}
+                  />
+                </Field>
+                <Field label="Email">
+                  <input
+                    type="email"
+                    className={inputClass}
+                    value={form.emailNovio}
+                    onChange={(e) =>
+                      setForm((s) => ({ ...s, emailNovio: e.target.value }))
+                    }
+                    disabled={submitting}
+                  />
+                </Field>
+                <Field label="Instagram">
+                  <input
+                    className={inputClass}
+                    value={form.instagramNovio}
+                    onChange={(e) =>
+                      setForm((s) => ({ ...s, instagramNovio: e.target.value }))
+                    }
+                    placeholder="@usuario"
+                    disabled={submitting}
+                  />
+                </Field>
+              </FormBlock>
+
+              <FormBlock title="Información general">
+                <Field label="Dirección">
+                  <textarea
+                    rows={2}
+                    className={textareaClass}
+                    value={form.direccion}
+                    onChange={(e) =>
+                      setForm((s) => ({ ...s, direccion: e.target.value }))
+                    }
+                    disabled={submitting}
+                  />
+                </Field>
+              </FormBlock>
 
               {error && (
                 <p className="text-sm text-red-700" role="alert">
@@ -744,11 +777,77 @@ function toForm(boda: BodaRow): ClientInfoForm {
     emailNovia: boda.email_novia ?? "",
     emailNovio: boda.email_novio ?? "",
     direccion: boda.direccion ?? "",
+    instagramNovia:
+      boda.instagram_novia ??
+      (boda as BodaRow & { instagram?: string | null }).instagram ??
+      "",
+    instagramNovio: boda.instagram_novio ?? "",
     tipoDocumentoNovia: boda.tipo_documento_novia ?? boda.tipo_documento ?? "",
     tipoDocumentoNovio: boda.tipo_documento_novio ?? "",
     documentoNovia: boda.documento_novia ?? "",
     documentoNovio: boda.documento_novio ?? "",
   };
+}
+
+function ClientInfoBlock({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-xl border border-bloom-border bg-bloom-canvas/40 px-4 py-4 sm:px-5">
+      <h3 className="font-display text-base text-bloom-accent">{title}</h3>
+      <dl className="mt-4 grid gap-4 sm:grid-cols-2">{children}</dl>
+    </section>
+  );
+}
+
+function FormBlock({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="space-y-4 rounded-xl border border-bloom-border bg-bloom-canvas/40 px-4 py-4 sm:px-5">
+      <h4 className="font-display text-base text-bloom-accent">{title}</h4>
+      <div className="space-y-4">{children}</div>
+    </section>
+  );
+}
+
+function InstagramInfoItem({ value }: { value: string | null }) {
+  const display = value?.trim() ? formatInstagramDisplay(value) : "";
+  const url = buildInstagramUrl(value);
+
+  return (
+    <div>
+      <dt className="text-xs font-medium uppercase tracking-wider text-bloom-muted">
+        Instagram
+      </dt>
+      <dd className="mt-1 text-sm font-medium text-bloom-ink">
+        {display ? (
+          url ? (
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-bloom-accent underline decoration-bloom-accent/40 underline-offset-2 transition-colors hover:text-bloom-accent-hover"
+            >
+              {display}
+            </a>
+          ) : (
+            display
+          )
+        ) : (
+          "—"
+        )}
+      </dd>
+    </div>
+  );
 }
 
 function InfoItem({
