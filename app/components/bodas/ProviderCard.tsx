@@ -28,6 +28,7 @@ import type { WhatsAppLocale } from "@/lib/whatsapp-locale";
 import { ProviderContratadoConfirmacionModal } from "./ProviderContratadoConfirmacionModal";
 import { ProviderPayments } from "./ProviderPayments";
 import { SubirCotizacionDriveButton } from "./SubirCotizacionDriveButton";
+import { AbrirCarpetaDriveButton } from "./AbrirCarpetaDriveButton";
 import { ProviderComisionFields } from "./ProviderComisionFields";
 import {
   AUDITORIA_ACCIONES,
@@ -50,6 +51,7 @@ type ProviderCardProps = {
   currentUserId: string;
   role: UserRole;
   dragHandle?: ProviderDragHandleProps;
+  driveFolderUrl?: string | null;
 };
 
 export type ProviderDragHandleProps = {
@@ -110,6 +112,7 @@ export function ProviderCard({
   currentUserId,
   role,
   dragHandle,
+  driveFolderUrl = null,
 }: ProviderCardProps) {
   const router = useRouter();
   const panelId = useId();
@@ -789,12 +792,19 @@ export function ProviderCard({
               <p className="mb-2 text-xs font-medium uppercase tracking-wider text-bloom-muted">
                 Cotización en Drive
               </p>
-              <SubirCotizacionDriveButton
-                bodaId={bodaId}
-                proveedorId={provider.id}
-                cotizacionDriveUrl={provider.cotizacion_drive_url}
-                disabled={updating || editSubmitting || deleting || cotizacionSubmitting}
-              />
+              <div className="flex items-start gap-2">
+                <div className="min-w-0 flex-1">
+                  <SubirCotizacionDriveButton
+                    bodaId={bodaId}
+                    proveedorId={provider.id}
+                    cotizacionDriveUrl={provider.cotizacion_drive_url}
+                    disabled={
+                      updating || editSubmitting || deleting || cotizacionSubmitting
+                    }
+                  />
+                </div>
+                <AbrirCarpetaDriveButton driveFolderUrl={driveFolderUrl} />
+              </div>
             </div>
           )}
 
@@ -1001,6 +1011,7 @@ export function ProviderCard({
           anticipo={provider.anticipo}
           valorTotal={provider.valor_total}
           role={role}
+          driveFolderUrl={driveFolderUrl}
         />
       )}
 

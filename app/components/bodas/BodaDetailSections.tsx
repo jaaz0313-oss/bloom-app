@@ -304,6 +304,7 @@ export function BodaDetailSections({
             role={role}
             whatsappGrupoLink={boda.whatsapp_grupo_link}
             highlightProveedorId={highlightProveedorId}
+            driveFolderUrl={driveFolderUrl}
           />
         </div>
       </BodaAccordionSection>

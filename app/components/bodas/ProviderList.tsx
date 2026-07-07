@@ -39,6 +39,7 @@ type ProviderListProps = {
   role: UserRole;
   whatsappGrupoLink?: string | null;
   highlightProveedorId?: string | null;
+  driveFolderUrl?: string | null;
 };
 
 function compareProvidersByOrden(a: ProveedorRow, b: ProveedorRow): number {
@@ -70,6 +71,7 @@ export function ProviderList({
   role,
   whatsappGrupoLink = null,
   highlightProveedorId = null,
+  driveFolderUrl = null,
 }: ProviderListProps) {
   const canReorder = hasPermission(role, "providers.manage");
   const sortedFromProps = useMemo(
@@ -174,6 +176,7 @@ export function ProviderList({
           notasReunion={notasReunionByProveedor[provider.id] ?? []}
           currentUserId={currentUserId}
           role={role}
+          driveFolderUrl={driveFolderUrl}
         />
       </li>
     );
@@ -221,6 +224,7 @@ export function ProviderList({
             role={role}
             highlightProveedorId={highlightProveedorId}
             compareBar={compareBar}
+            driveFolderUrl={driveFolderUrl}
           />
         );
       }
@@ -365,6 +369,7 @@ type SortableProviderItemProps = {
   role: UserRole;
   highlightProveedorId: string | null;
   compareBar: ReactNode;
+  driveFolderUrl?: string | null;
 };
 
 function SortableProviderItem({
@@ -378,6 +383,7 @@ function SortableProviderItem({
   role,
   highlightProveedorId,
   compareBar,
+  driveFolderUrl = null,
 }: SortableProviderItemProps) {
   const {
     attributes,
@@ -424,6 +430,7 @@ function SortableProviderItem({
         currentUserId={currentUserId}
         role={role}
         dragHandle={dragHandle}
+        driveFolderUrl={driveFolderUrl}
       />
     </li>
   );

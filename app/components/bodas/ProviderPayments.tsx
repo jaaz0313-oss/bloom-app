@@ -9,6 +9,7 @@ import { AUDITORIA_ACCIONES, logAuditoria } from "@/lib/auditoria";
 import { supabase } from "@/lib/supabase";
 import { hasPermission, type UserRole } from "@/lib/auth/roles";
 import { SubirComprobanteDriveButton } from "@/app/components/bodas/SubirComprobanteDriveButton";
+import { AbrirCarpetaDriveButton } from "@/app/components/bodas/AbrirCarpetaDriveButton";
 
 type ProviderPaymentsProps = {
   bodaId: string;
@@ -19,6 +20,7 @@ type ProviderPaymentsProps = {
   anticipo: number;
   valorTotal: number;
   role: UserRole;
+  driveFolderUrl?: string | null;
 };
 
 type PaymentFormState = {
@@ -42,6 +44,7 @@ export function ProviderPayments({
   anticipo,
   valorTotal,
   role,
+  driveFolderUrl = null,
 }: ProviderPaymentsProps) {
   const router = useRouter();
   const [openCreate, setOpenCreate] = useState(false);
@@ -397,10 +400,15 @@ export function ProviderPayments({
               </Field>
 
               <Field label="Comprobante">
-                <SubirComprobanteDriveButton
-                  bodaId={bodaId}
-                  disabled={submitting}
-                />
+                <div className="flex items-start gap-2">
+                  <div className="min-w-0 flex-1">
+                    <SubirComprobanteDriveButton
+                      bodaId={bodaId}
+                      disabled={submitting}
+                    />
+                  </div>
+                  <AbrirCarpetaDriveButton driveFolderUrl={driveFolderUrl} />
+                </div>
               </Field>
 
               {error && (
@@ -501,10 +509,15 @@ export function ProviderPayments({
               </Field>
 
               <Field label="Comprobante">
-                <SubirComprobanteDriveButton
-                  bodaId={bodaId}
-                  disabled={submitting}
-                />
+                <div className="flex items-start gap-2">
+                  <div className="min-w-0 flex-1">
+                    <SubirComprobanteDriveButton
+                      bodaId={bodaId}
+                      disabled={submitting}
+                    />
+                  </div>
+                  <AbrirCarpetaDriveButton driveFolderUrl={driveFolderUrl} />
+                </div>
                 {editingPago?.comprobante_url && (
                   <a
                     href={editingPago.comprobante_url}
