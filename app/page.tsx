@@ -7,6 +7,7 @@ import { CitasHoySection } from "./components/citas/CitasHoySection";
 import { PaymentAlertsSection } from "./components/PaymentAlertsSection";
 import { TastingPaymentAlertsSection } from "./components/TastingPaymentAlertsSection";
 import { DashboardHeader } from "./components/DashboardHeader";
+import { FinishedWeddingsSection } from "./components/FinishedWeddingsSection";
 import { ExportarDatosButton } from "./components/ExportarDatosButton";
 import { WeddingCard } from "./components/WeddingCard";
 import { NewWeddingModalButton } from "./components/NewWeddingModalButton";
@@ -26,6 +27,7 @@ import { mapBodaToWedding, type BodaRow } from "./data/weddings";
 import { requireAuthUser } from "@/lib/auth/user-profiles";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { canViewLeads, hasPermission } from "@/lib/auth/roles";
+import { isBodaActiva, isBodaFinalizada } from "@/lib/boda-estado";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -48,6 +50,7 @@ export default async function Home({ searchParams }: HomeProps) {
   const tab = wantsLeadsTab && showLeads ? "leads" : "bodas";
 
   let activeWeddings: ReturnType<typeof mapBodaToWedding>[] = [];
+  let finishedWeddings: ReturnType<typeof mapBodaToWedding>[] = [];
   let bodaRows: BodaRow[] = [];
   let activeLeads: LeadRow[] = [];
   let discardedLeads: LeadRow[] = [];
@@ -68,8 +71,25 @@ export default async function Home({ searchParams }: HomeProps) {
     console.error(bodasError);
   } else if (bodasData) {
     bodaRows = bodasData as BodaRow[];
-    activeWeddings = bodaRows.map(mapBodaToWedding);
+    const activeBodaRows = bodaRows.filter((boda) => isBodaActiva(boda.estado));
+    const finishedBodaRows = bodaRows.filter((boda) =>
+      isBodaFinalizada(boda.estado),
+    );
+
+    activeWeddings = activeBodaRows.map(mapBodaToWedding);
+    finishedWeddings = finishedBodaRows.map(mapBodaToWedding);
     bodaInactivityAlerts = buildBodaInactivityAlerts(bodaRows);
+  }
+
+  const activeBodaIds = new Set(
+    bodaRows.filter((boda) => isBodaActiva(boda.estado)).map((boda) => boda.id),
+  );
+
+  function filterAlertsByActiveBodas<T extends { bodaId: string }>(
+    alerts: T[],
+  ) {
+    if (activeBodaIds.size === 0) return [];
+    return alerts.filter((alert) => activeBodaIds.has(alert.bodaId));
   }
 
   if (showLeads) {
@@ -115,8 +135,10 @@ export default async function Home({ searchParams }: HomeProps) {
   if (proveedoresError) {
     console.error(proveedoresError);
   } else if (proveedoresData) {
-    paymentAlerts = buildPaymentAlerts(
-      proveedoresData as Parameters<typeof buildPaymentAlerts>[0],
+    paymentAlerts = filterAlertsByActiveBodas(
+      buildPaymentAlerts(
+        proveedoresData as Parameters<typeof buildPaymentAlerts>[0],
+      ),
     );
   }
 
@@ -131,15 +153,17 @@ export default async function Home({ searchParams }: HomeProps) {
   if (cronogramaItemsError) {
     console.error(cronogramaItemsError);
   } else if (cronogramaItemsData) {
-    cronogramaAlerts = buildCronogramaAlerts(
-      cronogramaItemsData as {
-        id: string;
-        boda_id: string;
-        descripcion: string;
-        fecha_limite: string;
-        completado: boolean;
-        bodas: { nombre_pareja: string } | { nombre_pareja: string }[] | null;
-      }[],
+    cronogramaAlerts = filterAlertsByActiveBodas(
+      buildCronogramaAlerts(
+        cronogramaItemsData as {
+          id: string;
+          boda_id: string;
+          descripcion: string;
+          fecha_limite: string;
+          completado: boolean;
+          bodas: { nombre_pareja: string } | { nombre_pareja: string }[] | null;
+        }[],
+      ),
     );
   }
 
@@ -168,8 +192,10 @@ export default async function Home({ searchParams }: HomeProps) {
   if (unpaidTastingsError) {
     console.error(unpaidTastingsError);
   } else if (unpaidTastingsData) {
-    tastingPaymentAlerts = buildTastingPaymentAlerts(
-      unpaidTastingsData as Parameters<typeof buildTastingPaymentAlerts>[0],
+    tastingPaymentAlerts = filterAlertsByActiveBodas(
+      buildTastingPaymentAlerts(
+        unpaidTastingsData as Parameters<typeof buildTastingPaymentAlerts>[0],
+      ),
     );
   }
 
@@ -326,6 +352,10 @@ export default async function Home({ searchParams }: HomeProps) {
                 </li>
               ))}
             </ul>
+
+            <div className="mt-10">
+              <FinishedWeddingsSection weddings={finishedWeddings} />
+            </div>
           </>
         ) : (
           <LeadsBoard

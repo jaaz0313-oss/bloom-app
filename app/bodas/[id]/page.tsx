@@ -5,6 +5,7 @@ import { BodaDetailSections } from "@/app/components/bodas/BodaDetailSections";
 import { DeleteWeddingButton } from "@/app/components/bodas/DeleteWeddingButton";
 import { RevertirALeadButton } from "@/app/components/bodas/RevertirALeadButton";
 import { ClientePortalQrButton } from "@/app/components/bodas/ClientePortalQrButton";
+import { BodaEstadoControls } from "@/app/components/bodas/BodaEstadoControls";
 import { BodaCotizacionInicialButton } from "@/app/components/bodas/BodaCotizacionInicialButton";
 import { BodaFechaConfirmada } from "@/app/components/bodas/BodaFechaConfirmada";
 import { BodaNumInvitados } from "@/app/components/bodas/BodaNumInvitados";
@@ -27,7 +28,7 @@ import {
 } from "@/lib/boda-section-content";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { requireAuthUser } from "@/lib/auth/user-profiles";
-import { hasPermission, isAdminRole } from "@/lib/auth/roles";
+import { hasPermission, isAdminRole, canManageBodaEstado } from "@/lib/auth/roles";
 import type { EquipoUsuarioMencion } from "@/lib/notas-menciones";
 
 export const dynamic = "force-dynamic";
@@ -259,6 +260,11 @@ export default async function BodaDetailPage({ params, searchParams }: PageProps
               role={user.rol}
             />
           </dl>
+          <BodaEstadoControls
+            bodaId={id}
+            estado={bodaRow.estado}
+            canManage={canManageBodaEstado(user.rol)}
+          />
           <div className="mt-4 flex flex-wrap gap-3">
             {hasPermission(user.rol, "whatsapp.send") && (
               <>

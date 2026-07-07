@@ -1,5 +1,6 @@
 import type { BodaRow } from "@/app/data/weddings";
 import { getDaysSince } from "@/app/data/lead-alerts";
+import { isBodaActiva } from "@/lib/boda-estado";
 
 export type BodaInactivityAlert = {
   bodaId: string;
@@ -11,10 +12,7 @@ export type BodaInactivityAlert = {
 
 const INACTIVITY_THRESHOLD_DAYS = 15;
 
-export function isBodaActiva(estado: string | null | undefined): boolean {
-  const normalized = (estado ?? "activa").trim().toLowerCase();
-  return normalized !== "cancelada" && normalized !== "finalizada";
-}
+export { isBodaActiva } from "@/lib/boda-estado";
 
 export function buildBodaInactivityAlerts(
   bodas: BodaRow[],
