@@ -1,6 +1,7 @@
 import type { CitaRow } from "@/app/data/citas";
 import type { TastingRow } from "@/app/data/tastings";
 import { normalizeCitaFecha, sortCitasBySchedule } from "@/lib/citas";
+import { getTastingDisplayTitle } from "@/lib/tastings";
 
 export type TastingCalendarioRow = TastingRow & {
   boda_nombre: string;
@@ -29,7 +30,7 @@ export function getCalendarioEventoId(evento: CalendarioEvento): string {
 
 export function getCalendarioEventoTitulo(evento: CalendarioEvento): string {
   if (evento.kind === "cita") return evento.cita.titulo;
-  return `Tasting · ${evento.tasting.nombre_proveedor}`;
+  return `Tasting · ${getTastingDisplayTitle(evento.tasting)}`;
 }
 
 export function getCalendarioEventoFecha(evento: CalendarioEvento): string {

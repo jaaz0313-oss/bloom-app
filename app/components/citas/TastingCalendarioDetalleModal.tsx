@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ResponsiveModal } from "@/app/components/ui/ResponsiveModal";
 import type { TastingCalendarioRow } from "@/lib/calendario-eventos";
 import { formatShortDateStable } from "@/lib/format";
-import { formatTastingHorarioRange } from "@/lib/tastings";
+import { formatTastingHorarioRange, getTastingDisplayTitle } from "@/lib/tastings";
 
 type TastingCalendarioDetalleModalProps = {
   tasting: TastingCalendarioRow | null;
@@ -21,7 +21,7 @@ export function TastingCalendarioDetalleModal({
     <ResponsiveModal
       open
       onClose={onClose}
-      title={tasting.nombre_proveedor}
+      title={getTastingDisplayTitle(tasting)}
       subtitle={`Tasting · ${tasting.boda_nombre}`}
       size="md"
     >

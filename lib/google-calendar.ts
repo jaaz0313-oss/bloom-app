@@ -3,6 +3,7 @@ import type { calendar_v3 } from "googleapis";
 import type { CitaRow } from "@/app/data/citas";
 import { CITA_TIPO_LABELS } from "@/app/data/citas";
 import { citaTimeFromDb } from "@/lib/cita-time-slots";
+import { getTastingDisplayTitle } from "@/lib/tastings";
 import { normalizeCitaFecha } from "@/lib/citas";
 import { getGoogleServiceAccountCredentials } from "@/lib/google-service-account";
 
@@ -196,6 +197,7 @@ export async function deleteCalendarEvent(googleEventId: string): Promise<void> 
 }
 
 export type TastingForCalendar = {
+  proveedor_id?: string | null;
   nombre_proveedor: string;
   categoria: string | null;
   fecha: string;
@@ -256,7 +258,7 @@ function buildTastingEventResource(
 ): calendar_v3.Schema$Event {
   const timeZone = getCalendarTimezone();
   const { startDateTime, endDateTime } = buildTastingEventTimes(tasting);
-  const summary = `Tasting · ${tasting.nombre_proveedor.trim() || "Proveedor"}`;
+  const summary = `Tasting · ${getTastingDisplayTitle(tasting)}`;
 
   return {
     summary,
@@ -276,6 +278,24 @@ export async function createTastingCalendarEvent(
 
   const response = await calendar.events.insert({
     calendarId,
+    sendUpdates: "none",
+    requestBody: buildTastingEventResource(tasting, bodaNombre),
+  });
+
+  return mapEventResult(response.data);
+}
+
+export async function updateTastingCalendarEvent(
+  googleEventId: string,
+  tasting: TastingForCalendar,
+  bodaNombre: string | null,
+): Promise<CalendarEventResult> {
+  const calendar = getCalendarClient();
+  const calendarId = getCalendarId();
+
+  const response = await calendar.events.patch({
+    calendarId,
+    eventId: googleEventId,
     sendUpdates: "none",
     requestBody: buildTastingEventResource(tasting, bodaNombre),
   });

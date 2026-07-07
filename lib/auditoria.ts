@@ -25,6 +25,7 @@ export const AUDITORIA_ACCIONES = {
   BRIEF_GUARDADO: "Brief guardado",
   NOTA_REUNION_AGREGADA: "Nota de reunión agregada",
   TASTING_AGREGADO: "Tasting agregado",
+  TASTING_EDITADO: "Tasting editado",
   PROVEEDOR_SUGERIDO_AGREGADO: "Proveedor sugerido agregado",
   LEAD_CREADO: "Lead creado",
   LEAD_CONVERTIDO: "Lead convertido a boda",

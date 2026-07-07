@@ -68,6 +68,21 @@ export function buildGoogleMapsUrl(direccion: string): string {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(direccion.trim())}`;
 }
 
+type TastingDisplaySource = {
+  proveedor_id?: string | null;
+  nombre_proveedor?: string | null;
+};
+
+export function getTastingDisplayTitle(
+  tasting: TastingDisplaySource,
+  options?: { noProviderLabel?: string },
+): string {
+  if (tasting.nombre_proveedor?.trim()) {
+    return tasting.nombre_proveedor.trim();
+  }
+  return options?.noProviderLabel ?? "Sin proveedor";
+}
+
 export function formatTastingTimeLabel(value: string): string {
   const match = citaTimeFromDb(value).match(/^(\d{1,2}):(\d{2})/);
   if (!match) return value;

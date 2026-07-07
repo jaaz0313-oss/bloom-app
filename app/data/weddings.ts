@@ -36,7 +36,9 @@ export type BodaRow = {
   fecha_confirmada: boolean;
   google_event_id_fecha: string | null;
   fecha_boda_confirmada: string | null;
+  estado?: string;
   created_at: string;
+  updated_at?: string;
 };
 
 export function mapBodaToWedding(row: BodaRow): Wedding {

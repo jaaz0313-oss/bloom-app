@@ -6,7 +6,7 @@ import {
   type TastingCalendarioRow,
 } from "@/lib/calendario-eventos";
 import { formatShortDateStable } from "@/lib/format";
-import { formatTastingHorarioRange } from "@/lib/tastings";
+import { formatTastingHorarioRange, getTastingDisplayTitle } from "@/lib/tastings";
 
 type TastingCalendarioItemProps = {
   tasting: TastingCalendarioRow;
@@ -17,7 +17,9 @@ export function TastingCalendarioItem({ tasting }: TastingCalendarioItemProps) {
     <article className={`rounded-xl border px-4 py-3 ${TASTING_CALENDARIO_STYLE}`}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <p className="text-sm font-medium">{tasting.nombre_proveedor}</p>
+          <p className="text-sm font-medium">
+            {getTastingDisplayTitle(tasting)}
+          </p>
           <p className="mt-0.5 text-xs opacity-80">
             Tasting · {tasting.boda_nombre}
           </p>

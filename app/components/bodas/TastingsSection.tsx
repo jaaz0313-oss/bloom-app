@@ -21,7 +21,10 @@ import {
 } from "@/lib/cita-time-slots";
 import { formatCurrency, formatShortDateStable } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
-import { crearEventoCalendarTasting } from "@/lib/tasting-google-calendar";
+import {
+  actualizarEventoCalendarTasting,
+  crearEventoCalendarTasting,
+} from "@/lib/tasting-google-calendar";
 import {
   checkTastingScheduleConflict,
   checkTastingScheduleWarnings,
@@ -29,6 +32,7 @@ import {
 import {
   canManageTastings,
   canViewTastings,
+  getTastingDisplayTitle,
   type TastingScheduleWarning,
   validateTastingSchedule,
 } from "@/lib/tastings";
@@ -45,6 +49,7 @@ type TastingsSectionProps = {
 
 type FormState = {
   proveedor: TastingProveedorSelection | null;
+  nombreManual: string;
   fecha: string;
   horaInicio: string;
   horaFin: string;
@@ -64,6 +69,7 @@ const textareaClass = `${inputClass} resize-y min-h-[72px]`;
 function emptyForm(): FormState {
   return {
     proveedor: null,
+    nombreManual: "",
     fecha: "",
     horaInicio: "",
     horaFin: "",
@@ -73,6 +79,29 @@ function emptyForm(): FormState {
     asignadoId: "",
     confirmado: false,
     notas: "",
+  };
+}
+
+function formToState(tasting: TastingRow): FormState {
+  const hasProveedor = Boolean(tasting.proveedor_id);
+  return {
+    proveedor: hasProveedor
+      ? {
+          proveedor_id: tasting.proveedor_id as string,
+          nombre: tasting.nombre_proveedor,
+          categoria: tasting.categoria ?? "",
+        }
+      : null,
+    nombreManual: hasProveedor ? "" : tasting.nombre_proveedor,
+    fecha: tasting.fecha,
+    horaInicio: citaTimeFromDb(tasting.hora_inicio),
+    horaFin: tasting.hora_fin ? citaTimeFromDb(tasting.hora_fin) : "",
+    direccion: tasting.direccion ?? "",
+    costo: tasting.costo ? String(tasting.costo) : "",
+    costoPagado: tasting.costo_pagado,
+    asignadoId: tasting.asignado_a ?? "",
+    confirmado: tasting.confirmado,
+    notas: tasting.notas ?? "",
   };
 }
 
@@ -107,6 +136,7 @@ export function TastingsSection({
     sortTastingsBySchedule(initialTastings.map(normalizeTastingRow)),
   );
   const [formOpen, setFormOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -158,6 +188,7 @@ export function TastingsSection({
           fecha: form.fecha,
           horaInicio: horaInicioDb,
           horaFin: horaFinDb,
+          excludeTastingId: editingId,
         });
 
         let assigneeMessage: string | null = null;
@@ -168,6 +199,7 @@ export function TastingsSection({
             fecha: form.fecha,
             horaInicio: horaInicioDb,
             horaFin: horaFinDb,
+            excludeTastingId: editingId,
           });
           assigneeMessage = assigneeConflict.message;
         }
@@ -194,6 +226,7 @@ export function TastingsSection({
     form.horaFin,
     form.asignadoId,
     asignadoNombre,
+    editingId,
   ]);
 
   function openForm() {
@@ -202,8 +235,26 @@ export function TastingsSection({
     setScheduleWarnings([]);
     setAssigneeConflictWarning(null);
     setCalendarWarning(null);
+    setEditingId(null);
     setForm(emptyForm());
     setFormOpen(true);
+  }
+
+  function openEditForm(tasting: TastingRow) {
+    if (!canManage) return;
+    setError(null);
+    setScheduleWarnings([]);
+    setAssigneeConflictWarning(null);
+    setCalendarWarning(null);
+    setEditingId(tasting.id);
+    setForm(formToState(tasting));
+    setFormOpen(true);
+  }
+
+  function closeForm() {
+    setFormOpen(false);
+    setEditingId(null);
+    setForm(emptyForm());
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -212,10 +263,6 @@ export function TastingsSection({
     setError(null);
     setCalendarWarning(null);
 
-    if (!form.proveedor) {
-      setError("Selecciona un proveedor del directorio.");
-      return;
-    }
     if (!form.fecha.trim()) {
       setError("Indica la fecha del tasting.");
       return;
@@ -238,26 +285,67 @@ export function TastingsSection({
       return;
     }
 
+    const payload = {
+      proveedor_id: form.proveedor?.proveedor_id ?? null,
+      nombre_proveedor: form.proveedor?.nombre ?? form.nombreManual.trim(),
+      categoria: form.proveedor?.categoria ?? null,
+      fecha: form.fecha,
+      hora_inicio: citaTimeToDb(form.horaInicio),
+      hora_fin: form.horaFin ? citaTimeToDb(form.horaFin) : null,
+      direccion: form.direccion.trim() || null,
+      costo: costoNum,
+      costo_pagado: form.costoPagado,
+      asignado_a: form.asignadoId || null,
+      asignado_nombre: asignadoNombre || null,
+      confirmado: form.confirmado,
+      notas: form.notas.trim() || null,
+    };
+
     setSubmitting(true);
     try {
+      if (editingId) {
+        const { data, error: updateError } = await supabase
+          .from("tastings")
+          .update(payload)
+          .eq("id", editingId)
+          .select("*")
+          .single();
+
+        if (updateError) {
+          setError(updateError.message);
+          return;
+        }
+
+        const tasting = normalizeTastingRow(data as TastingRow);
+        setTastings((current) =>
+          sortTastingsBySchedule(
+            current.map((item) => (item.id === tasting.id ? tasting : item)),
+          ),
+        );
+
+        await logAuditoria({
+          accion: AUDITORIA_ACCIONES.TASTING_EDITADO,
+          entidad: "tasting",
+          entidadId: tasting.id,
+          bodaNombre,
+          detalle: `${getTastingDisplayTitle(tasting)} · ${formatShortDateStable(tasting.fecha)} ${formatTastingSchedule(tasting)}`,
+        });
+
+        if (tasting.google_event_id) {
+          const calendarResult = await actualizarEventoCalendarTasting(tasting.id);
+          if (calendarResult.warning) {
+            setCalendarWarning(calendarResult.warning);
+          }
+        }
+
+        closeForm();
+        router.refresh();
+        return;
+      }
+
       const { data, error: insertError } = await supabase
         .from("tastings")
-        .insert({
-          boda_id: bodaId,
-          proveedor_id: form.proveedor.proveedor_id,
-          nombre_proveedor: form.proveedor.nombre,
-          categoria: form.proveedor.categoria,
-          fecha: form.fecha,
-          hora_inicio: citaTimeToDb(form.horaInicio),
-          hora_fin: form.horaFin ? citaTimeToDb(form.horaFin) : null,
-          direccion: form.direccion.trim() || null,
-          costo: costoNum,
-          costo_pagado: form.costoPagado,
-          asignado_a: form.asignadoId || null,
-          asignado_nombre: asignadoNombre || null,
-          confirmado: form.confirmado,
-          notas: form.notas.trim() || null,
-        })
+        .insert({ boda_id: bodaId, ...payload })
         .select("*")
         .single();
 
@@ -274,7 +362,7 @@ export function TastingsSection({
         entidad: "tasting",
         entidadId: tasting.id,
         bodaNombre,
-        detalle: `${tasting.nombre_proveedor} · ${formatShortDateStable(tasting.fecha)} ${formatTastingSchedule(tasting)}`,
+        detalle: `${getTastingDisplayTitle(tasting)} · ${formatShortDateStable(tasting.fecha)} ${formatTastingSchedule(tasting)}`,
       });
 
       const calendarResult = await crearEventoCalendarTasting(tasting.id);
@@ -292,8 +380,7 @@ export function TastingsSection({
         );
       }
 
-      setFormOpen(false);
-      setForm(emptyForm());
+      closeForm();
       router.refresh();
     } finally {
       setSubmitting(false);
@@ -333,7 +420,11 @@ export function TastingsSection({
           className="mt-5 space-y-4 rounded-xl border border-bloom-border bg-bloom-canvas/50 p-4 sm:p-5"
           onSubmit={handleSubmit}
         >
-          <Field label="Proveedor (directorio)">
+          <p className="text-sm font-medium text-bloom-ink">
+            {editingId ? "Editar tasting" : "Nuevo tasting"}
+          </p>
+
+          <Field label="Proveedor (opcional)">
             <TastingProveedorPicker
               value={form.proveedor}
               onChange={(proveedor) =>
@@ -342,6 +433,24 @@ export function TastingsSection({
               disabled={submitting}
             />
           </Field>
+
+          {!form.proveedor && (
+            <Field label="Nombre o descripción (si no hay proveedor)">
+              <input
+                type="text"
+                className={inputClass}
+                value={form.nombreManual}
+                onChange={(e) =>
+                  setForm((current) => ({
+                    ...current,
+                    nombreManual: e.target.value,
+                  }))
+                }
+                disabled={submitting}
+                placeholder="Ej. Visita al salón, degustación menú…"
+              />
+            </Field>
+          )}
 
           <div className="grid gap-4 sm:grid-cols-3">
             <Field label="Fecha">
@@ -523,7 +632,7 @@ export function TastingsSection({
           <div className="flex justify-end gap-2">
             <button
               type="button"
-              onClick={() => setFormOpen(false)}
+              onClick={closeForm}
               disabled={submitting}
               className="rounded-full border border-bloom-border bg-bloom-surface px-5 py-2.5 text-sm font-medium text-bloom-ink transition-colors hover:bg-bloom-border disabled:opacity-60"
             >
@@ -534,7 +643,11 @@ export function TastingsSection({
               disabled={submitting}
               className="inline-flex items-center justify-center rounded-full bg-bloom-accent px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-bloom-accent-hover disabled:opacity-60"
             >
-              {submitting ? "Guardando…" : "Guardar tasting"}
+              {submitting
+                ? "Guardando…"
+                : editingId
+                  ? "Guardar cambios"
+                  : "Guardar tasting"}
             </button>
           </div>
         </form>
@@ -570,7 +683,7 @@ export function TastingsSection({
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="font-medium text-bloom-ink">
-                      {tasting.nombre_proveedor}
+                      {getTastingDisplayTitle(tasting)}
                     </h3>
                     {tasting.confirmado && (
                       <span className="inline-flex rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
@@ -583,19 +696,32 @@ export function TastingsSection({
                       </span>
                     )}
                   </div>
-                  {tasting.categoria && (
+                  {tasting.proveedor_id && tasting.categoria && (
                     <p className="mt-0.5 text-sm text-bloom-muted">
                       {tasting.categoria}
                     </p>
                   )}
                 </div>
-                <div className="text-right text-sm">
-                  <p className="font-medium text-bloom-ink">
-                    {formatShortDateStable(tasting.fecha)}
-                  </p>
-                  <p className="text-bloom-muted">
-                    {formatTastingSchedule(tasting)}
-                  </p>
+                <div className="flex items-start gap-3">
+                  <div className="text-right text-sm">
+                    <p className="font-medium text-bloom-ink">
+                      {formatShortDateStable(tasting.fecha)}
+                    </p>
+                    <p className="text-bloom-muted">
+                      {formatTastingSchedule(tasting)}
+                    </p>
+                  </div>
+                  {canManage && (
+                    <button
+                      type="button"
+                      onClick={() => openEditForm(tasting)}
+                      aria-label="Editar tasting"
+                      title="Editar"
+                      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-bloom-muted transition-colors hover:bg-bloom-border hover:text-bloom-ink"
+                    >
+                      <PencilIcon />
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -642,6 +768,24 @@ export function TastingsSection({
         </ul>
       )}
     </Shell>
+  );
+}
+
+function PencilIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-4 w-4"
+      aria-hidden
+    >
+      <path d="M13.5 3.5a1.414 1.414 0 0 1 2 2L6.5 14.5l-3 1 1-3 9-9Z" />
+    </svg>
   );
 }
 

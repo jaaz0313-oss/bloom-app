@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CronogramaAlertsSection } from "./components/CronogramaAlertsSection";
+import { BodaInactivityAlertsSection } from "./components/BodaInactivityAlertsSection";
 import { LeadAlertsSection } from "./components/LeadAlertsSection";
 import { LeadsBoard } from "./components/LeadsBoard";
 import { CitasHoySection } from "./components/citas/CitasHoySection";
@@ -8,6 +9,7 @@ import { DashboardHeader } from "./components/DashboardHeader";
 import { ExportarDatosButton } from "./components/ExportarDatosButton";
 import { WeddingCard } from "./components/WeddingCard";
 import { NewWeddingModalButton } from "./components/NewWeddingModalButton";
+import { buildBodaInactivityAlerts } from "./data/boda-alerts";
 import { buildCronogramaAlerts } from "./data/cronograma-alerts";
 import { buildLeadInactivityAlerts } from "./data/lead-alerts";
 import { buildPaymentAlerts } from "./data/payment-alerts";
@@ -44,12 +46,14 @@ export default async function Home({ searchParams }: HomeProps) {
   const tab = wantsLeadsTab && showLeads ? "leads" : "bodas";
 
   let activeWeddings: ReturnType<typeof mapBodaToWedding>[] = [];
+  let bodaRows: BodaRow[] = [];
   let activeLeads: LeadRow[] = [];
   let discardedLeads: LeadRow[] = [];
   let allLeads: LeadRow[] = [];
   let paymentAlerts: ReturnType<typeof buildPaymentAlerts> = [];
   let cronogramaAlerts: ReturnType<typeof buildCronogramaAlerts> = [];
   let leadInactivityAlerts: ReturnType<typeof buildLeadInactivityAlerts> = [];
+  let bodaInactivityAlerts: ReturnType<typeof buildBodaInactivityAlerts> = [];
   let citasHoy: CitaRow[] = [];
 
   const { data: bodasData, error: bodasError } = await supabase
@@ -60,7 +64,9 @@ export default async function Home({ searchParams }: HomeProps) {
   if (bodasError) {
     console.error(bodasError);
   } else if (bodasData) {
-    activeWeddings = (bodasData as BodaRow[]).map(mapBodaToWedding);
+    bodaRows = bodasData as BodaRow[];
+    activeWeddings = bodaRows.map(mapBodaToWedding);
+    bodaInactivityAlerts = buildBodaInactivityAlerts(bodaRows);
   }
 
   if (showLeads) {
@@ -233,6 +239,7 @@ export default async function Home({ searchParams }: HomeProps) {
           canSendWhatsApp={hasPermission(user.rol, "whatsapp.send")}
         />
         <CronogramaAlertsSection alerts={cronogramaAlerts} />
+        <BodaInactivityAlertsSection alerts={bodaInactivityAlerts} />
         {showLeads && (
           <LeadAlertsSection alerts={leadInactivityAlerts} />
         )}

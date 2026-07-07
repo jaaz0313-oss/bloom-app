@@ -12,7 +12,7 @@ import {
   formatClienteTastingTimeRange,
   groupClienteTastingsByDay,
 } from "@/lib/cliente-tastings";
-import { buildGoogleMapsUrl } from "@/lib/tastings";
+import { buildGoogleMapsUrl, getTastingDisplayTitle } from "@/lib/tastings";
 
 type ClienteTastingsSectionProps = {
   tastings: TastingRow[];
@@ -85,7 +85,9 @@ export function ClienteTastingsSection({ tastings }: ClienteTastingsSectionProps
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                           <div>
                             <p className="font-display text-lg text-bloom-ink">
-                              {tasting.nombre_proveedor}
+                              {getTastingDisplayTitle(tasting, {
+                                noProviderLabel: t.tastingsNoProvider,
+                              })}
                             </p>
                             {tasting.categoria && (
                               <p className="mt-0.5 text-sm text-bloom-muted">

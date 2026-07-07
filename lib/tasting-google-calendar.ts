@@ -33,3 +33,15 @@ export async function crearEventoCalendarTasting(
 
   return parseCalendarApiResponse(response);
 }
+
+export async function actualizarEventoCalendarTasting(
+  tastingId: string,
+): Promise<TastingCalendarSyncResult> {
+  const response = await fetch("/api/calendar/actualizar-evento-tasting", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tastingId }),
+  });
+
+  return parseCalendarApiResponse(response);
+}
