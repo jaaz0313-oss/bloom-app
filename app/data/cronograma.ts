@@ -39,27 +39,6 @@ export const CRONOGRAMA_STATUS_BADGE_STYLES: Record<
   pendiente: "bg-gray-100 text-gray-700",
 };
 
-/** Grupos con mayor meses_antes deben estar 100% completos para desbloquear el siguiente. */
-export function isCronogramaItemLocked(
-  item: Pick<CronogramaItemRow, "meses_antes" | "completado">,
-  items: Pick<CronogramaItemRow, "meses_antes" | "completado">[],
-): boolean {
-  if (item.completado) return false;
-
-  const priorMesesAntes = [
-    ...new Set(
-      items.map((i) => i.meses_antes).filter((meses) => meses > item.meses_antes),
-    ),
-  ];
-
-  for (const meses of priorMesesAntes) {
-    const groupItems = items.filter((i) => i.meses_antes === meses);
-    if (groupItems.some((i) => !i.completado)) return true;
-  }
-
-  return false;
-}
-
 export function isCronogramaGroupComplete(
   mesesAntes: number,
   items: Pick<CronogramaItemRow, "meses_antes" | "completado">[],

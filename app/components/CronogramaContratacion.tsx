@@ -7,7 +7,6 @@ import {
   CRONOGRAMA_STATUS_LABELS,
   CRONOGRAMA_STATUS_STYLES,
   getCronogramaItemStatus,
-  isCronogramaItemLocked,
   type CronogramaItemRow,
 } from "@/app/data/cronograma";
 import { insertarCronograma, regenerarCronograma } from "@/lib/cronograma";
@@ -80,7 +79,6 @@ export function CronogramaContratacion({
   async function handleToggle(item: CronogramaItemRow) {
     if (!canManage) return;
     if (!supabase || togglingId) return;
-    if (!item.completado && isCronogramaItemLocked(item, items)) return;
 
     const nextCompletado = !item.completado;
     setTogglingId(item.id);
@@ -279,7 +277,6 @@ export function CronogramaContratacion({
 
       <ul className="mt-5 space-y-2">
         {itemsOrdenados.map((item) => {
-          const locked = isCronogramaItemLocked(item, items);
           const status = getCronogramaItemStatus(item);
           const isToggling = togglingId === item.id;
 
@@ -289,41 +286,25 @@ export function CronogramaContratacion({
                 className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border ${
                   item.completado
                     ? "border-green-600 bg-green-600 text-white"
-                    : locked
-                      ? "border-gray-300 bg-gray-200 text-gray-500"
-                      : "border-bloom-border bg-bloom-surface"
+                    : "border-bloom-border bg-bloom-surface"
                 }`}
                 aria-hidden
               >
-                {item.completado ? (
-                  <CheckIcon />
-                ) : locked ? (
-                  <LockIcon />
-                ) : null}
+                {item.completado ? <CheckIcon /> : null}
               </span>
 
               <span className="min-w-0 flex-1">
                 <span className="flex flex-wrap items-center gap-2">
-                  <span
-                    className={`font-medium ${locked ? "text-gray-500" : "text-bloom-ink"}`}
-                  >
+                  <span className="font-medium text-bloom-ink">
                     {item.descripcion}
                   </span>
-                  {locked ? (
-                    <span className="inline-flex rounded-full bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-600">
-                      Bloqueado
-                    </span>
-                  ) : (
-                    <span
-                      className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${CRONOGRAMA_STATUS_BADGE_STYLES[status]}`}
-                    >
-                      {CRONOGRAMA_STATUS_LABELS[status]}
-                    </span>
-                  )}
+                  <span
+                    className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${CRONOGRAMA_STATUS_BADGE_STYLES[status]}`}
+                  >
+                    {CRONOGRAMA_STATUS_LABELS[status]}
+                  </span>
                 </span>
-                <span
-                  className={`mt-1 block text-sm ${locked ? "text-gray-400" : "text-bloom-muted"}`}
-                >
+                <span className="mt-1 block text-sm text-bloom-muted">
                   {item.categoria} · límite {formatShortDate(item.fecha_limite)}
                   {item.meses_antes > 0 && (
                     <> · {item.meses_antes} meses antes</>
@@ -332,19 +313,6 @@ export function CronogramaContratacion({
               </span>
             </>
           );
-
-          if (locked) {
-            return (
-              <li key={item.id}>
-                <div
-                  title="Completa los pasos anteriores primero"
-                  className="flex w-full cursor-not-allowed items-start gap-3 rounded-xl border border-gray-200 bg-gray-100 px-4 py-3 text-left opacity-90"
-                >
-                  {rowContent}
-                </div>
-              </li>
-            );
-          }
 
           if (!canManage) {
             return (
@@ -394,20 +362,3 @@ function CheckIcon() {
   );
 }
 
-function LockIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 20 20"
-      fill="currentColor"
-      className="h-3.5 w-3.5"
-      aria-hidden
-    >
-      <path
-        fillRule="evenodd"
-        d="M10 1a4.5 4.5 0 0 0-4.5 4.5V9H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-.5V5.5A4.5 4.5 0 0 0 10 1Zm3 8V5.5a3 3 0 1 0-6 0V9h6Z"
-        clipRule="evenodd"
-      />
-    </svg>
-  );
-}
