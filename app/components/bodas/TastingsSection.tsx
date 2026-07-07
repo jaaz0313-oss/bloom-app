@@ -55,7 +55,7 @@ type FormState = {
   horaFin: string;
   direccion: string;
   costo: string;
-  costoPagado: boolean;
+  pruebaPagada: boolean;
   asignadoId: string;
   confirmado: boolean;
   notas: string;
@@ -75,7 +75,7 @@ function emptyForm(): FormState {
     horaFin: "",
     direccion: "",
     costo: "",
-    costoPagado: false,
+    pruebaPagada: false,
     asignadoId: "",
     confirmado: false,
     notas: "",
@@ -98,7 +98,7 @@ function formToState(tasting: TastingRow): FormState {
     horaFin: tasting.hora_fin ? citaTimeFromDb(tasting.hora_fin) : "",
     direccion: tasting.direccion ?? "",
     costo: tasting.costo ? String(tasting.costo) : "",
-    costoPagado: tasting.costo_pagado,
+    pruebaPagada: tasting.prueba_pagada,
     asignadoId: tasting.asignado_a ?? "",
     confirmado: tasting.confirmado,
     notas: tasting.notas ?? "",
@@ -294,7 +294,8 @@ export function TastingsSection({
       hora_fin: form.horaFin ? citaTimeToDb(form.horaFin) : null,
       direccion: form.direccion.trim() || null,
       costo: costoNum,
-      costo_pagado: form.costoPagado,
+      costo_pagado: form.pruebaPagada,
+      prueba_pagada: form.pruebaPagada,
       asignado_a: form.asignadoId || null,
       asignado_nombre: asignadoNombre || null,
       confirmado: form.confirmado,
@@ -587,17 +588,17 @@ export function TastingsSection({
             <label className="inline-flex items-center gap-2 text-sm text-bloom-ink">
               <input
                 type="checkbox"
-                checked={form.costoPagado}
+                checked={form.pruebaPagada}
                 onChange={(e) =>
                   setForm((current) => ({
                     ...current,
-                    costoPagado: e.target.checked,
+                    pruebaPagada: e.target.checked,
                   }))
                 }
                 disabled={submitting}
                 className="h-4 w-4 rounded border-bloom-border text-bloom-accent focus:ring-bloom-accent/30"
               />
-              ¿Pagado?
+              ¿El cliente pagó la prueba?
             </label>
             <label className="inline-flex items-center gap-2 text-sm text-bloom-ink">
               <input
@@ -690,11 +691,16 @@ export function TastingsSection({
                         Confirmado
                       </span>
                     )}
-                    {tasting.costo_pagado && (
-                      <span className="inline-flex rounded-full bg-bloom-accent/10 px-2.5 py-0.5 text-xs font-medium text-bloom-accent">
-                        Pagado
-                      </span>
-                    )}
+                    {(tasting.costo ?? 0) > 0 &&
+                      (tasting.prueba_pagada ? (
+                        <span className="inline-flex rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
+                          ✅ Prueba pagada
+                        </span>
+                      ) : (
+                        <span className="inline-flex rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-800">
+                          💰 Pago pendiente
+                        </span>
+                      ))}
                   </div>
                   {tasting.proveedor_id && tasting.categoria && (
                     <p className="mt-0.5 text-sm text-bloom-muted">

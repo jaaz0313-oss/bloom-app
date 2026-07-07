@@ -103,6 +103,13 @@ export function ClienteTastingsSection({ tastings }: ClienteTastingsSectionProps
                           </p>
                         </div>
 
+                        {!tasting.prueba_pagada &&
+                          (tasting.costo ?? 0) > 0 && (
+                          <p className="mt-3 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-sm font-medium text-orange-800">
+                            {t.tastingsPaymentReminder}
+                          </p>
+                        )}
+
                         {tasting.direccion?.trim() && (
                           <p className="mt-3 text-sm">
                             <a

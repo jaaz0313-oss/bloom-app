@@ -5,6 +5,7 @@ import { LeadAlertsSection } from "./components/LeadAlertsSection";
 import { LeadsBoard } from "./components/LeadsBoard";
 import { CitasHoySection } from "./components/citas/CitasHoySection";
 import { PaymentAlertsSection } from "./components/PaymentAlertsSection";
+import { TastingPaymentAlertsSection } from "./components/TastingPaymentAlertsSection";
 import { DashboardHeader } from "./components/DashboardHeader";
 import { ExportarDatosButton } from "./components/ExportarDatosButton";
 import { WeddingCard } from "./components/WeddingCard";
@@ -13,6 +14,7 @@ import { buildBodaInactivityAlerts } from "./data/boda-alerts";
 import { buildCronogramaAlerts } from "./data/cronograma-alerts";
 import { buildLeadInactivityAlerts } from "./data/lead-alerts";
 import { buildPaymentAlerts } from "./data/payment-alerts";
+import { buildTastingPaymentAlerts } from "./data/tasting-payment-alerts";
 import type { LeadRow } from "./data/leads";
 import {
   normalizeLeadRow,
@@ -54,6 +56,7 @@ export default async function Home({ searchParams }: HomeProps) {
   let cronogramaAlerts: ReturnType<typeof buildCronogramaAlerts> = [];
   let leadInactivityAlerts: ReturnType<typeof buildLeadInactivityAlerts> = [];
   let bodaInactivityAlerts: ReturnType<typeof buildBodaInactivityAlerts> = [];
+  let tastingPaymentAlerts: ReturnType<typeof buildTastingPaymentAlerts> = [];
   let citasHoy: CitaRow[] = [];
 
   const { data: bodasData, error: bodasError } = await supabase
@@ -152,6 +155,24 @@ export default async function Home({ searchParams }: HomeProps) {
     citasHoy = citasHoyData as CitaRow[];
   }
 
+  const { data: unpaidTastingsData, error: unpaidTastingsError } =
+    await supabase
+      .from("tastings")
+      .select(
+        "id, boda_id, fecha, hora_inicio, proveedor_id, nombre_proveedor, costo, bodas(nombre_pareja)",
+      )
+      .eq("prueba_pagada", false)
+      .gt("costo", 0)
+      .order("fecha", { ascending: true });
+
+  if (unpaidTastingsError) {
+    console.error(unpaidTastingsError);
+  } else if (unpaidTastingsData) {
+    tastingPaymentAlerts = buildTastingPaymentAlerts(
+      unpaidTastingsData as Parameters<typeof buildTastingPaymentAlerts>[0],
+    );
+  }
+
   // Nombres de leads solo para citas del día (sin exponer el módulo de leads).
   if (!showLeads) {
     const leadIdsForCitas = [
@@ -238,6 +259,7 @@ export default async function Home({ searchParams }: HomeProps) {
           alerts={paymentAlerts}
           canSendWhatsApp={hasPermission(user.rol, "whatsapp.send")}
         />
+        <TastingPaymentAlertsSection alerts={tastingPaymentAlerts} />
         <CronogramaAlertsSection alerts={cronogramaAlerts} />
         <BodaInactivityAlertsSection alerts={bodaInactivityAlerts} />
         {showLeads && (

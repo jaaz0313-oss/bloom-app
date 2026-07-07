@@ -39,7 +39,7 @@ import type { BodaRow } from "@/app/data/weddings";
 import { hasPermission, type UserRole } from "@/lib/auth/roles";
 import type { EquipoUsuarioMencion } from "@/lib/notas-menciones";
 import type { CitaLookupBoda, CitaLookupEquipo, CitaLookupLead } from "@/app/components/citas/CitaFormModal";
-import { BODA_SECTION_PROVEEDORES } from "@/lib/boda-url";
+import { BODA_SECTION_PROVEEDORES, BODA_SECTION_TASTINGS } from "@/lib/boda-url";
 import { filterCitasFuturas } from "@/lib/citas";
 import { canManageProveedoresSugeridos } from "@/lib/proveedores-sugeridos";
 import { canViewTastings } from "@/lib/tastings";
@@ -177,6 +177,8 @@ export function BodaDetailSections({
       {canViewTastings(role) && (
         <BodaAccordionSection
           title="Semana de Tastings"
+          sectionKey={BODA_SECTION_TASTINGS}
+          openSection={openSection}
           defaultOpen={false}
           hasContent={tastings.length > 0}
         >

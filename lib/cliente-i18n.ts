@@ -213,6 +213,7 @@ export type ClienteUiCopy = {
   tastingsCost: string;
   tastingsNotes: string;
   tastingsNoProvider: string;
+  tastingsPaymentReminder: string;
   detallesCelebracionTitle: string;
   detallesCelebracionSubtitle: (filled: number, total: number) => string;
   detallesCelebracionIntro: string;
@@ -300,6 +301,7 @@ const UI_ES: ClienteUiCopy = {
   tastingsCost: "Valor de la prueba",
   tastingsNotes: "Notas",
   tastingsNoProvider: "Sin proveedor",
+  tastingsPaymentReminder: "💰 Recuerda realizar el pago de tu prueba",
   detallesCelebracionTitle: "Detalles de la boda",
   detallesCelebracionSubtitle: (filled, total) =>
     filled === 0
@@ -405,6 +407,7 @@ const UI_EN: ClienteUiCopy = {
   tastingsCost: "Tasting fee",
   tastingsNotes: "Notes",
   tastingsNoProvider: "No vendor",
+  tastingsPaymentReminder: "💰 Remember to complete your tasting payment",
   detallesCelebracionTitle: "Wedding Details",
   detallesCelebracionSubtitle: (filled, total) =>
     filled === 0

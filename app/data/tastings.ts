@@ -10,6 +10,7 @@ export type TastingRow = {
   direccion: string | null;
   costo: number;
   costo_pagado: boolean;
+  prueba_pagada: boolean;
   asignado_a: string | null;
   asignado_nombre: string | null;
   confirmado: boolean;
@@ -23,6 +24,7 @@ export function normalizeTastingRow(row: TastingRow): TastingRow {
     ...row,
     costo: Number(row.costo ?? 0),
     costo_pagado: Boolean(row.costo_pagado),
+    prueba_pagada: Boolean(row.prueba_pagada ?? row.costo_pagado),
     confirmado: Boolean(row.confirmado),
   };
 }
