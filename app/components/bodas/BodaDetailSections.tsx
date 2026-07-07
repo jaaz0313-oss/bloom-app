@@ -286,6 +286,7 @@ export function BodaDetailSections({
                 bodaId={bodaId}
                 bodaNombre={boda.nombre_pareja}
                 role={role}
+                driveFolderUrl={driveFolderUrl}
               />
             )}
           </div>

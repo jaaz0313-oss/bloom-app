@@ -2,13 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { PagoRow } from "@/app/data/pagos";
-import { buildPagosConAnticipo, computeTotalPagado } from "@/app/data/pagos";
+import type { PagoRow, PagoDisplay } from "@/app/data/pagos";
+import {
+  buildPagosConAnticipo,
+  computeTotalPagado,
+  CONCEPTO_ANTICIPO,
+} from "@/app/data/pagos";
 import { formatCurrency, formatShortDateStable } from "@/lib/format";
 import { AUDITORIA_ACCIONES, logAuditoria } from "@/lib/auditoria";
 import { supabase } from "@/lib/supabase";
 import { hasPermission, type UserRole } from "@/lib/auth/roles";
-import { SubirComprobanteDriveButton } from "@/app/components/bodas/SubirComprobanteDriveButton";
 import { AbrirCarpetaDriveButton } from "@/app/components/bodas/AbrirCarpetaDriveButton";
 
 type ProviderPaymentsProps = {
@@ -28,12 +31,14 @@ type PaymentFormState = {
   monto: string;
   fechaPago: string;
   concepto: string;
+  comprobante: string;
 };
 
 const emptyPaymentForm: PaymentFormState = {
   monto: "",
   fechaPago: "",
   concepto: "",
+  comprobante: "",
 };
 
 export function ProviderPayments({
@@ -51,7 +56,7 @@ export function ProviderPayments({
   const router = useRouter();
   const [openCreate, setOpenCreate] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
-  const [editingPago, setEditingPago] = useState<PagoRow | null>(null);
+  const [editingPago, setEditingPago] = useState<PagoDisplay | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [deletingPagoId, setDeletingPagoId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -116,7 +121,7 @@ export function ProviderPayments({
           monto,
           fecha_pago: fechaPago,
           concepto: concepto || null,
-          comprobante_url: null,
+          comprobante_url: form.comprobante.trim() || null,
         })
         .select("id")
         .single();
@@ -168,18 +173,61 @@ export function ProviderPayments({
 
     setSubmitting(true);
     try {
-      const { error: updateError } = await supabase
-        .from("pagos")
-        .update({
-          monto,
-          fecha_pago: fechaPago,
-          concepto: concepto || null,
-        })
-        .eq("id", editingPago.id);
+      const comprobanteUrl = form.comprobante.trim() || null;
 
-      if (updateError) {
-        setError(updateError.message);
-        return;
+      if (editingPago.esSintetico) {
+        // El anticipo sintético no existe en la tabla `pagos`: se deriva de
+        // `proveedores.anticipo`. Al editarlo lo materializamos como un pago
+        // real y ponemos el anticipo del proveedor en 0 para no duplicarlo.
+        const { data: nuevoPago, error: insertError } = await supabase
+          .from("pagos")
+          .insert({
+            proveedor_id: proveedorId,
+            monto,
+            fecha_pago: fechaPago,
+            concepto: concepto || CONCEPTO_ANTICIPO,
+            comprobante_url: comprobanteUrl,
+          })
+          .select("id")
+          .single();
+
+        if (insertError) {
+          setError(insertError.message);
+          return;
+        }
+
+        const { error: proveedorError } = await supabase
+          .from("proveedores")
+          .update({ anticipo: 0 })
+          .eq("id", proveedorId);
+
+        if (proveedorError) {
+          setError(proveedorError.message);
+          return;
+        }
+
+        await logAuditoria({
+          accion: AUDITORIA_ACCIONES.PAGO_REGISTRADO,
+          entidad: "pago",
+          entidadId: nuevoPago.id,
+          bodaNombre,
+          detalle: `${proveedorNombre}: ${formatCurrency(monto)} (anticipo)`,
+        });
+      } else {
+        const { error: updateError } = await supabase
+          .from("pagos")
+          .update({
+            monto,
+            fecha_pago: fechaPago,
+            concepto: concepto || null,
+            comprobante_url: comprobanteUrl,
+          })
+          .eq("id", editingPago.id);
+
+        if (updateError) {
+          setError(updateError.message);
+          return;
+        }
       }
 
       setOpenEdit(false);
@@ -231,13 +279,14 @@ export function ProviderPayments({
     }
   }
 
-  function openEditModal(pago: PagoRow) {
+  function openEditModal(pago: PagoDisplay) {
     setError(null);
     setEditingPago(pago);
     setForm({
       monto: String(pago.monto),
       fechaPago: pago.fecha_pago,
       concepto: pago.concepto ?? "",
+      comprobante: pago.comprobante_url ?? "",
     });
     setOpenEdit(true);
   }
@@ -306,7 +355,7 @@ export function ProviderPayments({
                     Ver comprobante
                   </a>
                 )}
-                {hasPermission(role, "payments.manage") && !pago.esSintetico && (
+                {hasPermission(role, "payments.manage") && (
                   <>
                     <button
                       type="button"
@@ -316,14 +365,18 @@ export function ProviderPayments({
                     >
                       Editar
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(pago)}
-                      disabled={submitting || deletingPagoId === pago.id}
-                      className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-medium text-red-700 transition-colors hover:bg-red-100 disabled:opacity-60"
-                    >
-                      {deletingPagoId === pago.id ? "Eliminando..." : "Eliminar"}
-                    </button>
+                    {!pago.esSintetico && (
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(pago)}
+                        disabled={submitting || deletingPagoId === pago.id}
+                        className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-medium text-red-700 transition-colors hover:bg-red-100 disabled:opacity-60"
+                      >
+                        {deletingPagoId === pago.id
+                          ? "Eliminando..."
+                          : "Eliminar"}
+                      </button>
+                    )}
                   </>
                 )}
               </div>
@@ -407,12 +460,15 @@ export function ProviderPayments({
 
               <Field label="Comprobante">
                 <div className="flex items-start gap-2">
-                  <div className="min-w-0 flex-1">
-                    <SubirComprobanteDriveButton
-                      bodaId={bodaId}
-                      disabled={submitting}
-                    />
-                  </div>
+                  <input
+                    className={inputClass}
+                    value={form.comprobante}
+                    onChange={(e) =>
+                      setForm((s) => ({ ...s, comprobante: e.target.value }))
+                    }
+                    placeholder="Pega el enlace del comprobante"
+                    disabled={submitting}
+                  />
                   <AbrirCarpetaDriveButton driveFolderUrl={driveFolderUrl} />
                 </div>
               </Field>
@@ -516,24 +572,17 @@ export function ProviderPayments({
 
               <Field label="Comprobante">
                 <div className="flex items-start gap-2">
-                  <div className="min-w-0 flex-1">
-                    <SubirComprobanteDriveButton
-                      bodaId={bodaId}
-                      disabled={submitting}
-                    />
-                  </div>
+                  <input
+                    className={inputClass}
+                    value={form.comprobante}
+                    onChange={(e) =>
+                      setForm((s) => ({ ...s, comprobante: e.target.value }))
+                    }
+                    placeholder="Pega el enlace del comprobante"
+                    disabled={submitting}
+                  />
                   <AbrirCarpetaDriveButton driveFolderUrl={driveFolderUrl} />
                 </div>
-                {editingPago?.comprobante_url && (
-                  <a
-                    href={editingPago.comprobante_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-2 inline-flex rounded-full border border-bloom-border bg-bloom-surface px-3 py-1 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-border"
-                  >
-                    Ver comprobante guardado
-                  </a>
-                )}
               </Field>
 
               {error && (

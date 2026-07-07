@@ -12,12 +12,15 @@ import {
 } from "@/lib/directorio-proveedor-from-boda";
 import { CONCEPTO_ANTICIPO } from "@/app/data/pagos";
 import { ProviderComisionFields } from "./ProviderComisionFields";
+import { AbrirCarpetaDriveButton } from "./AbrirCarpetaDriveButton";
 
 type FormState = {
   nombre: string;
   categoria: string;
   valorTotal: string;
   anticipo: string;
+  fechaAnticipo: string;
+  comprobanteAnticipo: string;
   fechaSaldo: string;
   banco: string;
   tipoCuenta: string;
@@ -38,6 +41,8 @@ const emptyForm: FormState = {
   categoria: "",
   valorTotal: "",
   anticipo: "",
+  fechaAnticipo: getFechaHoyLocal(),
+  comprobanteAnticipo: "",
   fechaSaldo: "",
   banco: "",
   tipoCuenta: "",
@@ -57,6 +62,7 @@ type AddProviderModalButtonProps = {
   bodaId: string;
   bodaNombre: string;
   role: UserRole;
+  driveFolderUrl?: string | null;
 };
 
 type DirectorioProveedorLookup = {
@@ -115,6 +121,7 @@ export function AddProviderModalButton({
   bodaId,
   bodaNombre,
   role,
+  driveFolderUrl = null,
 }: AddProviderModalButtonProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -150,7 +157,7 @@ export function AddProviderModalButton({
   }
 
   function resetFormKeepingCategory(categoria: string) {
-    setForm({ ...emptyForm, categoria });
+    setForm({ ...emptyForm, categoria, fechaAnticipo: getFechaHoyLocal() });
     resetDirectorySearch();
     setSelectedDirectorioId(null);
     setError(null);
@@ -231,7 +238,7 @@ export function AddProviderModalButton({
   }, [directorioSavedNotice]);
 
   function resetAddProviderForm() {
-    setForm(emptyForm);
+    setForm({ ...emptyForm, fechaAnticipo: getFechaHoyLocal() });
     setEstadoInicial(null);
     setEntryMode(null);
     setSelectedDirectorioId(null);
@@ -441,12 +448,14 @@ export function AddProviderModalButton({
       });
 
       if (esContratado && anticipo > 0) {
+        const fechaAnticipo =
+          form.fechaAnticipo.trim() || getFechaHoyLocal();
         const { error: pagoError } = await supabase.from("pagos").insert({
           proveedor_id: nuevoProveedor.id,
           monto: anticipo,
-          fecha_pago: getFechaHoyLocal(),
+          fecha_pago: fechaAnticipo,
           concepto: CONCEPTO_ANTICIPO,
-          comprobante_url: null,
+          comprobante_url: form.comprobanteAnticipo.trim() || null,
         });
 
         if (pagoError) {
@@ -717,6 +726,39 @@ export function AddProviderModalButton({
                       />
                     </Field>
                   </div>
+
+                  <Field label="Fecha del anticipo">
+                    <input
+                      type="date"
+                      className={inputClass}
+                      value={form.fechaAnticipo}
+                      onChange={(e) =>
+                        setForm((s) => ({
+                          ...s,
+                          fechaAnticipo: e.target.value,
+                        }))
+                      }
+                    />
+                  </Field>
+
+                  <Field label="Comprobante del anticipo">
+                    <div className="flex items-start gap-2">
+                      <input
+                        className={inputClass}
+                        value={form.comprobanteAnticipo}
+                        onChange={(e) =>
+                          setForm((s) => ({
+                            ...s,
+                            comprobanteAnticipo: e.target.value,
+                          }))
+                        }
+                        placeholder="Pega el enlace del comprobante"
+                      />
+                      <AbrirCarpetaDriveButton
+                        driveFolderUrl={driveFolderUrl}
+                      />
+                    </div>
+                  </Field>
 
                   <p className="text-xs text-bloom-muted">
                     Si registras un anticipo, se agregará como primer pago del
