@@ -1,6 +1,10 @@
 "use client";
 
-import { ClienteAccordionSection } from "@/app/components/cliente/ClienteAccordionSection";
+import { useId, useState } from "react";
+import {
+  ClienteAccordionChevron,
+  ClienteAccordionSection,
+} from "@/app/components/cliente/ClienteAccordionSection";
 import { useClienteLocale } from "@/app/components/cliente/ClienteLocaleProvider";
 import {
   CLIENTE_PAGO_URGENCY_CARD_STYLES,
@@ -48,18 +52,18 @@ export function ClienteProximosPagos({
         </div>
       )}
 
-      <ul className="space-y-5">
+      <ul className="space-y-4">
         {pagosPendientes.map((item) => (
-          <li key={item.proveedor.id}>
-            <ProximoPagoCard item={item} />
-          </li>
+          <ProximoPagoAccordionItem key={item.proveedor.id} item={item} />
         ))}
       </ul>
     </ClienteAccordionSection>
   );
 }
 
-function ProximoPagoCard({ item }: { item: ClientePagoPendiente }) {
+function ProximoPagoAccordionItem({ item }: { item: ClientePagoPendiente }) {
+  const [open, setOpen] = useState(false);
+  const panelId = useId();
   const { locale, t } = useClienteLocale();
   const { proveedor, saldoPendiente, fechaLimite, urgency } = item;
   const titular = proveedor.titular_cuenta?.trim() || proveedor.nombre;
@@ -72,83 +76,130 @@ function ProximoPagoCard({ item }: { item: ClientePagoPendiente }) {
 
   const cardUrgencyClass = urgency
     ? CLIENTE_PAGO_URGENCY_CARD_STYLES[urgency]
-    : "border-bloom-border";
+    : "border-bloom-border/80";
 
   return (
-    <article
-      className={`overflow-hidden rounded-2xl border bg-bloom-surface shadow-sm ${cardUrgencyClass}`}
+    <li
+      className={`overflow-hidden rounded-xl border bg-bloom-canvas/30 ${cardUrgencyClass}`}
     >
-      <div className="border-b border-bloom-border/70 bg-bloom-canvas/40 px-5 py-5 sm:px-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
-            <h3 className="font-display text-xl text-bloom-ink">
+      <button
+        type="button"
+        id={`${panelId}-trigger`}
+        aria-expanded={open}
+        aria-controls={panelId}
+        onClick={() => setOpen((value) => !value)}
+        className="flex w-full touch-manipulation flex-col gap-3 px-5 py-4 text-left transition-colors hover:bg-bloom-surface/60 active:bg-bloom-surface/80 sm:px-6"
+      >
+        <span className="flex w-full items-start justify-between gap-3">
+          <span className="min-w-0 flex-1">
+            <span className="font-display text-xl text-bloom-ink">
               {proveedor.nombre}
-            </h3>
-            <p className="mt-0.5 text-sm text-bloom-muted">
-              {proveedor.categoria}
-            </p>
-          </div>
-          {urgency && (
-            <span
-              className={`inline-flex w-fit shrink-0 items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${CLIENTE_PAGO_URGENCY_STYLES[urgency]}`}
-            >
-              {getClientePagoUrgencyLabel(urgency, locale)}
             </span>
-          )}
-        </div>
+          </span>
+          <span className="flex shrink-0 items-center gap-2">
+            {urgency ? (
+              <span
+                className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${CLIENTE_PAGO_URGENCY_STYLES[urgency]}`}
+              >
+                {getClientePagoUrgencyLabel(urgency, locale)}
+              </span>
+            ) : null}
+            <ClienteAccordionChevron open={open} />
+          </span>
+        </span>
 
-        <dl className="mt-4 grid gap-4 sm:grid-cols-2">
-          <div>
-            <dt className="text-xs font-medium uppercase tracking-wider text-bloom-muted">
-              {t.pendingAmount}
-            </dt>
-            <dd className="mt-1 font-display text-2xl text-bloom-ink">
-              {formatClienteCurrency(saldoPendiente, locale)}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-xs font-medium uppercase tracking-wider text-bloom-muted">
-              {t.paymentDueDate}
-            </dt>
-            <dd className="mt-1 text-lg font-medium text-bloom-ink">
-              {fechaLimite
+        <div className="grid gap-3 text-sm sm:grid-cols-2">
+          <SummaryItem
+            label={t.pendingAmount}
+            value={formatClienteCurrency(saldoPendiente, locale)}
+            emphasized
+          />
+          <SummaryItem
+            label={t.paymentDueDate}
+            value={
+              fechaLimite
                 ? formatShortDateStable(fechaLimite)
-                : t.toBeConfirmed}
-            </dd>
-          </div>
-        </dl>
-      </div>
-
-      {hasBankInfo && (
-        <div className="px-5 py-5 sm:px-6">
-          <p className="text-xs font-medium uppercase tracking-[0.12em] text-bloom-muted">
-            {t.transferDetails}
-          </p>
-          <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-            {proveedor.banco && (
-              <BankField label={t.bank} value={proveedor.banco} />
-            )}
-            {proveedor.tipo_cuenta && (
-              <BankField label={t.accountType} value={proveedor.tipo_cuenta} />
-            )}
-            {proveedor.numero_cuenta && (
-              <BankField
-                label={t.accountNumber}
-                value={proveedor.numero_cuenta}
-                mono
-              />
-            )}
-            {titular && <BankField label={t.accountHolder} value={titular} />}
-            {proveedor.documento_nit && (
-              <BankField
-                label={t.documentNit}
-                value={proveedor.documento_nit}
-              />
-            )}
-          </dl>
+                : t.toBeConfirmed
+            }
+          />
         </div>
-      )}
-    </article>
+      </button>
+
+      <div
+        id={panelId}
+        role="region"
+        aria-labelledby={`${panelId}-trigger`}
+        className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${
+          open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+        }`}
+      >
+        <div className="min-h-0 overflow-hidden">
+          <div className="space-y-5 border-t border-bloom-border/60 px-5 py-5 sm:px-6">
+            <p className="text-sm text-bloom-muted">{proveedor.categoria}</p>
+
+            {hasBankInfo ? (
+              <div>
+                <p className="text-xs font-medium uppercase tracking-[0.12em] text-bloom-muted">
+                  {t.transferDetails}
+                </p>
+                <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+                  {proveedor.banco && (
+                    <BankField label={t.bank} value={proveedor.banco} />
+                  )}
+                  {proveedor.tipo_cuenta && (
+                    <BankField
+                      label={t.accountType}
+                      value={proveedor.tipo_cuenta}
+                    />
+                  )}
+                  {proveedor.numero_cuenta && (
+                    <BankField
+                      label={t.accountNumber}
+                      value={proveedor.numero_cuenta}
+                      mono
+                    />
+                  )}
+                  {titular && (
+                    <BankField label={t.accountHolder} value={titular} />
+                  )}
+                  {proveedor.documento_nit && (
+                    <BankField
+                      label={t.documentNit}
+                      value={proveedor.documento_nit}
+                    />
+                  )}
+                </dl>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    </li>
+  );
+}
+
+function SummaryItem({
+  label,
+  value,
+  emphasized = false,
+}: {
+  label: string;
+  value: string;
+  emphasized?: boolean;
+}) {
+  return (
+    <div>
+      <p className="text-bloom-muted">{label}</p>
+      <p
+        className={
+          emphasized
+            ? "font-semibold text-bloom-ink"
+            : "font-medium text-bloom-ink"
+        }
+      >
+        {value}
+      </p>
+    </div>
   );
 }
 
@@ -162,7 +213,7 @@ function BankField({
   mono?: boolean;
 }) {
   return (
-    <div className="rounded-xl border border-bloom-border/80 bg-bloom-canvas/50 px-4 py-3">
+    <div className="rounded-xl border border-bloom-border/80 bg-bloom-surface/90 px-4 py-3">
       <dt className="text-xs text-bloom-muted">{label}</dt>
       <dd
         className={`mt-1 font-medium text-bloom-ink ${mono ? "font-mono text-[0.9375rem]" : ""}`}
