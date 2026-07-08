@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useId, useMemo, useState } from "react";
+import { ClienteDetallesPinModal } from "@/app/components/cliente/ClienteDetallesPinModal";
 import { useClienteLocale } from "@/app/components/cliente/ClienteLocaleProvider";
 import {
   countDetallesCelebracionFilledFields,
@@ -13,10 +14,12 @@ import {
   getDetallesCelebracionFieldLabel,
   getDetallesCelebracionSectionTitle,
 } from "@/lib/detalles-celebracion";
+import { isClientePinRequired } from "@/lib/cliente-pin";
 
 type ClienteDetallesCelebracionSectionProps = {
   bodaId: string;
   initialDetalles: DetallesCelebracionRow | null;
+  telefonoNovia?: string | null;
 };
 
 function formsEqual(
@@ -29,10 +32,15 @@ function formsEqual(
 export function ClienteDetallesCelebracionSection({
   bodaId,
   initialDetalles,
+  telefonoNovia = null,
 }: ClienteDetallesCelebracionSectionProps) {
   const panelId = useId();
   const { locale, t } = useClienteLocale();
+  const pinRequired = isClientePinRequired(telefonoNovia);
   const [open, setOpen] = useState(false);
+  const [pinUnlocked, setPinUnlocked] = useState(!pinRequired);
+  const [pinModalOpen, setPinModalOpen] = useState(false);
+  const [verifiedPin, setVerifiedPin] = useState("");
   const [savedForm, setSavedForm] = useState(() =>
     detallesCelebracionRowToForm(initialDetalles),
   );
@@ -60,6 +68,18 @@ export function ClienteDetallesCelebracionSection({
     [],
   );
 
+  const requestEditAccess = useCallback(() => {
+    if (!pinRequired || pinUnlocked) return true;
+    setPinModalOpen(true);
+    return false;
+  }, [pinRequired, pinUnlocked]);
+
+  const handlePinSuccess = useCallback((pin: string) => {
+    setVerifiedPin(pin);
+    setPinUnlocked(true);
+    setPinModalOpen(false);
+  }, []);
+
   const handleDiscardChanges = useCallback(() => {
     setForm(savedForm);
     setError(null);
@@ -67,6 +87,11 @@ export function ClienteDetallesCelebracionSection({
   }, [savedForm]);
 
   const handleSave = useCallback(async () => {
+    if (!pinUnlocked) {
+      setPinModalOpen(true);
+      return;
+    }
+
     setSaving(true);
     setError(null);
     setJustSaved(false);
@@ -77,7 +102,10 @@ export function ClienteDetallesCelebracionSection({
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(form),
+          body: JSON.stringify({
+            ...form,
+            clientePin: verifiedPin || undefined,
+          }),
         },
       );
 
@@ -87,7 +115,12 @@ export function ClienteDetallesCelebracionSection({
       };
 
       if (!response.ok) {
-        throw new Error(data.error ?? t.detallesCelebracionSaveError);
+        throw new Error(
+          data.error ??
+            (response.status === 403
+              ? t.detallesCelebracionPinError
+              : t.detallesCelebracionSaveError),
+        );
       }
 
       const nextSaved = detallesCelebracionRowToForm(data.detalles ?? null);
@@ -103,10 +136,25 @@ export function ClienteDetallesCelebracionSection({
     } finally {
       setSaving(false);
     }
-  }, [bodaId, form, t.detallesCelebracionSaveError]);
+  }, [
+    bodaId,
+    form,
+    pinUnlocked,
+    t.detallesCelebracionPinError,
+    t.detallesCelebracionSaveError,
+    verifiedPin,
+  ]);
+
+  const canEdit = !pinRequired || pinUnlocked;
 
   return (
     <>
+      <ClienteDetallesPinModal
+        open={pinModalOpen}
+        telefonoNovia={telefonoNovia}
+        onClose={() => setPinModalOpen(false)}
+        onSuccess={handlePinSuccess}
+      />
       <section className="overflow-hidden rounded-2xl border border-bloom-border bg-bloom-surface shadow-sm">
         <button
           type="button"
@@ -143,12 +191,20 @@ export function ClienteDetallesCelebracionSection({
                 {t.detallesCelebracionIntro}
               </p>
 
+              {pinRequired && !canEdit && (
+                <p className="rounded-xl border border-bloom-border/80 bg-bloom-canvas/50 px-4 py-3 text-sm text-bloom-muted">
+                  {t.detallesCelebracionLockedHint}
+                </p>
+              )}
+
               <div className="space-y-5">
                 {DETALLES_CELEBRACION_FIELDS.map((field) => (
                   <FieldControl
                     key={field.key}
                     label={getDetallesCelebracionFieldLabel(field, locale)}
                     value={form[field.key]}
+                    canEdit={canEdit}
+                    onRequestEdit={requestEditAccess}
                     onChange={(value) => updateField(field.key, value)}
                   />
                 ))}
@@ -203,10 +259,14 @@ export function ClienteDetallesCelebracionSection({
 function FieldControl({
   label,
   value,
+  canEdit,
+  onRequestEdit,
   onChange,
 }: {
   label: string;
   value: string;
+  canEdit: boolean;
+  onRequestEdit: () => boolean;
   onChange: (value: string) => void;
 }) {
   return (
@@ -216,9 +276,21 @@ function FieldControl({
       </span>
       <textarea
         value={value}
-        onChange={(event) => onChange(event.target.value)}
+        readOnly={!canEdit}
+        onFocus={() => {
+          if (!canEdit) onRequestEdit();
+        }}
+        onChange={(event) => {
+          if (!canEdit) {
+            onRequestEdit();
+            return;
+          }
+          onChange(event.target.value);
+        }}
         rows={2}
-        className="w-full resize-y rounded-xl border border-bloom-border bg-bloom-canvas/50 px-4 py-3 text-sm text-bloom-ink outline-none transition-colors placeholder:text-bloom-muted/70 focus:border-bloom-accent focus:ring-2 focus:ring-bloom-accent/20"
+        className={`w-full resize-y rounded-xl border border-bloom-border bg-bloom-canvas/50 px-4 py-3 text-sm text-bloom-ink outline-none transition-colors placeholder:text-bloom-muted/70 focus:border-bloom-accent focus:ring-2 focus:ring-bloom-accent/20 ${
+          !canEdit ? "cursor-pointer bg-bloom-canvas/80" : ""
+        }`}
         placeholder="—"
       />
     </label>

@@ -36,7 +36,7 @@ import {
 } from "@/app/data/providers";
 import type { TastingRow } from "@/app/data/tastings";
 import type { BodaRow } from "@/app/data/weddings";
-import { hasPermission, type UserRole } from "@/lib/auth/roles";
+import { canManageBodaEstado, hasPermission, type UserRole } from "@/lib/auth/roles";
 import type { EquipoUsuarioMencion } from "@/lib/notas-menciones";
 import type { CitaLookupBoda, CitaLookupEquipo, CitaLookupLead } from "@/app/components/citas/CitaFormModal";
 import { BODA_SECTION_PROVEEDORES, BODA_SECTION_TASTINGS } from "@/lib/boda-url";
@@ -218,6 +218,8 @@ export function BodaDetailSections({
         <DetallesCelebracionSection
           embedded
           detalles={detallesCelebracion}
+          telefonoNovia={boda.telefono_novia}
+          showClientePin={canManageBodaEstado(role)}
         />
       </BodaAccordionSection>
 

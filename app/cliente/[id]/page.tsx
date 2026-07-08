@@ -194,6 +194,7 @@ export default async function ClienteBodaPage({ params }: PageProps) {
         <ClienteDetallesCelebracionSection
           bodaId={id}
           initialDetalles={detallesCelebracion}
+          telefonoNovia={bodaRow.telefono_novia}
         />
         <ClienteProveedoresSugeridosSection
           bodaId={id}

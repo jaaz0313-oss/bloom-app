@@ -4,6 +4,10 @@ import {
   type DetallesCelebracionRow,
 } from "@/app/data/detalles-celebracion";
 import { parseDetallesCelebracionBody } from "@/lib/detalles-celebracion";
+import {
+  getClientePinFromTelefonoNovia,
+  verifyClientePin,
+} from "@/lib/cliente-pin";
 import { createPublicSupabaseClient } from "@/lib/supabase-public";
 
 type RouteContext = {
@@ -14,6 +18,8 @@ export async function POST(request: Request, { params }: RouteContext) {
   try {
     const { id: bodaId } = await params;
     const body = await request.json();
+    const clientePin =
+      typeof body?.clientePin === "string" ? body.clientePin : "";
     const form = parseDetallesCelebracionBody(body);
 
     if (!form) {
@@ -27,7 +33,7 @@ export async function POST(request: Request, { params }: RouteContext) {
 
     const { data: boda, error: bodaError } = await supabase
       .from("bodas")
-      .select("id")
+      .select("id, telefono_novia")
       .eq("id", bodaId)
       .maybeSingle();
 
@@ -41,6 +47,18 @@ export async function POST(request: Request, { params }: RouteContext) {
 
     if (!boda) {
       return NextResponse.json({ error: "Boda no encontrada." }, { status: 404 });
+    }
+
+    const telefonoNovia = (boda as { telefono_novia: string | null })
+      .telefono_novia;
+    if (
+      getClientePinFromTelefonoNovia(telefonoNovia) &&
+      !verifyClientePin(clientePin, telefonoNovia)
+    ) {
+      return NextResponse.json(
+        { error: "PIN incorrecto, inténtalo de nuevo" },
+        { status: 403 },
+      );
     }
 
     const payload = detallesCelebracionFormToPayload(form);

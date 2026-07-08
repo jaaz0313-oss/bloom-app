@@ -1,14 +1,19 @@
 import type { DetallesCelebracionRow } from "@/app/data/detalles-celebracion";
+import { ClientePinInfo } from "@/app/components/bodas/ClientePinInfo";
 import { DETALLES_CELEBRACION_FIELDS } from "@/lib/detalles-celebracion";
 
 type DetallesCelebracionSectionProps = {
   detalles: DetallesCelebracionRow | null;
   embedded?: boolean;
+  telefonoNovia?: string | null;
+  showClientePin?: boolean;
 };
 
 export function DetallesCelebracionSection({
   detalles,
   embedded = false,
+  telefonoNovia = null,
+  showClientePin = false,
 }: DetallesCelebracionSectionProps) {
   const Shell = embedded ? "div" : "section";
   const shellClass = embedded
@@ -26,6 +31,8 @@ export function DetallesCelebracionSection({
       <p className="text-sm text-bloom-muted">
         Respuestas completadas por los clientes en su portal.
       </p>
+
+      {showClientePin && <ClientePinInfo telefonoNovia={telefonoNovia} />}
 
       <dl className="space-y-4">
         {DETALLES_CELEBRACION_FIELDS.map((field) => {

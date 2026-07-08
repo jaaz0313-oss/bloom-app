@@ -223,6 +223,12 @@ export type ClienteUiCopy = {
   detallesCelebracionSaveError: string;
   detallesCelebracionUnsaved: string;
   detallesCelebracionDiscard: string;
+  detallesCelebracionPinTitle: string;
+  detallesCelebracionPinPrompt: string;
+  detallesCelebracionPinSubmit: string;
+  detallesCelebracionPinCancel: string;
+  detallesCelebracionPinError: string;
+  detallesCelebracionLockedHint: string;
   proveedoresSugeridosTitle: string;
   proveedoresSugeridosSubtitle: (selected: number, total: number) => string;
   proveedoresSugeridosIntro: string;
@@ -318,6 +324,14 @@ const UI_ES: ClienteUiCopy = {
   detallesCelebracionSaveError: "No se pudieron guardar los detalles.",
   detallesCelebracionUnsaved: "Cambios sin guardar",
   detallesCelebracionDiscard: "Descartar",
+  detallesCelebracionPinTitle: "Ingresa tu PIN",
+  detallesCelebracionPinPrompt:
+    "Ingresa los últimos 3 dígitos del celular de la novia para editar.",
+  detallesCelebracionPinSubmit: "Continuar",
+  detallesCelebracionPinCancel: "Cancelar",
+  detallesCelebracionPinError: "PIN incorrecto, inténtalo de nuevo",
+  detallesCelebracionLockedHint:
+    "Toca un campo para ingresar el PIN y editar los detalles.",
   proveedoresSugeridosTitle: "Selecciona tus favoritos",
   proveedoresSugeridosSubtitle: (selected, total) =>
     selected === 0
@@ -427,6 +441,14 @@ const UI_EN: ClienteUiCopy = {
   detallesCelebracionSaveError: "Could not save the details.",
   detallesCelebracionUnsaved: "Unsaved changes",
   detallesCelebracionDiscard: "Discard",
+  detallesCelebracionPinTitle: "Enter your PIN",
+  detallesCelebracionPinPrompt:
+    "Enter the last 3 digits of the bride's phone number to edit.",
+  detallesCelebracionPinSubmit: "Continue",
+  detallesCelebracionPinCancel: "Cancel",
+  detallesCelebracionPinError: "Incorrect PIN, please try again",
+  detallesCelebracionLockedHint:
+    "Tap a field to enter your PIN and edit the details.",
   proveedoresSugeridosTitle: "Select your favorites",
   proveedoresSugeridosSubtitle: (selected, total) =>
     selected === 0
