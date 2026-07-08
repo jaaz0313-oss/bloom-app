@@ -252,6 +252,9 @@ export type ClienteUiCopy = {
   providersTitle: string;
   providersSubtitle: (count: number) => string;
   providersEmpty: string;
+  contractedValue: string;
+  serviceDescription: string;
+  contactDetails: string;
   totalValue: string;
   depositPaid: string;
   pendingBalance: string;
@@ -355,6 +358,9 @@ const UI_ES: ClienteUiCopy = {
       ? "1 proveedor confirmado para su celebración"
       : `${count} proveedores confirmados para su celebración`,
   providersEmpty: "Aún no hay proveedores contratados para mostrar.",
+  contractedValue: "Valor contratado",
+  serviceDescription: "Descripción del servicio",
+  contactDetails: "Datos de contacto",
   totalValue: "Valor total",
   depositPaid: "Anticipo pagado",
   pendingBalance: "Saldo pendiente",
@@ -461,6 +467,9 @@ const UI_EN: ClienteUiCopy = {
       ? "1 vendor confirmed for your celebration"
       : `${count} vendors confirmed for your celebration`,
   providersEmpty: "No booked vendors to show yet.",
+  contractedValue: "Contracted amount",
+  serviceDescription: "Service description",
+  contactDetails: "Contact details",
   totalValue: "Total amount",
   depositPaid: "Deposit paid",
   pendingBalance: "Balance due",
