@@ -24,7 +24,7 @@ import {
 } from "@/app/data/providers";
 import { groupPagosByProveedor, type PagoRow } from "@/app/data/pagos";
 import { buildClientePagosPendientes } from "@/lib/cliente-pagos";
-import { buildClienteBodaEstadoResumen } from "@/lib/cliente-boda-estado";
+import { buildClienteBodaEstadoResumen, computeClienteProveedoresResumen } from "@/lib/cliente-boda-estado";
 import {
   buildClienteCronogramaResumen,
   type ClienteCronogramaProveedor,
@@ -143,10 +143,12 @@ export default async function ClienteBodaPage({ params }: PageProps) {
     contratados,
     pagosByProveedor,
   );
+  const { itemsCompletados, totalItems } =
+    computeClienteProveedoresResumen(cronogramaItems);
   const estadoBoda = buildClienteBodaEstadoResumen({
     fechaBoda: bodaRow.fecha_boda,
-    proveedoresContratados: bodaRow.proveedores_contratados,
-    totalProveedores: bodaRow.total_proveedores,
+    itemsCompletados,
+    totalCronogramaItems: totalItems,
     totalContratado,
     totalPagado,
   });

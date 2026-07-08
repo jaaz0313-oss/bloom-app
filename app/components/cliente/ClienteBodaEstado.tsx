@@ -51,10 +51,10 @@ export function ClienteBodaEstado({ estado }: ClienteBodaEstadoProps) {
         <DiasStatCard dias={dias} diasParaBoda={estado.diasParaBoda} />
         <StatCard
           label={t.providersReady}
-          value={`${estado.porcentajeProveedores}%`}
+          value={`${estado.porcentajeCronograma}%`}
           sublabel={t.providersReadySub(
-            estado.proveedoresContratados,
-            estado.totalCategorias,
+            estado.itemsCompletados,
+            estado.totalCronogramaItems,
           )}
           accent="warm"
         />

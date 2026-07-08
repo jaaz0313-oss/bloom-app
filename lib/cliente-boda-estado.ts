@@ -1,14 +1,27 @@
-import { PROVIDER_CATEGORIES } from "@/lib/provider-categories";
 import { getDaysUntil } from "@/app/data/payment-alerts";
 import { computeClientePorcentajePagado } from "@/lib/cliente-pagos";
+
+export type ClienteCronogramaEstadoInput = {
+  completado: boolean;
+};
+
+/** Cuenta ítems completados del cronograma de la boda. */
+export function computeClienteProveedoresResumen(
+  cronogramaItems: ClienteCronogramaEstadoInput[],
+): { itemsCompletados: number; totalItems: number } {
+  return {
+    itemsCompletados: cronogramaItems.filter((item) => item.completado).length,
+    totalItems: cronogramaItems.length,
+  };
+}
 
 export type ClienteBodaEstadoResumen = {
   diasParaBoda: number;
   diasLabel: string;
   diasDisplay: number;
-  porcentajeProveedores: number;
-  proveedoresContratados: number;
-  totalCategorias: number;
+  porcentajeCronograma: number;
+  itemsCompletados: number;
+  totalCronogramaItems: number;
   porcentajePagos: number;
   mensajeMotivacional: string;
 };
@@ -26,12 +39,12 @@ export function getClienteMensajeMotivacional(diasParaBoda: number): string {
   return "¡Su gran día está muy cerca! Todo está listo para celebrar 🌸";
 }
 
-export function computePorcentajeProveedoresContratados(
-  contratados: number,
-  totalCategorias: number,
+export function computePorcentajeCronogramaCompletado(
+  completados: number,
+  totalItems: number,
 ): number {
-  if (totalCategorias <= 0) return 0;
-  return Math.min(100, Math.round((contratados / totalCategorias) * 100));
+  if (totalItems <= 0) return 0;
+  return Math.min(100, Math.round((completados / totalItems) * 100));
 }
 
 export function formatDiasParaBoda(dias: number): {
@@ -52,30 +65,25 @@ export function formatDiasParaBoda(dias: number): {
 
 export function buildClienteBodaEstadoResumen(params: {
   fechaBoda: string;
-  proveedoresContratados: number;
-  totalProveedores: number;
+  itemsCompletados: number;
+  totalCronogramaItems: number;
   totalContratado: number;
   totalPagado: number;
   fromDate?: Date;
 }): ClienteBodaEstadoResumen {
   const diasParaBoda = getDaysUntil(params.fechaBoda, params.fromDate);
   const { display, label } = formatDiasParaBoda(diasParaBoda);
-  const totalCategorias =
-    params.totalProveedores > 0
-      ? params.totalProveedores
-      : PROVIDER_CATEGORIES.length;
-  const proveedoresContratados = params.proveedoresContratados;
 
   return {
     diasParaBoda,
     diasDisplay: display,
     diasLabel: label,
-    porcentajeProveedores: computePorcentajeProveedoresContratados(
-      proveedoresContratados,
-      totalCategorias,
+    porcentajeCronograma: computePorcentajeCronogramaCompletado(
+      params.itemsCompletados,
+      params.totalCronogramaItems,
     ),
-    proveedoresContratados,
-    totalCategorias,
+    itemsCompletados: params.itemsCompletados,
+    totalCronogramaItems: params.totalCronogramaItems,
     porcentajePagos: computeClientePorcentajePagado(
       params.totalContratado,
       params.totalPagado,
