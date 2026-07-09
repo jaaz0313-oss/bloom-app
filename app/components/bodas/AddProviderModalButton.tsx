@@ -16,7 +16,6 @@ import { AbrirCarpetaDriveButton } from "./AbrirCarpetaDriveButton";
 
 type FormState = {
   nombre: string;
-  categoria: string;
   valorTotal: string;
   anticipo: string;
   fechaAnticipo: string;
@@ -38,7 +37,6 @@ type FormState = {
 
 const emptyForm: FormState = {
   nombre: "",
-  categoria: "",
   valorTotal: "",
   anticipo: "",
   fechaAnticipo: getFechaHoyLocal(),
@@ -128,6 +126,7 @@ export function AddProviderModalButton({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
+  const [selectedCategorias, setSelectedCategorias] = useState<string[]>([""]);
   const [estadoInicial, setEstadoInicial] = useState<EstadoInicial | null>(null);
   const [entryMode, setEntryMode] = useState<EntryMode | null>(null);
   const [directoryQuery, setDirectoryQuery] = useState("");
@@ -156,31 +155,62 @@ export function AddProviderModalButton({
     setDirectoryPickerDismissed(false);
   }
 
-  function resetFormKeepingCategory(categoria: string) {
-    setForm({ ...emptyForm, categoria, fechaAnticipo: getFechaHoyLocal() });
+  function getFilledCategorias(categorias = selectedCategorias): string[] {
+    return categorias.map((item) => item.trim()).filter(Boolean);
+  }
+
+  function resetFormKeepingCategories(categorias: string[]) {
+    setForm({ ...emptyForm, fechaAnticipo: getFechaHoyLocal() });
+    setSelectedCategorias(categorias.length > 0 ? categorias : [""]);
     resetDirectorySearch();
     setSelectedDirectorioId(null);
     setError(null);
   }
 
-  function handleCategoryChange(categoria: string) {
-    setForm({ ...emptyForm, categoria });
-    setEstadoInicial(null);
-    setEntryMode(null);
-    resetDirectorySearch();
-    setSelectedDirectorioId(null);
+  function setCategoryAt(index: number, categoria: string) {
+    if (index === 0 && !categoria.trim()) {
+      setSelectedCategorias([""]);
+      setEstadoInicial(null);
+      setEntryMode(null);
+      resetDirectorySearch();
+      setSelectedDirectorioId(null);
+      setError(null);
+      return;
+    }
+
+    setSelectedCategorias((current) => {
+      const next = [...current];
+      next[index] = categoria;
+      return next;
+    });
+
+    if (index === 0) {
+      setEstadoInicial(null);
+      setEntryMode(null);
+      resetDirectorySearch();
+      setSelectedDirectorioId(null);
+    }
     setError(null);
+  }
+
+  function addCategorySlot() {
+    setSelectedCategorias((current) => [...current, ""]);
+  }
+
+  function removeCategoryAt(index: number) {
+    if (index === 0) return;
+    setSelectedCategorias((current) => current.filter((_, i) => i !== index));
   }
 
   function selectEstadoInicial(estado: EstadoInicial) {
     setEstadoInicial(estado);
     setEntryMode(null);
-    resetFormKeepingCategory(form.categoria);
+    resetFormKeepingCategories(selectedCategorias);
   }
 
   function selectEntryMode(mode: EntryMode) {
     setEntryMode(mode);
-    resetFormKeepingCategory(form.categoria);
+    resetFormKeepingCategories(selectedCategorias);
   }
 
   useEffect(() => {
@@ -196,9 +226,9 @@ export function AddProviderModalButton({
 
   useEffect(() => {
     if (!open || !supabase || entryMode !== "directorio") return;
-    const categoria = form.categoria.trim();
+    const categorias = getFilledCategorias();
     const query = directoryQuery.trim();
-    if (!categoria || query.length < 2 || directoryPickerDismissed) {
+    if (categorias.length === 0 || query.length < 2 || directoryPickerDismissed) {
       return;
     }
 
@@ -210,7 +240,7 @@ export function AddProviderModalButton({
           "id,nombre,categoria,telefono,email,direccion,banco,tipo_cuenta,numero_cuenta,titular,documento_nit,notas",
         )
         .eq("activo", true)
-        .eq("categoria", categoria)
+        .in("categoria", categorias)
         .ilike("nombre", `%${query}%`)
         .order("nombre", { ascending: true })
         .limit(8);
@@ -229,7 +259,7 @@ export function AddProviderModalButton({
       cancelled = true;
       window.clearTimeout(timeout);
     };
-  }, [directoryPickerDismissed, directoryQuery, entryMode, form.categoria, open]);
+  }, [directoryPickerDismissed, directoryQuery, entryMode, open, selectedCategorias]);
 
   useEffect(() => {
     if (!directorioSavedNotice) return;
@@ -239,6 +269,7 @@ export function AddProviderModalButton({
 
   function resetAddProviderForm() {
     setForm({ ...emptyForm, fechaAnticipo: getFechaHoyLocal() });
+    setSelectedCategorias([""]);
     setEstadoInicial(null);
     setEntryMode(null);
     setSelectedDirectorioId(null);
@@ -315,10 +346,16 @@ export function AddProviderModalButton({
 
   function applyDirectoryProvider(provider: DirectorioProveedorLookup) {
     setSelectedDirectorioId(provider.id);
+    setSelectedCategorias((current) => {
+      if (!provider.categoria) return current;
+      const filled = getFilledCategorias(current);
+      if (filled.includes(provider.categoria)) return current;
+      if (!filled.length) return [provider.categoria];
+      return [...filled, provider.categoria];
+    });
     setForm((current) => ({
       ...current,
       nombre: provider.nombre ?? current.nombre,
-      categoria: provider.categoria ?? current.categoria,
       banco: provider.banco ?? "",
       tipoCuenta: provider.tipo_cuenta ?? "",
       numeroCuenta: provider.numero_cuenta ?? "",
@@ -361,7 +398,7 @@ export function AddProviderModalButton({
     }
 
     const nombre = form.nombre.trim();
-    const categoria = form.categoria.trim();
+    const categorias = getFilledCategorias();
     const valorTotalTrimmed = form.valorTotal.trim();
     const valorTotal =
       valorTotalTrimmed === "" ? 0 : Number(valorTotalTrimmed);
@@ -380,7 +417,12 @@ export function AddProviderModalButton({
     const esContratado = estadoInicial === "contratado";
 
     if (!nombre) return setError("Ingresa el nombre del proveedor.");
-    if (!categoria) return setError("Ingresa la categoría.");
+    if (categorias.length === 0) {
+      return setError("Selecciona al menos una categoría.");
+    }
+    if (new Set(categorias).size !== categorias.length) {
+      return setError("No repitas la misma categoría.");
+    }
     if (!Number.isFinite(valorTotal) || valorTotal < 0) {
       return setError("Ingresa un valor total válido (>= 0).");
     }
@@ -406,76 +448,78 @@ export function AddProviderModalButton({
 
     setSubmitting(true);
     try {
-      const { data: nuevoProveedor, error: insertError } = await supabase
-        .from("proveedores")
-        .insert({
-          boda_id: bodaId,
-          nombre,
-          categoria,
-          valor_total: valorTotal,
-          // En el flujo "Ya contratado" el anticipo se registra como un pago real,
-          // por lo que la columna anticipo se deja en 0 para no contarlo doble.
-          anticipo: esContratado ? 0 : anticipo,
-          fecha_saldo: form.fechaSaldo || null,
-          banco: banco || null,
-          tipo_cuenta: tipoCuenta || null,
-          numero_cuenta: numeroCuenta || null,
-          titular_cuenta: titular || null,
-          documento_nit: documentoNit || null,
-          telefono: telefono || null,
-          email: email || null,
-          direccion: direccion || null,
-          descripcion_servicio: descripcionServicio || null,
-          notas: notas || null,
-          da_comision: daComision,
-          porcentaje_comision: daComision ? porcentajeComision : 10,
-          estado: esContratado ? "contratado" : "pendiente",
-        })
-        .select("id")
-        .single();
+      for (const [index, categoria] of categorias.entries()) {
+        const { data: nuevoProveedor, error: insertError } = await supabase
+          .from("proveedores")
+          .insert({
+            boda_id: bodaId,
+            nombre,
+            categoria,
+            valor_total: valorTotal,
+            // En el flujo "Ya contratado" el anticipo se registra como un pago real,
+            // por lo que la columna anticipo se deja en 0 para no contarlo doble.
+            anticipo: esContratado ? 0 : anticipo,
+            fecha_saldo: form.fechaSaldo || null,
+            banco: banco || null,
+            tipo_cuenta: tipoCuenta || null,
+            numero_cuenta: numeroCuenta || null,
+            titular_cuenta: titular || null,
+            documento_nit: documentoNit || null,
+            telefono: telefono || null,
+            email: email || null,
+            direccion: direccion || null,
+            descripcion_servicio: descripcionServicio || null,
+            notas: notas || null,
+            da_comision: daComision,
+            porcentaje_comision: daComision ? porcentajeComision : 10,
+            estado: esContratado ? "contratado" : "pendiente",
+          })
+          .select("id")
+          .single();
 
-      if (insertError) {
-        setError(insertError.message);
-        return;
-      }
+        if (insertError) {
+          setError(insertError.message);
+          return;
+        }
 
-      await logAuditoria({
-        accion: AUDITORIA_ACCIONES.PROVEEDOR_AGREGADO,
-        entidad: "proveedor",
-        entidadId: nuevoProveedor.id,
-        bodaNombre,
-        detalle: `${nombre} · ${categoria}${esContratado ? " · Contratado" : ""}`,
-      });
-
-      if (esContratado && anticipo > 0) {
-        const fechaAnticipo =
-          form.fechaAnticipo.trim() || getFechaHoyLocal();
-        const { error: pagoError } = await supabase.from("pagos").insert({
-          proveedor_id: nuevoProveedor.id,
-          monto: anticipo,
-          fecha_pago: fechaAnticipo,
-          concepto: CONCEPTO_ANTICIPO,
-          comprobante_url: form.comprobanteAnticipo.trim() || null,
+        await logAuditoria({
+          accion: AUDITORIA_ACCIONES.PROVEEDOR_AGREGADO,
+          entidad: "proveedor",
+          entidadId: nuevoProveedor.id,
+          bodaNombre,
+          detalle: `${nombre} · ${categoria}${esContratado ? " · Contratado" : ""}`,
         });
 
-        if (pagoError) {
-          setError(
-            `Proveedor creado, pero no se pudo registrar el anticipo: ${pagoError.message}`,
-          );
-        } else {
-          await logAuditoria({
-            accion: AUDITORIA_ACCIONES.PAGO_REGISTRADO,
-            entidad: "pago",
-            entidadId: nuevoProveedor.id,
-            bodaNombre,
-            detalle: `${nombre}: anticipo`,
+        if (esContratado && anticipo > 0 && index === 0) {
+          const fechaAnticipo =
+            form.fechaAnticipo.trim() || getFechaHoyLocal();
+          const { error: pagoError } = await supabase.from("pagos").insert({
+            proveedor_id: nuevoProveedor.id,
+            monto: anticipo,
+            fecha_pago: fechaAnticipo,
+            concepto: CONCEPTO_ANTICIPO,
+            comprobante_url: form.comprobanteAnticipo.trim() || null,
           });
+
+          if (pagoError) {
+            setError(
+              `Proveedor creado, pero no se pudo registrar el anticipo: ${pagoError.message}`,
+            );
+          } else {
+            await logAuditoria({
+              accion: AUDITORIA_ACCIONES.PAGO_REGISTRADO,
+              entidad: "pago",
+              entidadId: nuevoProveedor.id,
+              bodaNombre,
+              detalle: `${nombre}: anticipo`,
+            });
+          }
         }
       }
 
       await promptSaveToDirectorioIfNeeded({
         nombre,
-        categoria,
+        categoria: categorias[0],
         telefono: telefono || null,
         email: email || null,
         banco: banco || null,
@@ -489,6 +533,9 @@ export function AddProviderModalButton({
       setSubmitting(false);
     }
   }
+
+  const primaryCategoria = selectedCategorias[0]?.trim() ?? "";
+  const filledCategorias = getFilledCategorias();
 
   return (
     <>
@@ -542,22 +589,53 @@ export function AddProviderModalButton({
 
             <form className="mt-5 space-y-4" onSubmit={onSubmit}>
               <Field label="Categoría">
-                <select
-                  className={inputClass}
-                  value={form.categoria}
-                  onChange={(e) => handleCategoryChange(e.target.value)}
-                  required
-                >
-                  <option value="">Seleccionar</option>
-                  {PROVIDER_CATEGORIES.map((category) => (
-                    <option key={category} value={category}>
-                      {category}
-                    </option>
+                <div className="space-y-2">
+                  {selectedCategorias.map((categoria, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <select
+                        className={`${inputClass} min-w-0 flex-1`}
+                        value={categoria}
+                        onChange={(e) => setCategoryAt(index, e.target.value)}
+                        required={index === 0}
+                      >
+                        <option value="">Seleccionar</option>
+                        {PROVIDER_CATEGORIES.map((category) => (
+                          <option key={category} value={category}>
+                            {category}
+                          </option>
+                        ))}
+                      </select>
+                      {index > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => removeCategoryAt(index)}
+                          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-bloom-border text-bloom-muted transition-colors hover:bg-bloom-border hover:text-bloom-ink"
+                          aria-label="Quitar categoría"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
                   ))}
-                </select>
+                  {primaryCategoria && (
+                    <button
+                      type="button"
+                      onClick={addCategorySlot}
+                      className="text-sm font-medium text-bloom-accent transition-colors hover:text-bloom-accent-hover"
+                    >
+                      + Agregar otra categoría
+                    </button>
+                  )}
+                </div>
+                {filledCategorias.length > 1 && (
+                  <p className="mt-2 text-xs text-bloom-muted">
+                    Se creará un proveedor por cada categoría seleccionada con los
+                    mismos datos.
+                  </p>
+                )}
               </Field>
 
-              {form.categoria && (
+              {primaryCategoria && (
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-bloom-ink">
                     ¿En qué estado está este proveedor?
@@ -593,7 +671,7 @@ export function AddProviderModalButton({
                 </div>
               )}
 
-              {form.categoria && estadoInicial && (
+              {primaryCategoria && estadoInicial && (
                 <div className="space-y-2">
                   <p className="text-sm font-medium text-bloom-ink">
                     ¿Cómo quieres agregar el proveedor?
@@ -635,7 +713,7 @@ export function AddProviderModalButton({
                     <p className="text-xs text-bloom-muted">
                       Proveedores en{" "}
                       <span className="font-medium text-bloom-ink">
-                        {form.categoria}
+                        {filledCategorias.join(", ")}
                       </span>
                     </p>
                     <input

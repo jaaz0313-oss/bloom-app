@@ -3,15 +3,18 @@ export const PROVIDER_CATEGORIES = [
   "Lugar del evento",
   "Lugar de ceremonia",
   "Save the date",
-  "Fotografía y video",
-  "DJ / Banda / Entretenimiento",
+  "Fotografía",
+  "Video",
+  "DJ",
+  "Banda",
+  "Entretenimiento",
   "Decoración",
   "Producción",
   "Catering",
   "Repostería",
   "Coctelería",
   "Maquillaje y peinado",
-  "Músicos ceremonia",
+  "Músicos de ceremonia",
   "Músicos cóctel",
   "Transporte",
   "Carro de la novia",
@@ -25,9 +28,21 @@ export const PROVIDER_CATEGORIES = [
 
 export type ProviderCategory = (typeof PROVIDER_CATEGORIES)[number];
 
+const LEGACY_PROVIDER_CATEGORY_ALIASES: Record<string, string> = {
+  Coordinadora: "Wedding Planner",
+  "Fotografía y video": "Fotografía",
+  "Fotografía y Video": "Fotografía",
+  "DJ / Banda / Entretenimiento": "DJ",
+  "Músicos ceremonia": "Músicos de ceremonia",
+};
+
 /** Etiqueta legacy → categoría actual del catálogo. */
 export function normalizeProviderCategory(categoria: string): string {
-  return categoria.replace(/^Coordinadora/, "Wedding Planner");
+  const trimmed = categoria.trim();
+  return (
+    LEGACY_PROVIDER_CATEGORY_ALIASES[trimmed] ??
+    trimmed.replace(/^Coordinadora/, "Wedding Planner")
+  );
 }
 
 /** Categoría base sin sufijo numérico ("Fotografía y video 2" → "Fotografía y video"). */

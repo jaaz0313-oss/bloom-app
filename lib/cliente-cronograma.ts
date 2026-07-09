@@ -1,5 +1,6 @@
 import type { CronogramaItemRow } from "@/app/data/cronograma";
 import type { ProviderStatus } from "@/app/data/providers";
+import { normalizeProviderCategory } from "@/lib/provider-categories";
 
 export type ClienteCronogramaProveedor = {
   nombre: string;
@@ -55,7 +56,10 @@ function findProveedoresForHito(
   proveedores: ClienteCronogramaProveedor[],
 ): ClienteCronogramaProveedor[] {
   return proveedores.filter(
-    (p) => p.estado !== "descartado" && p.categoria === hito.descripcion,
+    (p) =>
+      p.estado !== "descartado" &&
+      normalizeProviderCategory(p.categoria) ===
+        normalizeProviderCategory(hito.descripcion),
   );
 }
 

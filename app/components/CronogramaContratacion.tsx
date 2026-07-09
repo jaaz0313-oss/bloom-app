@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Trash2 } from "lucide-react";
 import {
   CRONOGRAMA_STATUS_BADGE_STYLES,
   CRONOGRAMA_STATUS_LABELS,
@@ -9,7 +10,7 @@ import {
   getCronogramaItemStatus,
   type CronogramaItemRow,
 } from "@/app/data/cronograma";
-import { insertarCronograma, regenerarCronograma } from "@/lib/cronograma";
+import { insertarCronograma, actualizarCronograma, regenerarCronograma } from "@/lib/cronograma";
 import { formatShortDate } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
 
@@ -17,6 +18,7 @@ type CronogramaContratacionProps = {
   bodaId: string;
   fechaBoda: string;
   canManage: boolean;
+  canActualizarPlantilla?: boolean;
   embedded?: boolean;
 };
 
@@ -39,6 +41,7 @@ export function CronogramaContratacion({
   bodaId,
   fechaBoda,
   canManage,
+  canActualizarPlantilla = false,
   embedded = false,
 }: CronogramaContratacionProps) {
   const router = useRouter();
@@ -48,6 +51,8 @@ export function CronogramaContratacion({
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+  const [updating, setUpdating] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const loadItems = useCallback(async () => {
     if (!supabase) {
@@ -153,6 +158,59 @@ export function CronogramaContratacion({
     window.location.reload();
   }
 
+  async function handleActualizarCronograma() {
+    if (!canActualizarPlantilla) return;
+    if (!supabase || updating) return;
+
+    const confirmed = window.confirm(
+      "Esto agregará los hitos nuevos de la plantilla actual y eliminará hitos combinados obsoletos si ya existen las versiones separadas. Los demás hitos existentes no se modificarán. ¿Continuar?",
+    );
+    if (!confirmed) return;
+
+    setUpdating(true);
+    setError(null);
+
+    const result = await actualizarCronograma(supabase, bodaId, fechaBoda);
+
+    if (!result.ok) {
+      setError(result.message);
+      setUpdating(false);
+      return;
+    }
+
+    await loadItems();
+    setUpdating(false);
+    router.refresh();
+  }
+
+  async function handleDelete(item: CronogramaItemRow) {
+    if (!canActualizarPlantilla) return;
+    if (!supabase || deletingId) return;
+
+    const confirmed = window.confirm(
+      "¿Eliminar este hito del cronograma? Esta acción no se puede deshacer.",
+    );
+    if (!confirmed) return;
+
+    setDeletingId(item.id);
+    setError(null);
+
+    const { error: deleteError } = await supabase
+      .from("cronograma_items")
+      .delete()
+      .eq("id", item.id);
+
+    setDeletingId(null);
+
+    if (deleteError) {
+      setError(deleteError.message);
+      return;
+    }
+
+    setItems((prev) => prev.filter((row) => row.id !== item.id));
+    router.refresh();
+  }
+
   const completados = items.filter((i) => i.completado).length;
   const total = items.length;
   const progressPct = total > 0 ? Math.round((completados / total) * 100) : 0;
@@ -237,14 +295,26 @@ export function CronogramaContratacion({
             {completados} de {total} completados
           </p>
           {canManage && (
-            <button
-              type="button"
-              onClick={handleRegenerarCronograma}
-              disabled={regenerating || !supabase}
-              className="rounded-full border border-amber-300 bg-amber-50 px-4 py-2 text-xs font-medium text-amber-900 transition-colors hover:bg-amber-100 disabled:opacity-60"
-            >
-              {regenerating ? "Regenerando…" : "Regenerar cronograma"}
-            </button>
+            <div className="flex flex-wrap justify-end gap-2">
+              {canActualizarPlantilla && (
+                <button
+                  type="button"
+                  onClick={handleActualizarCronograma}
+                  disabled={updating || regenerating || !supabase}
+                  className="rounded-full border border-bloom-border bg-bloom-surface px-4 py-2 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-canvas disabled:opacity-60"
+                >
+                  {updating ? "Actualizando…" : "Actualizar cronograma"}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handleRegenerarCronograma}
+                disabled={regenerating || updating || !supabase}
+                className="rounded-full border border-amber-300 bg-amber-50 px-4 py-2 text-xs font-medium text-amber-900 transition-colors hover:bg-amber-100 disabled:opacity-60"
+              >
+                {regenerating ? "Regenerando…" : "Regenerar cronograma"}
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -279,6 +349,7 @@ export function CronogramaContratacion({
         {itemsOrdenados.map((item) => {
           const status = getCronogramaItemStatus(item);
           const isToggling = togglingId === item.id;
+          const isDeleting = deletingId === item.id;
 
           const rowContent = (
             <>
@@ -328,14 +399,30 @@ export function CronogramaContratacion({
 
           return (
             <li key={item.id}>
-              <button
-                type="button"
-                onClick={() => handleToggle(item)}
-                disabled={isToggling}
-                className={`flex w-full items-start gap-3 rounded-xl border px-4 py-3 text-left transition-opacity hover:opacity-90 disabled:opacity-60 ${CRONOGRAMA_STATUS_STYLES[status]}`}
+              <div
+                className={`flex items-start gap-2 rounded-xl border ${CRONOGRAMA_STATUS_STYLES[status]}`}
               >
-                {rowContent}
-              </button>
+                <button
+                  type="button"
+                  onClick={() => handleToggle(item)}
+                  disabled={isToggling || isDeleting}
+                  className="flex min-w-0 flex-1 items-start gap-3 px-4 py-3 text-left transition-opacity hover:opacity-90 disabled:opacity-60"
+                >
+                  {rowContent}
+                </button>
+                {canActualizarPlantilla && (
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(item)}
+                    disabled={isToggling || isDeleting}
+                    className="mr-3 mt-3 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-700 transition-colors hover:bg-red-100 disabled:opacity-60"
+                    aria-label={`Eliminar hito ${item.descripcion}`}
+                    title="Eliminar hito"
+                  >
+                    <Trash2 className="h-4 w-4" aria-hidden />
+                  </button>
+                )}
+              </div>
             </li>
           );
         })}
