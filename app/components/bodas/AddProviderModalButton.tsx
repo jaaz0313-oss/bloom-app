@@ -16,6 +16,7 @@ import { AbrirCarpetaDriveButton } from "./AbrirCarpetaDriveButton";
 
 type FormState = {
   nombre: string;
+  sinCosto: boolean;
   valorTotal: string;
   anticipo: string;
   fechaAnticipo: string;
@@ -37,6 +38,7 @@ type FormState = {
 
 const emptyForm: FormState = {
   nombre: "",
+  sinCosto: false,
   valorTotal: "",
   anticipo: "",
   fechaAnticipo: getFechaHoyLocal(),
@@ -165,6 +167,16 @@ export function AddProviderModalButton({
     resetDirectorySearch();
     setSelectedDirectorioId(null);
     setError(null);
+  }
+
+  function toggleSinCosto(checked: boolean) {
+    setForm((current) => ({
+      ...current,
+      sinCosto: checked,
+      ...(checked
+        ? { valorTotal: "0", anticipo: "0", daComision: false }
+        : {}),
+    }));
   }
 
   function setCategoryAt(index: number, categoria: string) {
@@ -415,6 +427,7 @@ export function AddProviderModalButton({
     const notas = form.notas.trim();
 
     const esContratado = estadoInicial === "contratado";
+    const esSinCosto = form.sinCosto;
 
     if (!nombre) return setError("Ingresa el nombre del proveedor.");
     if (categorias.length === 0) {
@@ -423,20 +436,22 @@ export function AddProviderModalButton({
     if (new Set(categorias).size !== categorias.length) {
       return setError("No repitas la misma categoría.");
     }
-    if (!Number.isFinite(valorTotal) || valorTotal < 0) {
-      return setError("Ingresa un valor total válido (>= 0).");
-    }
-    if (esContratado && valorTotal <= 0) {
-      return setError("Ingresa el valor contratado.");
-    }
-    if (!Number.isFinite(anticipo) || anticipo < 0) {
-      return setError("Ingresa un anticipo válido (>= 0).");
-    }
-    if (anticipo > valorTotal) {
-      return setError("El anticipo no puede ser mayor que el valor total.");
+    if (!esSinCosto) {
+      if (!Number.isFinite(valorTotal) || valorTotal < 0) {
+        return setError("Ingresa un valor total válido (>= 0).");
+      }
+      if (esContratado && valorTotal <= 0) {
+        return setError("Ingresa el valor contratado.");
+      }
+      if (!Number.isFinite(anticipo) || anticipo < 0) {
+        return setError("Ingresa un anticipo válido (>= 0).");
+      }
+      if (anticipo > valorTotal) {
+        return setError("El anticipo no puede ser mayor que el valor total.");
+      }
     }
 
-    const daComision = form.daComision;
+    const daComision = esSinCosto ? false : form.daComision;
     let porcentajeComision = 10;
     if (daComision) {
       const pct = Number(form.porcentajeComision);
@@ -455,11 +470,11 @@ export function AddProviderModalButton({
             boda_id: bodaId,
             nombre,
             categoria,
-            valor_total: valorTotal,
+            valor_total: esSinCosto ? 0 : valorTotal,
             // En el flujo "Ya contratado" el anticipo se registra como un pago real,
             // por lo que la columna anticipo se deja en 0 para no contarlo doble.
-            anticipo: esContratado ? 0 : anticipo,
-            fecha_saldo: form.fechaSaldo || null,
+            anticipo: esSinCosto ? 0 : esContratado ? 0 : anticipo,
+            fecha_saldo: esSinCosto ? null : form.fechaSaldo || null,
             banco: banco || null,
             tipo_cuenta: tipoCuenta || null,
             numero_cuenta: numeroCuenta || null,
@@ -472,7 +487,8 @@ export function AddProviderModalButton({
             notas: notas || null,
             da_comision: daComision,
             porcentaje_comision: daComision ? porcentajeComision : 10,
-            estado: esContratado ? "contratado" : "pendiente",
+            estado: esSinCosto || esContratado ? "contratado" : "pendiente",
+            sin_costo: esSinCosto,
           })
           .select("id")
           .single();
@@ -487,10 +503,10 @@ export function AddProviderModalButton({
           entidad: "proveedor",
           entidadId: nuevoProveedor.id,
           bodaNombre,
-          detalle: `${nombre} · ${categoria}${esContratado ? " · Contratado" : ""}`,
+          detalle: `${nombre} · ${categoria}${esSinCosto ? " · Sin costo" : esContratado ? " · Contratado" : ""}`,
         });
 
-        if (esContratado && anticipo > 0 && index === 0) {
+        if (esContratado && anticipo > 0 && index === 0 && !esSinCosto) {
           const fechaAnticipo =
             form.fechaAnticipo.trim() || getFechaHoyLocal();
           const { error: pagoError } = await supabase.from("pagos").insert({
@@ -774,6 +790,13 @@ export function AddProviderModalButton({
                     />
                   </Field>
 
+                  <SinCostoCheckbox
+                    checked={form.sinCosto}
+                    onChange={toggleSinCosto}
+                    disabled={submitting}
+                  />
+
+                  {!form.sinCosto ? (
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <Field label="Valor contratado">
                       <input
@@ -804,7 +827,10 @@ export function AddProviderModalButton({
                       />
                     </Field>
                   </div>
+                  ) : null}
 
+                  {!form.sinCosto ? (
+                  <>
                   <Field label="Fecha del anticipo">
                     <input
                       type="date"
@@ -842,7 +868,10 @@ export function AddProviderModalButton({
                     Si registras un anticipo, se agregará como primer pago del
                     historial con concepto &quot;Anticipo&quot;.
                   </p>
+                  </>
+                  ) : null}
 
+                  {!form.sinCosto ? (
                   <Field label="Fecha de saldo">
                     <input
                       type="date"
@@ -853,6 +882,7 @@ export function AddProviderModalButton({
                       }
                     />
                   </Field>
+                  ) : null}
 
                   <Field label="Descripción del servicio / plan elegido">
                     <textarea
@@ -878,7 +908,7 @@ export function AddProviderModalButton({
                     onPorcentajeChange={(porcentajeComision) =>
                       setForm((s) => ({ ...s, porcentajeComision }))
                     }
-                    disabled={submitting}
+                    disabled={submitting || form.sinCosto}
                     inputClass={inputClass}
                   />
                 </>
@@ -897,6 +927,12 @@ export function AddProviderModalButton({
                   required
                 />
               </Field>
+
+              <SinCostoCheckbox
+                checked={form.sinCosto}
+                onChange={toggleSinCosto}
+                disabled={submitting}
+              />
 
               <Field label="Descripción del servicio">
                 <textarea
@@ -922,7 +958,7 @@ export function AddProviderModalButton({
                 onPorcentajeChange={(porcentajeComision) =>
                   setForm((s) => ({ ...s, porcentajeComision }))
                 }
-                disabled={submitting}
+                disabled={submitting || form.sinCosto}
                 inputClass={inputClass}
               />
 
@@ -938,6 +974,7 @@ export function AddProviderModalButton({
                 />
               </Field>
 
+              {!form.sinCosto ? (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field label="Valor total">
                   <input
@@ -967,7 +1004,9 @@ export function AddProviderModalButton({
                   />
                 </Field>
               </div>
+              ) : null}
 
+              {!form.sinCosto ? (
               <Field label="Fecha de saldo">
                 <input
                   type="date"
@@ -978,6 +1017,7 @@ export function AddProviderModalButton({
                   }
                 />
               </Field>
+              ) : null}
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field label="Banco">
@@ -1105,9 +1145,11 @@ export function AddProviderModalButton({
                   >
                     {submitting
                       ? "Guardando..."
-                      : estadoInicial === "contratado"
-                        ? "Guardar como contratado"
-                        : "Guardar"}
+                      : form.sinCosto
+                        ? "Guardar sin costo"
+                        : estadoInicial === "contratado"
+                          ? "Guardar como contratado"
+                          : "Guardar"}
                   </button>
                 </div>
               )}
@@ -1174,6 +1216,31 @@ const inputClass =
 
 const textareaClass =
   "w-full resize-y rounded-xl border border-bloom-border bg-bloom-canvas px-3 py-2 text-sm text-bloom-ink outline-none ring-0 focus:border-bloom-accent focus:ring-2 focus:ring-bloom-accent/30";
+
+function SinCostoCheckbox({
+  checked,
+  onChange,
+  disabled,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-bloom-border/80 bg-bloom-canvas/60 px-4 py-3">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        disabled={disabled}
+        className="mt-0.5 h-4 w-4 rounded border-bloom-border text-bloom-accent focus:ring-bloom-accent/30"
+      />
+      <span className="text-sm text-bloom-ink">
+        Sin costo (lo hace el cliente, familiar o es un regalo)
+      </span>
+    </label>
+  );
+}
 
 function Field({
   label,

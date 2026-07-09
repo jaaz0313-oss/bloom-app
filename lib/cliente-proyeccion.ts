@@ -5,6 +5,7 @@ import type { PagoRow } from "@/app/data/pagos";
 import { groupPagosByProveedor } from "@/app/data/pagos";
 import {
   computePaymentProjection,
+  isProveedorSinCosto,
   type ProveedorRow,
 } from "@/app/data/providers";
 import type { BodaRow } from "@/app/data/weddings";
@@ -39,7 +40,9 @@ export async function getClienteProyeccionContext(
     .eq("estado", "contratado")
     .order("categoria", { ascending: true });
 
-  const proveedores = (proveedoresData ?? []) as ProveedorRow[];
+  const proveedores = (proveedoresData ?? []).filter(
+    (provider) => !isProveedorSinCosto(provider as ProveedorRow),
+  ) as ProveedorRow[];
   if (proveedores.length === 0) {
     return null;
   }

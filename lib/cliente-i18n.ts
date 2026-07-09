@@ -258,6 +258,7 @@ export type ClienteUiCopy = {
   providersTitle: string;
   providersSubtitle: (count: number) => string;
   providersEmpty: string;
+  noCostBadge: string;
   contractedValue: string;
   serviceDescription: string;
   contactDetails: string;
@@ -372,6 +373,7 @@ const UI_ES: ClienteUiCopy = {
       ? "1 proveedor confirmado para su celebración"
       : `${count} proveedores confirmados para su celebración`,
   providersEmpty: "Aún no hay proveedores contratados para mostrar.",
+  noCostBadge: "Sin costo",
   contractedValue: "Valor contratado",
   serviceDescription: "Descripción del servicio",
   contactDetails: "Datos de contacto",
@@ -489,6 +491,7 @@ const UI_EN: ClienteUiCopy = {
       ? "1 vendor confirmed for your celebration"
       : `${count} vendors confirmed for your celebration`,
   providersEmpty: "No booked vendors to show yet.",
+  noCostBadge: "No cost",
   contractedValue: "Contracted amount",
   serviceDescription: "Service description",
   contactDetails: "Contact details",

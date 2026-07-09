@@ -1,4 +1,8 @@
-import { getProviderSaldoPendiente, type ProveedorRow } from "./providers";
+import {
+  getProviderSaldoPendiente,
+  isProveedorSinCosto,
+  type ProveedorRow,
+} from "./providers";
 
 export type PaymentAlertUrgency = "urgent" | "soon" | "upcoming";
 
@@ -76,6 +80,7 @@ export function buildPaymentAlerts(
   const alerts: PaymentAlert[] = [];
 
   for (const proveedor of proveedores) {
+    if (isProveedorSinCosto(proveedor)) continue;
     if (!proveedor.fecha_saldo) continue;
 
     const fechaSaldo = proveedor.fecha_saldo;

@@ -10,6 +10,7 @@ import type { PagoRow } from "@/app/data/pagos";
 import { buildPagosConAnticipo } from "@/app/data/pagos";
 import {
   getProviderSaldoPendienteConPagos,
+  isProveedorSinCosto,
   type ProveedorRow,
 } from "@/app/data/providers";
 import {
@@ -67,10 +68,13 @@ function ClienteProveedorAccordionItem({
   const { locale, t } = useClienteLocale();
 
   const saldo = getProviderSaldoPendienteConPagos(provider, pagos);
-  const pagosHistorial = [...buildPagosConAnticipo(provider, pagos)].sort(
-    (a, b) =>
-      new Date(a.fecha_pago).getTime() - new Date(b.fecha_pago).getTime(),
-  );
+  const sinCosto = isProveedorSinCosto(provider);
+  const pagosHistorial = sinCosto
+    ? []
+    : [...buildPagosConAnticipo(provider, pagos)].sort(
+        (a, b) =>
+          new Date(a.fecha_pago).getTime() - new Date(b.fecha_pago).getTime(),
+      );
   const titular = provider.titular_cuenta?.trim() || provider.nombre;
   const descripcion = provider.descripcion_servicio?.trim();
 
@@ -89,32 +93,39 @@ function ClienteProveedorAccordionItem({
             <span className="font-display text-xl text-bloom-ink">
               {provider.nombre}
             </span>
-            <span className="mt-0.5 block text-sm text-bloom-muted">
-              {provider.categoria}
+            <span className="mt-0.5 flex flex-wrap items-center gap-2 text-sm text-bloom-muted">
+              <span>{provider.categoria}</span>
+              {sinCosto ? (
+                <span className="inline-flex rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-800">
+                  {t.noCostBadge}
+                </span>
+              ) : null}
             </span>
           </span>
           <ClienteAccordionChevron open={open} />
         </span>
 
-        <div className="grid gap-3 text-sm sm:grid-cols-3">
-          <SummaryItem
-            label={t.contractedValue}
-            value={formatClienteCurrency(provider.valor_total, locale)}
-          />
-          <SummaryItem
-            label={t.pendingBalance}
-            value={formatClienteCurrency(saldo, locale)}
-            emphasized
-          />
-          <SummaryItem
-            label={t.balanceDueDate}
-            value={
-              provider.fecha_saldo
-                ? formatShortDateStable(provider.fecha_saldo)
-                : t.toBeConfirmed
-            }
-          />
-        </div>
+        {sinCosto ? null : (
+          <div className="grid gap-3 text-sm sm:grid-cols-3">
+            <SummaryItem
+              label={t.contractedValue}
+              value={formatClienteCurrency(provider.valor_total, locale)}
+            />
+            <SummaryItem
+              label={t.pendingBalance}
+              value={formatClienteCurrency(saldo, locale)}
+              emphasized
+            />
+            <SummaryItem
+              label={t.balanceDueDate}
+              value={
+                provider.fecha_saldo
+                  ? formatShortDateStable(provider.fecha_saldo)
+                  : t.toBeConfirmed
+              }
+            />
+          </div>
+        )}
       </button>
 
       <div
@@ -131,11 +142,13 @@ function ClienteProveedorAccordionItem({
               <ServiceDescription descripcion={descripcion} t={t} />
             ) : null}
             <ContactDetails provider={provider} titular={titular} t={t} />
-            <PaymentHistory
-              pagosHistorial={pagosHistorial}
-              locale={locale}
-              t={t}
-            />
+            {!sinCosto ? (
+              <PaymentHistory
+                pagosHistorial={pagosHistorial}
+                locale={locale}
+                t={t}
+              />
+            ) : null}
           </div>
         </div>
       </div>

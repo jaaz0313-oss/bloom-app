@@ -6,6 +6,7 @@ import type { DraggableAttributes } from "@dnd-kit/core";
 import type { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
 import {
   getProviderSaldoPendienteConPagos,
+  isProveedorSinCosto,
   PROVIDER_STATUS_LABELS,
   PROVIDER_STATUS_STYLES,
   type ProveedorRow,
@@ -141,13 +142,16 @@ export function ProviderCard({
   const isAdmin = role === "admin";
   const [comisionUpdating, setComisionUpdating] = useState(false);
   const showPayments =
-    provider.estado === "contratado" || provider.estado === "en_negociacion";
+    (provider.estado === "contratado" || provider.estado === "en_negociacion") &&
+    !isProveedorSinCosto(provider);
   const saldoPendiente = getProviderSaldoPendienteConPagos(provider, pagos);
+  const sinCosto = isProveedorSinCosto(provider);
   const hasWhatsAppTarget =
     Boolean(boda.whatsappGrupoLink?.trim()) ||
     Boolean(boda.telefonoNovia?.trim());
   const showPaymentReminder =
     provider.estado === "contratado" &&
+    !sinCosto &&
     saldoPendiente > 0 &&
     canSendWhatsApp;
 
@@ -652,25 +656,32 @@ export function ProviderCard({
               <span className="flex flex-wrap items-center gap-2">
                 <span className="font-medium text-bloom-ink">{provider.nombre}</span>
                 <ProviderEstadoBadge provider={provider} />
+                {sinCosto ? (
+                  <span className="inline-flex rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-medium text-sky-800">
+                    Sin costo
+                  </span>
+                ) : null}
               </span>
               <span className="mt-1 block text-sm text-bloom-muted">
                 {provider.categoria}
               </span>
             </span>
-            <dl className="grid shrink-0 grid-cols-2 gap-x-5 gap-y-1 text-sm sm:text-right">
-              <div>
-                <dt className="text-bloom-muted">Valor total</dt>
-                <dd className="font-medium text-bloom-ink">
-                  {formatCurrency(provider.valor_total)}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-bloom-muted">Saldo pendiente</dt>
-                <dd className="font-medium text-bloom-ink">
-                  {formatCurrency(saldoPendiente)}
-                </dd>
-              </div>
-            </dl>
+            {sinCosto ? null : (
+              <dl className="grid shrink-0 grid-cols-2 gap-x-5 gap-y-1 text-sm sm:text-right">
+                <div>
+                  <dt className="text-bloom-muted">Valor total</dt>
+                  <dd className="font-medium text-bloom-ink">
+                    {formatCurrency(provider.valor_total)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-bloom-muted">Saldo pendiente</dt>
+                  <dd className="font-medium text-bloom-ink">
+                    {formatCurrency(saldoPendiente)}
+                  </dd>
+                </div>
+              </dl>
+            )}
           </span>
           <AccordionChevron open={expanded} />
         </button>

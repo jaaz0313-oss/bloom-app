@@ -20,7 +20,10 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import type { NotaReunionRow } from "@/app/data/notas-reunion";
 import type { PagoRow } from "@/app/data/pagos";
-import type { ProveedorRow } from "@/app/data/providers";
+import {
+  isProveedorSinCosto,
+  type ProveedorRow,
+} from "@/app/data/providers";
 import { hasPermission, type UserRole } from "@/lib/auth/roles";
 import { persistProviderOrden } from "@/lib/provider-orden";
 import type { CotizacionBodaContext } from "@/lib/proveedor-cotizacion";
@@ -318,14 +321,15 @@ export function ProviderList({
 }
 
 function ProviderListSummary({ providers }: { providers: ProveedorRow[] }) {
-  const hasValor = providers.some((provider) => provider.valor_total > 0);
+  const conCosto = providers.filter((provider) => !isProveedorSinCosto(provider));
+  const hasValor = conCosto.some((provider) => provider.valor_total > 0);
   if (!hasValor) return null;
 
-  const totalProyectado = providers.reduce(
+  const totalProyectado = conCosto.reduce(
     (sum, provider) => sum + provider.valor_total,
     0,
   );
-  const totalContratado = providers
+  const totalContratado = conCosto
     .filter((provider) => provider.estado === "contratado")
     .reduce((sum, provider) => sum + provider.valor_total, 0);
   const pendientePorContratar = totalProyectado - totalContratado;

@@ -35,8 +35,15 @@ export type ProveedorRow = {
   comision_recibida: boolean;
   comision_recibida_at: string | null;
   orden: number | null;
+  sin_costo: boolean;
   created_at: string;
 };
+
+export function isProveedorSinCosto(
+  provider: Pick<ProveedorRow, "sin_costo">,
+): boolean {
+  return Boolean(provider.sin_costo);
+}
 
 export const PROVIDER_STATUS_LABELS: Record<ProviderStatus, string> = {
   pendiente: "Pendiente",
@@ -55,6 +62,7 @@ export const PROVIDER_STATUS_STYLES: Record<ProviderStatus, string> = {
 };
 
 export function getProviderSaldoPendiente(provider: ProveedorRow): number {
+  if (isProveedorSinCosto(provider)) return 0;
   return provider.valor_total - provider.anticipo;
 }
 
@@ -62,6 +70,7 @@ export function getProviderSaldoPendienteConPagos(
   provider: ProveedorRow,
   pagos: { monto: number }[] = [],
 ): number {
+  if (isProveedorSinCosto(provider)) return 0;
   const pagosRegistrados = pagos.reduce(
     (sum, pago) => sum + Number(pago.monto),
     0,
@@ -91,7 +100,9 @@ export function computePaymentProjection(
   providers: ProveedorRow[],
   pagosByProveedor: Record<string, { monto: number }[]> = {},
 ) {
-  const contratados = providers.filter((p) => p.estado === "contratado");
+  const contratados = providers.filter(
+    (p) => p.estado === "contratado" && !isProveedorSinCosto(p),
+  );
   const totalContratado = contratados.reduce((sum, p) => sum + p.valor_total, 0);
   const totalPagado = contratados.reduce((sum, p) => {
     const pagos = pagosByProveedor[p.id] ?? [];

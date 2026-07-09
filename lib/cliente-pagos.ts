@@ -1,5 +1,8 @@
 import type { ProveedorRow } from "@/app/data/providers";
-import { getProviderSaldoPendienteConPagos } from "@/app/data/providers";
+import {
+  getProviderSaldoPendienteConPagos,
+  isProveedorSinCosto,
+} from "@/app/data/providers";
 import type { PagoRow } from "@/app/data/pagos";
 import { getDaysUntil } from "@/app/data/payment-alerts";
 
@@ -55,6 +58,7 @@ export function buildClientePagosPendientes(
   const items: ClientePagoPendiente[] = [];
 
   for (const proveedor of proveedores) {
+    if (isProveedorSinCosto(proveedor)) continue;
     const pagos = pagosByProveedor[proveedor.id] ?? [];
     const saldoPendiente = getProviderSaldoPendienteConPagos(proveedor, pagos);
     if (saldoPendiente <= 0) continue;
