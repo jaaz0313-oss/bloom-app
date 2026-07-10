@@ -11,6 +11,7 @@ const HITOS_PLANTILLA: HitoTemplate[] = [
   { categoria: "Venue", descripcion: "Lugar del evento", mesesAntes: 12 },
   { categoria: "Ceremonia", descripcion: "Lugar de ceremonia", mesesAntes: 12 },
   { categoria: "Papelería", descripcion: "Save the date", mesesAntes: 11 },
+  { categoria: "Website", descripcion: "Website", mesesAntes: 11 },
   {
     categoria: "Belleza",
     descripcion: "Maquillaje y peinado",

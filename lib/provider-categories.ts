@@ -3,6 +3,7 @@ export const PROVIDER_CATEGORIES = [
   "Lugar del evento",
   "Lugar de ceremonia",
   "Save the date",
+  "Website",
   "Fotografía",
   "Video",
   "DJ",
