@@ -29,6 +29,7 @@ type NavItem = { href: string; label: string };
 
 const BASE_NAV_ITEMS: NavItem[] = [
   { href: "/", label: "Dashboard" },
+  { href: "/tareas", label: "Tareas" },
   { href: "/calendario", label: "Calendario" },
   { href: "/directorio", label: "Directorio" },
 ];

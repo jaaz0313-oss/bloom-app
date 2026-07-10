@@ -23,7 +23,12 @@ import {
 } from "@/lib/leads-dashboard";
 import type { CitaRow } from "./data/citas";
 import type { ProveedorRow } from "./data/providers";
+import {
+  normalizeTareaPrioridad,
+  type TareaRow,
+} from "./data/tareas";
 import { mapBodaToWedding, type BodaRow } from "./data/weddings";
+import { MisTareasPendientesSection } from "./components/tareas/MisTareasPendientesSection";
 import { requireAuthUser } from "@/lib/auth/user-profiles";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { canViewLeads, hasPermission } from "@/lib/auth/roles";
@@ -61,6 +66,7 @@ export default async function Home({ searchParams }: HomeProps) {
   let bodaInactivityAlerts: ReturnType<typeof buildBodaInactivityAlerts> = [];
   let tastingPaymentAlerts: ReturnType<typeof buildTastingPaymentAlerts> = [];
   let citasHoy: CitaRow[] = [];
+  let misTareas: TareaRow[] = [];
 
   const { data: bodasData, error: bodasError } = await supabase
     .from("bodas")
@@ -179,6 +185,21 @@ export default async function Home({ searchParams }: HomeProps) {
     citasHoy = citasHoyData as CitaRow[];
   }
 
+  const { data: tareasData, error: tareasError } = await supabase
+    .from("tareas")
+    .select("*")
+    .eq("asignado_a", user.username)
+    .eq("completada", false);
+
+  if (tareasError) {
+    console.error(tareasError);
+  } else if (tareasData) {
+    misTareas = (tareasData as TareaRow[]).map((tarea) => ({
+      ...tarea,
+      prioridad: normalizeTareaPrioridad(tarea.prioridad),
+    }));
+  }
+
   const { data: unpaidTastingsData, error: unpaidTastingsError } =
     await supabase
       .from("tastings")
@@ -280,6 +301,13 @@ export default async function Home({ searchParams }: HomeProps) {
         <CitasHoySection
           citas={citasHoy}
           context={{ bodasById, leadsById, proveedoresById }}
+        />
+        <MisTareasPendientesSection
+          tareas={misTareas}
+          username={user.username}
+          bodaNombresById={Object.fromEntries(
+            bodaRows.map((boda) => [boda.id, boda.nombre_pareja]),
+          )}
         />
         <PaymentAlertsSection
           alerts={paymentAlerts}
