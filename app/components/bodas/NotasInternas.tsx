@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { NotaBodaRow } from "@/app/data/notas-boda";
+import { wasNotaBodaEdited, type NotaBodaRow } from "@/app/data/notas-boda";
 import { formatDateTimeStable } from "@/lib/format";
 import type { UserRole } from "@/lib/auth/roles";
 import {
@@ -43,7 +43,15 @@ export function NotasInternas({
   const [contenido, setContenido] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editContenido, setEditContenido] = useState("");
+  const [savingEditId, setSavingEditId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  function canEditNota(nota: NotaBodaRow): boolean {
+    if (role === "admin" || role === "lider") return true;
+    return nota.created_by === currentUserId;
+  }
 
   function canDeleteNota(nota: NotaBodaRow): boolean {
     if (role === "admin") return true;
@@ -124,6 +132,66 @@ export function NotasInternas({
       router.refresh();
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  function startEdit(nota: NotaBodaRow) {
+    setError(null);
+    setEditingId(nota.id);
+    setEditContenido(nota.contenido);
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditContenido("");
+  }
+
+  async function handleGuardarEdicion(notaId: string) {
+    setError(null);
+
+    const texto = editContenido.trim();
+    if (!texto) {
+      setError("La nota no puede quedar vacía.");
+      return;
+    }
+
+    if (!supabase) {
+      setError("Supabase no está configurado.");
+      return;
+    }
+
+    setSavingEditId(notaId);
+    try {
+      const updatedAt = new Date().toISOString();
+      const { data, error: updateError } = await supabase
+        .from("notas_boda")
+        .update({
+          contenido: texto,
+          updated_at: updatedAt,
+        })
+        .eq("id", notaId)
+        .select("*")
+        .single();
+
+      if (updateError) {
+        setError(updateError.message);
+        return;
+      }
+
+      if (data) {
+        const notaActualizada = data as NotaBodaRow;
+        setNotas((current) =>
+          current.map((nota) =>
+            nota.id === notaId ? notaActualizada : nota,
+          ),
+        );
+      }
+
+      setEditingId(null);
+      setEditContenido("");
+      router.refresh();
+    } finally {
+      setSavingEditId(null);
     }
   }
 
@@ -214,36 +282,117 @@ export function NotasInternas({
         </p>
       ) : (
         <ul className="mt-6 space-y-3">
-          {notas.map((nota) => (
+          {notas.map((nota) => {
+            const isEditing = editingId === nota.id;
+            const isSaving = savingEditId === nota.id;
+
+            return (
             <li
               key={nota.id}
               className="rounded-xl border border-bloom-border bg-bloom-canvas/60 px-4 py-3"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                  <p className="whitespace-pre-wrap text-sm text-bloom-ink">
-                    {nota.contenido}
-                  </p>
-                  <p className="mt-2 text-xs text-bloom-muted">
-                    {nota.created_by_nombre?.trim() || "Equipo"} ·{" "}
-                    {formatDateTimeStable(nota.created_at)}
-                  </p>
+                  {isEditing ? (
+                    <div className="space-y-3">
+                      <MentionTextarea
+                        value={editContenido}
+                        onChange={setEditContenido}
+                        equipo={equipo}
+                        rows={3}
+                        className={textareaClass}
+                        placeholder="Escribe una nota… Usa @ para mencionar al equipo"
+                        disabled={isSaving}
+                      />
+                      <div className="flex flex-wrap justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={cancelEdit}
+                          disabled={isSaving}
+                          className="rounded-full border border-bloom-border bg-bloom-surface px-4 py-1.5 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-canvas disabled:opacity-60"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleGuardarEdicion(nota.id)}
+                          disabled={isSaving || !editContenido.trim()}
+                          className="rounded-full bg-bloom-accent px-4 py-1.5 text-xs font-medium text-white transition-colors hover:bg-bloom-accent-hover disabled:opacity-60"
+                        >
+                          {isSaving ? "Guardando…" : "Guardar"}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="whitespace-pre-wrap text-sm text-bloom-ink">
+                        {nota.contenido}
+                      </p>
+                      <div className="mt-2 space-y-0.5 text-xs text-bloom-muted">
+                        <p>
+                          {nota.created_by_nombre?.trim() || "Equipo"}
+                        </p>
+                        <p>
+                          Creada el {formatDateTimeStable(nota.created_at)}
+                        </p>
+                        {wasNotaBodaEdited(nota) ? (
+                          <p className="text-[11px] text-bloom-muted/80">
+                            Editada el {formatDateTimeStable(nota.updated_at)}
+                          </p>
+                        ) : null}
+                      </div>
+                    </>
+                  )}
                 </div>
-                {canDeleteNota(nota) && (
-                  <button
-                    type="button"
-                    onClick={() => handleEliminar(nota.id)}
-                    disabled={deletingId === nota.id}
-                    className="shrink-0 rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-medium text-red-700 transition-colors hover:bg-red-100 disabled:opacity-60"
-                  >
-                    {deletingId === nota.id ? "Eliminando…" : "Eliminar"}
-                  </button>
-                )}
+                {!isEditing && (canEditNota(nota) || canDeleteNota(nota)) ? (
+                  <div className="flex shrink-0 items-center gap-1">
+                    {canEditNota(nota) ? (
+                      <button
+                        type="button"
+                        onClick={() => startEdit(nota)}
+                        aria-label="Editar nota"
+                        title="Editar nota"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-bloom-border bg-bloom-surface text-bloom-muted transition-colors hover:bg-bloom-canvas hover:text-bloom-ink"
+                      >
+                        <PencilIcon />
+                      </button>
+                    ) : null}
+                    {canDeleteNota(nota) ? (
+                      <button
+                        type="button"
+                        onClick={() => handleEliminar(nota.id)}
+                        disabled={deletingId === nota.id}
+                        className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-medium text-red-700 transition-colors hover:bg-red-100 disabled:opacity-60"
+                      >
+                        {deletingId === nota.id ? "Eliminando…" : "Eliminar"}
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </Shell>
+  );
+}
+
+function PencilIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-4 w-4"
+      aria-hidden
+    >
+      <path d="M13.5 3.5a1.414 1.414 0 0 1 2 2L6.5 14.5l-3 1 1-3 9-9Z" />
+    </svg>
   );
 }
