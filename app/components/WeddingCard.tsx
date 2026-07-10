@@ -12,7 +12,9 @@ export function WeddingCard({ wedding }: { wedding: Wedding }) {
     wedding.providersContracted,
     wedding.providersTotal,
   );
-  const isComplete = wedding.providersContracted >= wedding.providersTotal;
+  const isComplete =
+    wedding.providersTotal > 0 &&
+    wedding.providersContracted >= wedding.providersTotal;
 
   return (
     <Link

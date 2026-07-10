@@ -27,7 +27,7 @@ import {
   normalizeTareaPrioridad,
   type TareaRow,
 } from "./data/tareas";
-import { mapBodaToWedding, type BodaRow } from "./data/weddings";
+import { mapBodaToWedding, buildProviderCountsByBoda, type BodaRow } from "./data/weddings";
 import { MisTareasPendientesSection } from "./components/tareas/MisTareasPendientesSection";
 import { requireAuthUser } from "@/lib/auth/user-profiles";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
@@ -82,8 +82,53 @@ export default async function Home({ searchParams }: HomeProps) {
       isBodaFinalizada(boda.estado),
     );
 
-    activeWeddings = activeBodaRows.map(mapBodaToWedding);
-    finishedWeddings = finishedBodaRows.map(mapBodaToWedding);
+    const bodaIdsForCounts = [
+      ...activeBodaRows.map((boda) => boda.id),
+      ...finishedBodaRows.map((boda) => boda.id),
+    ];
+
+    let providerCountsByBoda = new Map<
+      string,
+      { contracted: number; total: number }
+    >();
+    let providerCountsLoaded = false;
+
+    if (bodaIdsForCounts.length > 0) {
+      const { data: proveedoresCountData, error: proveedoresCountError } =
+        await supabase
+          .from("proveedores")
+          .select("boda_id, estado")
+          .in("boda_id", bodaIdsForCounts);
+
+      if (proveedoresCountError) {
+        console.error(proveedoresCountError);
+      } else {
+        providerCountsLoaded = true;
+        providerCountsByBoda = buildProviderCountsByBoda(
+          (proveedoresCountData ?? []) as Array<{
+            boda_id: string;
+            estado: string;
+          }>,
+        );
+      }
+    }
+
+    activeWeddings = activeBodaRows.map((row) =>
+      mapBodaToWedding(
+        row,
+        providerCountsLoaded
+          ? (providerCountsByBoda.get(row.id) ?? { contracted: 0, total: 0 })
+          : undefined,
+      ),
+    );
+    finishedWeddings = finishedBodaRows.map((row) =>
+      mapBodaToWedding(
+        row,
+        providerCountsLoaded
+          ? (providerCountsByBoda.get(row.id) ?? { contracted: 0, total: 0 })
+          : undefined,
+      ),
+    );
     bodaInactivityAlerts = buildBodaInactivityAlerts(bodaRows);
   }
 

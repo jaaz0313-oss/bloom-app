@@ -43,13 +43,40 @@ export type BodaRow = {
   updated_at?: string;
 };
 
-export function mapBodaToWedding(row: BodaRow): Wedding {
+export function mapBodaToWedding(
+  row: BodaRow,
+  providerCounts?: { contracted: number; total: number },
+): Wedding {
   return {
     id: row.id,
     couple: row.nombre_pareja,
     date: row.fecha_boda,
     city: row.ciudad,
-    providersTotal: row.total_proveedores,
-    providersContracted: row.proveedores_contratados,
+    providersTotal: providerCounts?.total ?? row.total_proveedores,
+    providersContracted:
+      providerCounts?.contracted ?? row.proveedores_contratados,
   };
+}
+
+/** Agrega conteos reales desde filas de proveedores (excluye descartados del total). */
+export function buildProviderCountsByBoda(
+  providers: Array<{ boda_id: string; estado: string }>,
+): Map<string, { contracted: number; total: number }> {
+  const counts = new Map<string, { contracted: number; total: number }>();
+
+  for (const provider of providers) {
+    if (provider.estado === "descartado") continue;
+
+    const current = counts.get(provider.boda_id) ?? {
+      contracted: 0,
+      total: 0,
+    };
+    current.total += 1;
+    if (provider.estado === "contratado") {
+      current.contracted += 1;
+    }
+    counts.set(provider.boda_id, current);
+  }
+
+  return counts;
 }
