@@ -15,6 +15,20 @@ export function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
+export function formatValorProveedorPendiente(): string {
+  return "Pendiente de definir";
+}
+
+export function formatProveedorValorTotal(
+  valorTotal: number | null | undefined,
+): string {
+  const valor = Number(valorTotal ?? 0);
+  if (!Number.isFinite(valor) || valor <= 0) {
+    return formatValorProveedorPendiente();
+  }
+  return formatCurrency(valor);
+}
+
 export function formatShortDate(isoDate: string): string {
   const date = new Date(isoDate + "T12:00:00");
   return new Intl.DateTimeFormat("es-CO", {

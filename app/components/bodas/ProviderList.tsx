@@ -22,6 +22,7 @@ import type { NotaReunionRow } from "@/app/data/notas-reunion";
 import type { PagoRow } from "@/app/data/pagos";
 import {
   isProveedorSinCosto,
+  hasProveedorValorDefinido,
   type ProveedorRow,
 } from "@/app/data/providers";
 import { hasPermission, type UserRole } from "@/lib/auth/roles";
@@ -326,12 +327,19 @@ function ProviderListSummary({ providers }: { providers: ProveedorRow[] }) {
   if (!hasValor) return null;
 
   const totalProyectado = conCosto.reduce(
-    (sum, provider) => sum + provider.valor_total,
+    (sum, provider) =>
+      sum +
+      (hasProveedorValorDefinido(provider.valor_total) ? provider.valor_total : 0),
     0,
   );
   const totalContratado = conCosto
     .filter((provider) => provider.estado === "contratado")
-    .reduce((sum, provider) => sum + provider.valor_total, 0);
+    .reduce(
+      (sum, provider) =>
+        sum +
+        (hasProveedorValorDefinido(provider.valor_total) ? provider.valor_total : 0),
+      0,
+    );
   const pendientePorContratar = totalProyectado - totalContratado;
 
   return (

@@ -10,11 +10,12 @@ import type { PagoRow } from "@/app/data/pagos";
 import { buildPagosConAnticipo } from "@/app/data/pagos";
 import {
   getProviderSaldoPendienteConPagos,
+  hasProveedorValorDefinido,
   isProveedorSinCosto,
   type ProveedorRow,
 } from "@/app/data/providers";
 import {
-  formatClienteCurrency,
+  formatClienteProveedorValue,
   type ClienteUiCopy,
 } from "@/lib/cliente-i18n";
 import { formatShortDateStable } from "@/lib/format";
@@ -109,11 +110,14 @@ function ClienteProveedorAccordionItem({
           <div className="grid gap-3 text-sm sm:grid-cols-3">
             <SummaryItem
               label={t.contractedValue}
-              value={formatClienteCurrency(provider.valor_total, locale)}
+              value={formatClienteProveedorValue(provider.valor_total, locale)}
             />
             <SummaryItem
               label={t.pendingBalance}
-              value={formatClienteCurrency(saldo, locale)}
+              value={formatClienteProveedorValue(
+                hasProveedorValorDefinido(provider.valor_total) ? saldo : 0,
+                locale,
+              )}
               emphasized
             />
             <SummaryItem

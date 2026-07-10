@@ -6,12 +6,14 @@ import type { DraggableAttributes } from "@dnd-kit/core";
 import type { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
 import {
   getProviderSaldoPendienteConPagos,
+  hasProveedorValorDefinido,
   isProveedorSinCosto,
+  parseProveedorValorInput,
   PROVIDER_STATUS_LABELS,
   PROVIDER_STATUS_STYLES,
   type ProveedorRow,
 } from "@/app/data/providers";
-import { formatCurrency, formatShortDateStable } from "@/lib/format";
+import { formatCurrency, formatProveedorValorTotal, formatShortDateStable } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
 import { syncBodaProveedoresContratados } from "@/lib/sync-boda";
 import type { PagoRow } from "@/app/data/pagos";
@@ -206,7 +208,10 @@ export function ProviderCard({
     nombre: provider.nombre,
     categoria: provider.categoria,
     descripcionServicio: provider.descripcion_servicio ?? "",
-    valorTotal: String(provider.valor_total),
+    valorTotal:
+      provider.valor_total != null && provider.valor_total > 0
+        ? String(provider.valor_total)
+        : "",
     anticipo: String(provider.anticipo),
     fechaSaldo: provider.fecha_saldo ?? "",
     banco: provider.banco ?? "",
@@ -233,7 +238,10 @@ export function ProviderCard({
       nombre: provider.nombre ?? "",
       categoria: provider.categoria ?? "",
       descripcionServicio: provider.descripcion_servicio ?? "",
-      valorTotal: String(provider.valor_total ?? 0),
+      valorTotal:
+        provider.valor_total != null && provider.valor_total > 0
+          ? String(provider.valor_total)
+          : "",
       anticipo: String(provider.anticipo ?? 0),
       fechaSaldo: provider.fecha_saldo ?? "",
       banco: provider.banco ?? "",
@@ -283,7 +291,7 @@ export function ProviderCard({
     const notas = editForm.notas.trim();
     const fechaSaldo = editForm.fechaSaldo || null;
 
-    const valorTotal = Number(editForm.valorTotal);
+    const valorTotal = parseProveedorValorInput(editForm.valorTotal);
     const anticipo = Number(editForm.anticipo || "0");
 
     const banco = editForm.banco.trim() || null;
@@ -304,7 +312,12 @@ export function ProviderCard({
     if (!Number.isFinite(anticipo) || anticipo < 0) {
       return setEditError("Ingresa un anticipo válido (>= 0).");
     }
-    if (anticipo > valorTotal) {
+    if (valorTotal === 0 && anticipo > 0) {
+      return setEditError(
+        "Si el valor total está pendiente, el anticipo debe ser 0.",
+      );
+    }
+    if (valorTotal > 0 && anticipo > valorTotal) {
       return setEditError(
         "El anticipo no puede ser mayor que el valor total.",
       );
@@ -671,13 +684,15 @@ export function ProviderCard({
                 <div>
                   <dt className="text-bloom-muted">Valor total</dt>
                   <dd className="font-medium text-bloom-ink">
-                    {formatCurrency(provider.valor_total)}
+                    {formatProveedorValorTotal(provider.valor_total)}
                   </dd>
                 </div>
                 <div>
                   <dt className="text-bloom-muted">Saldo pendiente</dt>
                   <dd className="font-medium text-bloom-ink">
-                    {formatCurrency(saldoPendiente)}
+                    {hasProveedorValorDefinido(provider.valor_total)
+                      ? formatCurrency(saldoPendiente)
+                      : formatProveedorValorTotal(0)}
                   </dd>
                 </div>
               </dl>
@@ -1239,8 +1254,7 @@ export function ProviderCard({
                         valorTotal: e.target.value,
                       }))
                     }
-                    placeholder="Ej: 3500000"
-                    required
+                    placeholder="Pendiente de definir"
                     disabled={editSubmitting}
                   />
                 </Field>

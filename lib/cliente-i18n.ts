@@ -50,6 +50,17 @@ export function formatClienteCurrency(
   }).format(amount);
 }
 
+export function formatClienteProveedorValue(
+  amount: number | null | undefined,
+  locale: ClienteLocale,
+): string {
+  const value = Number(amount ?? 0);
+  if (!Number.isFinite(value) || value <= 0) {
+    return locale === "en" ? "To be defined" : "Por definir";
+  }
+  return formatClienteCurrency(value, locale);
+}
+
 export function getClienteMensajeMotivacional(
   diasParaBoda: number,
   locale: ClienteLocale,

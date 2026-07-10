@@ -6,11 +6,14 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import {
   getProviderSaldoPendienteConPagos,
+  hasProveedorValorDefinido,
   type ProveedorRow,
 } from "@/app/data/providers";
 import type { PagoRow } from "@/app/data/pagos";
 import type { ClienteProyeccionContext } from "@/lib/cliente-proyeccion";
 import { formatCurrency, formatWeddingDate } from "@/lib/format";
+
+const CLIENTE_VALOR_POR_DEFINIR = "Por definir";
 
 const CELESTIA_EMAIL = "celestiaandevents@gmail.com";
 const CELESTIA_PHONE = "+57 319 553 8654";
@@ -69,12 +72,15 @@ function buildProviderRow(
   pagos: PagoRow[],
 ): [string, string, string, string, string] {
   const saldo = getProviderSaldoPendienteConPagos(provider, pagos);
+  const valorDefinido = hasProveedorValorDefinido(provider.valor_total);
   return [
     provider.categoria,
     provider.nombre,
-    formatCurrency(provider.valor_total),
-    formatCurrency(provider.anticipo),
-    formatCurrency(saldo),
+    valorDefinido
+      ? formatCurrency(provider.valor_total)
+      : CLIENTE_VALOR_POR_DEFINIR,
+    valorDefinido ? formatCurrency(provider.anticipo) : CLIENTE_VALOR_POR_DEFINIR,
+    valorDefinido ? formatCurrency(saldo) : CLIENTE_VALOR_POR_DEFINIR,
   ];
 }
 

@@ -45,6 +45,29 @@ export function isProveedorSinCosto(
   return Boolean(provider.sin_costo);
 }
 
+export function hasProveedorValorDefinido(
+  valorTotal: number | null | undefined,
+): boolean {
+  const valor = Number(valorTotal ?? 0);
+  return Number.isFinite(valor) && valor > 0;
+}
+
+export function parseProveedorValorInput(value: string): number {
+  const trimmed = value.trim();
+  if (trimmed === "") return 0;
+  return Number(trimmed);
+}
+
+export function proveedorContribuyeAlPresupuesto(
+  provider: Pick<ProveedorRow, "estado" | "sin_costo" | "valor_total">,
+): boolean {
+  return (
+    provider.estado === "contratado" &&
+    !isProveedorSinCosto(provider) &&
+    hasProveedorValorDefinido(provider.valor_total)
+  );
+}
+
 export const PROVIDER_STATUS_LABELS: Record<ProviderStatus, string> = {
   pendiente: "Pendiente",
   cotizacion_solicitada: "Cotización solicitada",
@@ -100,9 +123,7 @@ export function computePaymentProjection(
   providers: ProveedorRow[],
   pagosByProveedor: Record<string, { monto: number }[]> = {},
 ) {
-  const contratados = providers.filter(
-    (p) => p.estado === "contratado" && !isProveedorSinCosto(p),
-  );
+  const contratados = providers.filter((p) => proveedorContribuyeAlPresupuesto(p));
   const totalContratado = contratados.reduce((sum, p) => sum + p.valor_total, 0);
   const totalPagado = contratados.reduce((sum, p) => {
     const pagos = pagosByProveedor[p.id] ?? [];
