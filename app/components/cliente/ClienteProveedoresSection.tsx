@@ -18,7 +18,7 @@ import {
   formatClienteProveedorValue,
   type ClienteUiCopy,
 } from "@/lib/cliente-i18n";
-import { formatShortDateStable } from "@/lib/format";
+import { formatCurrency, formatShortDateStable } from "@/lib/format";
 
 type ClienteProveedoresSectionProps = {
   contratados: ProveedorRow[];
@@ -147,11 +147,7 @@ function ClienteProveedorAccordionItem({
             ) : null}
             <ContactDetails provider={provider} titular={titular} t={t} />
             {!sinCosto ? (
-              <PaymentHistory
-                pagosHistorial={pagosHistorial}
-                locale={locale}
-                t={t}
-              />
+              <PaymentHistory pagosHistorial={pagosHistorial} t={t} />
             ) : null}
           </div>
         </div>
@@ -246,11 +242,9 @@ function ContactDetails({
 
 function PaymentHistory({
   pagosHistorial,
-  locale,
   t,
 }: {
   pagosHistorial: ReturnType<typeof buildPagosConAnticipo>;
-  locale: "es" | "en";
   t: ClienteUiCopy;
 }) {
   return (
@@ -267,7 +261,7 @@ function PaymentHistory({
             >
               <div className="flex items-center justify-between gap-3">
                 <p className="font-medium text-bloom-ink">
-                  {formatClienteCurrency(pago.monto, locale)}
+                  {formatCurrency(pago.monto)}
                 </p>
                 <p className="text-bloom-muted">
                   {formatShortDateStable(pago.fecha_pago)}

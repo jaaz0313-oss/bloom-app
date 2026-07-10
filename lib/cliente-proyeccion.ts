@@ -13,6 +13,7 @@ import type { BodaRow } from "@/app/data/weddings";
 export type ClienteProyeccionContext = {
   boda: Pick<BodaRow, "nombre_pareja" | "fecha_boda" | "ciudad">;
   proveedores: ProveedorRow[];
+  proveedoresSinCosto: ProveedorRow[];
   pagosByProveedor: Record<string, PagoRow[]>;
   totalContratado: number;
   totalPagado: number;
@@ -40,10 +41,15 @@ export async function getClienteProyeccionContext(
     .eq("estado", "contratado")
     .order("categoria", { ascending: true });
 
-  const proveedores = (proveedoresData ?? []).filter(
-    (provider) => !isProveedorSinCosto(provider as ProveedorRow),
-  ) as ProveedorRow[];
-  if (proveedores.length === 0) {
+  const allProveedores = (proveedoresData ?? []) as ProveedorRow[];
+  const proveedores = allProveedores.filter(
+    (provider) => !isProveedorSinCosto(provider),
+  );
+  const proveedoresSinCosto = allProveedores.filter((provider) =>
+    isProveedorSinCosto(provider),
+  );
+
+  if (proveedores.length === 0 && proveedoresSinCosto.length === 0) {
     return null;
   }
 
@@ -66,6 +72,7 @@ export async function getClienteProyeccionContext(
   return {
     boda: boda as Pick<BodaRow, "nombre_pareja" | "fecha_boda" | "ciudad">,
     proveedores,
+    proveedoresSinCosto,
     pagosByProveedor,
     totalContratado,
     totalPagado,

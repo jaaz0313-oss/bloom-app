@@ -1,5 +1,6 @@
 import type { ClienteCronogramaHitoEstado } from "@/lib/cliente-cronograma";
 import type { ClientePagoUrgency } from "@/lib/cliente-pagos";
+import { formatCurrency } from "@/lib/format";
 
 export type ClienteLocale = "es" | "en";
 
@@ -39,17 +40,6 @@ export function getClienteTastingsDayLabel(
   }).format(date);
 }
 
-export function formatClienteCurrency(
-  amount: number,
-  locale: ClienteLocale,
-): string {
-  return new Intl.NumberFormat(locale === "en" ? "en-US" : "es-CO", {
-    style: "currency",
-    currency: "COP",
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
-
 export function formatClienteProveedorValue(
   amount: number | null | undefined,
   locale: ClienteLocale,
@@ -58,7 +48,7 @@ export function formatClienteProveedorValue(
   if (!Number.isFinite(value) || value <= 0) {
     return locale === "en" ? "To be defined" : "Por definir";
   }
-  return formatClienteCurrency(value, locale);
+  return formatCurrency(value);
 }
 
 export function getClienteMensajeMotivacional(

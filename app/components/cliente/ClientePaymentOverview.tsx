@@ -2,7 +2,7 @@
 
 import { useClienteLocale } from "@/app/components/cliente/ClienteLocaleProvider";
 import { computeClientePorcentajePagado } from "@/lib/cliente-pagos";
-import { formatClienteCurrency } from "@/lib/cliente-i18n";
+import { formatCurrency } from "@/lib/format";
 
 type ClientePaymentOverviewProps = {
   totalContratado: number;
@@ -15,7 +15,7 @@ export function ClientePaymentOverview({
   totalPagado,
   saldoPendiente,
 }: ClientePaymentOverviewProps) {
-  const { locale, t } = useClienteLocale();
+  const { t } = useClienteLocale();
   const percent = computeClientePorcentajePagado(
     totalContratado,
     totalPagado,
@@ -59,17 +59,17 @@ export function ClientePaymentOverview({
       <dl className="grid gap-px bg-bloom-border/60 sm:grid-cols-3">
         <SummaryCard
           label={t.totalContracted}
-          value={formatClienteCurrency(totalContratado, locale)}
+          value={formatCurrency(totalContratado)}
           tone="neutral"
         />
         <SummaryCard
           label={t.totalPaid}
-          value={formatClienteCurrency(totalPagado, locale)}
+          value={formatCurrency(totalPagado)}
           tone="success"
         />
         <SummaryCard
           label={t.balanceDue}
-          value={formatClienteCurrency(saldoPendiente, locale)}
+          value={formatCurrency(saldoPendiente)}
           tone="pending"
         />
       </dl>

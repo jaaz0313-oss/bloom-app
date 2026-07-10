@@ -3,15 +3,19 @@ import "server-only";
 import fs from "node:fs";
 import path from "node:path";
 import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
+import autoTable, { type CellHookData } from "jspdf-autotable";
+import { buildPagosConAnticipo, type PagoRow } from "@/app/data/pagos";
 import {
   getProviderSaldoPendienteConPagos,
   hasProveedorValorDefinido,
   type ProveedorRow,
 } from "@/app/data/providers";
-import type { PagoRow } from "@/app/data/pagos";
 import type { ClienteProyeccionContext } from "@/lib/cliente-proyeccion";
-import { formatCurrency, formatWeddingDate } from "@/lib/format";
+import {
+  formatCurrency,
+  formatShortDateStable,
+  formatWeddingDate,
+} from "@/lib/format";
 
 const CLIENTE_VALOR_POR_DEFINIR = "Por definir";
 
@@ -25,6 +29,45 @@ const COLORS = {
   accent: [125, 107, 90] as [number, number, number],
   border: [232, 226, 217] as [number, number, number],
   white: [255, 255, 255] as [number, number, number],
+};
+
+type ProjectionTableRow = {
+  cells: [string, string, string, string, string];
+  rowType: "valor" | "pago" | "sin-pagos" | "saldo" | "spacer";
+};
+
+const TABLE_THEME = {
+  theme: "plain" as const,
+  styles: {
+    font: "helvetica",
+    fontSize: 9,
+    textColor: COLORS.ink,
+    cellPadding: { top: 3, right: 4, bottom: 3, left: 4 },
+    lineColor: COLORS.border,
+    lineWidth: 0.2,
+    overflow: "linebreak" as const,
+  },
+  headStyles: {
+    fillColor: COLORS.accent,
+    textColor: COLORS.white,
+    fontStyle: "bold" as const,
+    halign: "left" as const,
+    fontSize: 8,
+  },
+  footStyles: {
+    fillColor: COLORS.canvas,
+    textColor: COLORS.ink,
+    fontStyle: "bold" as const,
+    fontSize: 9,
+  },
+  columnStyles: {
+    0: { cellWidth: 28 },
+    1: { cellWidth: 38 },
+    2: { cellWidth: 34 },
+    3: { halign: "right" as const, cellWidth: 28 },
+    4: { halign: "right" as const, cellWidth: 24 },
+  },
+  margin: { left: 16, right: 16, bottom: 22 },
 };
 
 function loadLogoBase64(): string | null {
@@ -67,21 +110,104 @@ function drawFooter(doc: jsPDF) {
   );
 }
 
-function buildProviderRow(
+function formatPagoConcepto(concepto: string | null): string {
+  const trimmed = concepto?.trim();
+  return trimmed || "Pago";
+}
+
+function buildProviderTableRows(
   provider: ProveedorRow,
   pagos: PagoRow[],
-): [string, string, string, string, string] {
-  const saldo = getProviderSaldoPendienteConPagos(provider, pagos);
+): ProjectionTableRow[] {
+  const rows: ProjectionTableRow[] = [];
   const valorDefinido = hasProveedorValorDefinido(provider.valor_total);
-  return [
-    provider.categoria,
-    provider.nombre,
-    valorDefinido
-      ? formatCurrency(provider.valor_total)
-      : CLIENTE_VALOR_POR_DEFINIR,
-    valorDefinido ? formatCurrency(provider.anticipo) : CLIENTE_VALOR_POR_DEFINIR,
-    valorDefinido ? formatCurrency(saldo) : CLIENTE_VALOR_POR_DEFINIR,
-  ];
+  const pagosHistorial = [...buildPagosConAnticipo(provider, pagos)].sort(
+    (a, b) => a.fecha_pago.localeCompare(b.fecha_pago),
+  );
+  const saldo = getProviderSaldoPendienteConPagos(provider, pagos);
+
+  rows.push({
+    rowType: "valor",
+    cells: [
+      provider.categoria,
+      provider.nombre,
+      "Valor total",
+      valorDefinido
+        ? formatCurrency(provider.valor_total)
+        : CLIENTE_VALOR_POR_DEFINIR,
+      "",
+    ],
+  });
+
+  if (pagosHistorial.length === 0) {
+    rows.push({
+      rowType: "sin-pagos",
+      cells: ["", "", "Sin pagos registrados", "—", "—"],
+    });
+  } else {
+    for (const pago of pagosHistorial) {
+      rows.push({
+        rowType: "pago",
+        cells: [
+          "",
+          "",
+          formatPagoConcepto(pago.concepto),
+          formatCurrency(Number(pago.monto)),
+          formatShortDateStable(pago.fecha_pago),
+        ],
+      });
+    }
+  }
+
+  rows.push({
+    rowType: "saldo",
+    cells: [
+      "",
+      "",
+      "Saldo pendiente",
+      valorDefinido ? formatCurrency(saldo) : CLIENTE_VALOR_POR_DEFINIR,
+      "",
+    ],
+  });
+
+  rows.push({
+    rowType: "spacer",
+    cells: ["", "", "", "", ""],
+  });
+
+  return rows;
+}
+
+function buildProjectionTableBody(
+  proveedores: ProveedorRow[],
+  pagosByProveedor: Record<string, PagoRow[]>,
+): ProjectionTableRow[] {
+  return proveedores.flatMap((provider) =>
+    buildProviderTableRows(provider, pagosByProveedor[provider.id] ?? []),
+  );
+}
+
+function styleProjectionTableRow(
+  data: CellHookData,
+  tableRows: ProjectionTableRow[],
+) {
+  if (data.section !== "body") return;
+
+  const row = tableRows[data.row.index];
+  if (!row) return;
+
+  if (row.rowType === "valor" || row.rowType === "saldo") {
+    data.cell.styles.fontStyle = "bold";
+  }
+
+  if (row.rowType === "sin-pagos") {
+    data.cell.styles.textColor = COLORS.muted;
+  }
+
+  if (row.rowType === "spacer") {
+    data.cell.styles.lineWidth = 0;
+    data.cell.styles.cellPadding = { top: 1, right: 0, bottom: 1, left: 0 };
+  }
 }
 
 export function buildClienteProyeccionPdfFilename(nombrePareja: string): string {
@@ -95,6 +221,7 @@ export function generateClienteProyeccionPdf(
   const {
     boda,
     proveedores,
+    proveedoresSinCosto,
     pagosByProveedor,
     totalContratado,
     totalPagado,
@@ -145,62 +272,67 @@ export function generateClienteProyeccionPdf(
   doc.setTextColor(...COLORS.muted);
   doc.text(subtitulo, pageWidth / 2, 46, { align: "center" });
 
-  const tableBody = proveedores.map((provider) =>
-    buildProviderRow(provider, pagosByProveedor[provider.id] ?? []),
-  );
+  let nextY = 60;
 
-  autoTable(doc, {
-    startY: 60,
-    head: [
-      [
-        "Categoría",
-        "Proveedor",
-        "Valor total",
-        "Anticipo pagado",
-        "Saldo pendiente",
+  if (proveedores.length > 0) {
+    const tableRows = buildProjectionTableBody(proveedores, pagosByProveedor);
+
+    autoTable(doc, {
+      startY: nextY,
+      head: [
+        [
+          "Categoría",
+          "Proveedor",
+          "Concepto",
+          "Monto",
+          "Fecha",
+        ],
       ],
-    ],
-    body: tableBody,
-    foot: [
-      ["Total contratado", "", formatCurrency(totalContratado), "", ""],
-      ["Total pagado", "", "", formatCurrency(totalPagado), ""],
-      ["Saldo total", "", "", "", formatCurrency(saldoPendiente)],
-    ],
-    theme: "plain",
-    styles: {
-      font: "helvetica",
-      fontSize: 9,
-      textColor: COLORS.ink,
-      cellPadding: { top: 3, right: 4, bottom: 3, left: 4 },
-      lineColor: COLORS.border,
-      lineWidth: 0.2,
-      overflow: "linebreak",
-    },
-    headStyles: {
-      fillColor: COLORS.accent,
-      textColor: COLORS.white,
-      fontStyle: "bold",
-      halign: "left",
-      fontSize: 8,
-    },
-    footStyles: {
-      fillColor: COLORS.canvas,
-      textColor: COLORS.ink,
-      fontStyle: "bold",
-      fontSize: 9,
-    },
-    columnStyles: {
-      0: { cellWidth: 28 },
-      1: { cellWidth: 42 },
-      2: { halign: "right", cellWidth: 28 },
-      3: { halign: "right", cellWidth: 28 },
-      4: { halign: "right", cellWidth: 28 },
-    },
-    margin: { left: 16, right: 16, bottom: 22 },
-    didDrawPage: () => {
-      drawFooter(doc);
-    },
-  });
+      body: tableRows.map((row) => row.cells),
+      foot: [
+        ["Total contratado", "", "", formatCurrency(totalContratado), ""],
+        ["Total pagado", "", "", formatCurrency(totalPagado), ""],
+        ["Saldo total", "", "", formatCurrency(saldoPendiente), ""],
+      ],
+      ...TABLE_THEME,
+      didParseCell: (data) => styleProjectionTableRow(data, tableRows),
+      didDrawPage: () => {
+        drawFooter(doc);
+      },
+    });
+
+    nextY =
+      (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable
+        ?.finalY ?? nextY;
+  }
+
+  if (proveedoresSinCosto.length > 0) {
+    const sectionStartY = proveedores.length > 0 ? nextY + 10 : nextY;
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(...COLORS.ink);
+    doc.text("Servicios sin costo / regalos", 16, sectionStartY);
+
+    autoTable(doc, {
+      startY: sectionStartY + 4,
+      head: [["Categoría", "Proveedor", "Nota"]],
+      body: proveedoresSinCosto.map((provider) => [
+        provider.categoria,
+        provider.nombre,
+        "Sin costo",
+      ]),
+      ...TABLE_THEME,
+      columnStyles: {
+        0: { cellWidth: 40 },
+        1: { cellWidth: 72 },
+        2: { cellWidth: 40 },
+      },
+      didDrawPage: () => {
+        drawFooter(doc);
+      },
+    });
+  }
 
   drawFooter(doc);
 

@@ -1,9 +1,9 @@
 import {
-  formatClienteCurrency,
   formatClienteShortDate,
   formatClienteWeddingDate,
   type ClienteLocale,
 } from "@/lib/cliente-i18n";
+import { formatCurrency } from "@/lib/format";
 
 export type WhatsAppLocale = ClienteLocale;
 
@@ -23,9 +23,9 @@ export function formatShortDateWhatsApp(
 
 export function formatCurrencyWhatsApp(
   amount: number,
-  locale: WhatsAppLocale,
+  _locale: WhatsAppLocale,
 ): string {
-  return formatClienteCurrency(amount, locale);
+  return formatCurrency(amount);
 }
 
 export function whatsappNotRegistered(locale: WhatsAppLocale): string {

@@ -4,10 +4,9 @@ import { useId, useMemo, useState } from "react";
 import { useClienteLocale } from "@/app/components/cliente/ClienteLocaleProvider";
 import type { TastingRow } from "@/app/data/tastings";
 import {
-  formatClienteCurrency,
   getClienteTastingsDayLabel,
 } from "@/lib/cliente-i18n";
-import { formatShortDateStable } from "@/lib/format";
+import { formatCurrency, formatShortDateStable } from "@/lib/format";
 import {
   formatClienteTastingTimeRange,
   groupClienteTastingsByDay,
@@ -133,7 +132,7 @@ export function ClienteTastingsSection({ tastings }: ClienteTastingsSectionProps
                                   {t.tastingsCost}
                                 </dt>
                                 <dd className="font-medium text-bloom-ink">
-                                  {formatClienteCurrency(tasting.costo, locale)}
+                                  {formatCurrency(tasting.costo)}
                                 </dd>
                               </div>
                             )}

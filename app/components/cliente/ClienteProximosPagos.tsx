@@ -12,11 +12,8 @@ import {
   countClientePagosUrgentes,
   type ClientePagoPendiente,
 } from "@/lib/cliente-pagos";
-import {
-  formatClienteCurrency,
-  getClientePagoUrgencyLabel,
-} from "@/lib/cliente-i18n";
-import { formatShortDateStable } from "@/lib/format";
+import { formatCurrency, formatShortDateStable } from "@/lib/format";
+import { getClientePagoUrgencyLabel } from "@/lib/cliente-i18n";
 
 type ClienteProximosPagosProps = {
   pagosPendientes: ClientePagoPendiente[];
@@ -111,7 +108,7 @@ function ProximoPagoAccordionItem({ item }: { item: ClientePagoPendiente }) {
         <div className="grid gap-3 text-sm sm:grid-cols-2">
           <SummaryItem
             label={t.pendingAmount}
-            value={formatClienteCurrency(saldoPendiente, locale)}
+            value={formatCurrency(saldoPendiente)}
             emphasized
           />
           <SummaryItem
