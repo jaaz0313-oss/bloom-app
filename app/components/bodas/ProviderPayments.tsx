@@ -7,6 +7,7 @@ import {
   buildPagosConAnticipo,
   computeTotalPagado,
   CONCEPTO_ANTICIPO,
+  MEDIOS_PAGO,
 } from "@/app/data/pagos";
 import { formatCurrency, formatShortDateStable } from "@/lib/format";
 import { AUDITORIA_ACCIONES, logAuditoria } from "@/lib/auditoria";
@@ -32,6 +33,7 @@ type PaymentFormState = {
   fechaPago: string;
   concepto: string;
   comprobante: string;
+  medioPago: string;
 };
 
 const emptyPaymentForm: PaymentFormState = {
@@ -39,6 +41,7 @@ const emptyPaymentForm: PaymentFormState = {
   fechaPago: "",
   concepto: "",
   comprobante: "",
+  medioPago: "",
 };
 
 export function ProviderPayments({
@@ -104,6 +107,7 @@ export function ProviderPayments({
     const monto = Number(form.monto);
     const fechaPago = form.fechaPago;
     const concepto = form.concepto.trim();
+    const medioPago = form.medioPago.trim() || null;
 
     if (!Number.isFinite(monto) || monto <= 0) {
       return setError("Ingresa un monto válido mayor a 0.");
@@ -122,6 +126,7 @@ export function ProviderPayments({
           fecha_pago: fechaPago,
           concepto: concepto || null,
           comprobante_url: form.comprobante.trim() || null,
+          medio_pago: medioPago,
         })
         .select("id")
         .single();
@@ -163,6 +168,7 @@ export function ProviderPayments({
     const monto = Number(form.monto);
     const fechaPago = form.fechaPago;
     const concepto = form.concepto.trim();
+    const medioPago = form.medioPago.trim() || null;
 
     if (!Number.isFinite(monto) || monto <= 0) {
       return setError("Ingresa un monto válido mayor a 0.");
@@ -187,6 +193,7 @@ export function ProviderPayments({
             fecha_pago: fechaPago,
             concepto: concepto || CONCEPTO_ANTICIPO,
             comprobante_url: comprobanteUrl,
+            medio_pago: medioPago,
           })
           .select("id")
           .single();
@@ -221,6 +228,7 @@ export function ProviderPayments({
             fecha_pago: fechaPago,
             concepto: concepto || null,
             comprobante_url: comprobanteUrl,
+            medio_pago: medioPago,
           })
           .eq("id", editingPago.id);
 
@@ -287,6 +295,7 @@ export function ProviderPayments({
       fechaPago: pago.fecha_pago,
       concepto: pago.concepto ?? "",
       comprobante: pago.comprobante_url ?? "",
+      medioPago: pago.medio_pago ?? "",
     });
     setOpenEdit(true);
   }
@@ -341,8 +350,10 @@ export function ProviderPayments({
                   {formatShortDateStable(pago.fecha_pago)}
                 </p>
               </div>
-              {pago.concepto && (
-                <p className="mt-1 text-bloom-muted">{pago.concepto}</p>
+              {(pago.concepto || pago.medio_pago) && (
+                <p className="mt-1 text-bloom-muted">
+                  {[pago.concepto, pago.medio_pago].filter(Boolean).join(" · ")}
+                </p>
               )}
               <div className="mt-2 flex gap-2">
                 {pago.comprobante_url && (
@@ -458,6 +469,24 @@ export function ProviderPayments({
                 />
               </Field>
 
+              <Field label="Medio de pago">
+                <select
+                  className={inputClass}
+                  value={form.medioPago}
+                  onChange={(e) =>
+                    setForm((s) => ({ ...s, medioPago: e.target.value }))
+                  }
+                  disabled={submitting}
+                >
+                  <option value="">Sin especificar</option>
+                  {MEDIOS_PAGO.map((medio) => (
+                    <option key={medio} value={medio}>
+                      {medio}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+
               <Field label="Comprobante">
                 <div className="flex items-start gap-2">
                   <input
@@ -516,7 +545,7 @@ export function ProviderPayments({
               <div>
                 <h2 className="font-display text-xl text-bloom-ink">Editar pago</h2>
                 <p className="mt-1 text-sm text-bloom-muted">
-                  Actualiza monto, fecha y concepto del pago.
+                  Actualiza monto, fecha, concepto y medio de pago.
                 </p>
               </div>
               <button
@@ -568,6 +597,24 @@ export function ProviderPayments({
                   }
                   disabled={submitting}
                 />
+              </Field>
+
+              <Field label="Medio de pago">
+                <select
+                  className={inputClass}
+                  value={form.medioPago}
+                  onChange={(e) =>
+                    setForm((s) => ({ ...s, medioPago: e.target.value }))
+                  }
+                  disabled={submitting}
+                >
+                  <option value="">Sin especificar</option>
+                  {MEDIOS_PAGO.map((medio) => (
+                    <option key={medio} value={medio}>
+                      {medio}
+                    </option>
+                  ))}
+                </select>
               </Field>
 
               <Field label="Comprobante">

@@ -1,3 +1,18 @@
+export type MedioPago =
+  | "Transferencia Colombia"
+  | "Transferencia USA"
+  | "Tarjeta de crédito"
+  | "Efectivo"
+  | "Otro";
+
+export const MEDIOS_PAGO: readonly MedioPago[] = [
+  "Transferencia Colombia",
+  "Transferencia USA",
+  "Tarjeta de crédito",
+  "Efectivo",
+  "Otro",
+] as const;
+
 export type PagoRow = {
   id: string;
   proveedor_id: string;
@@ -5,6 +20,7 @@ export type PagoRow = {
   fecha_pago: string;
   concepto: string | null;
   comprobante_url: string | null;
+  medio_pago: string | null;
   created_at?: string;
 };
 
@@ -42,6 +58,7 @@ export function buildPagosConAnticipo(
       fecha_pago: (provider.created_at ?? "").slice(0, 10),
       concepto: CONCEPTO_ANTICIPO,
       comprobante_url: null,
+      medio_pago: null,
       esSintetico: true,
     });
   }
