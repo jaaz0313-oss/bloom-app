@@ -25,6 +25,8 @@ export const PROVIDER_CATEGORIES = [
   "Foto cabina",
   "Estación de café",
   "Oficiante",
+  "Ambulancia",
+  "Otros",
 ] as const;
 
 export type ProviderCategory = (typeof PROVIDER_CATEGORIES)[number];

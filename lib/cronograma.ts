@@ -57,8 +57,10 @@ const HITOS_PLANTILLA: HitoTemplate[] = [
     descripcion: "Estación de café",
     mesesAntes: 3,
   },
+  { categoria: "Ambulancia", descripcion: "Ambulancia", mesesAntes: 3 },
   { categoria: "Logística", descripcion: "Seating chart", mesesAntes: 1 },
   { categoria: "Logística", descripcion: "Timing", mesesAntes: 1 },
+  { categoria: "Otros", descripcion: "Otros", mesesAntes: 1 },
 ];
 
 export type CronogramaItemInsert = {
