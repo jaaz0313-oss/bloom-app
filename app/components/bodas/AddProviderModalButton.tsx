@@ -11,6 +11,8 @@ import {
   type BodaProveedorDirectorioSource,
 } from "@/lib/directorio-proveedor-from-boda";
 import { CONCEPTO_ANTICIPO } from "@/app/data/pagos";
+import { marcarHitoCronogramaPorProveedorContratado } from "@/lib/cronograma";
+import { syncBodaProveedoresContratados } from "@/lib/sync-boda";
 import { ProviderComisionFields } from "./ProviderComisionFields";
 import { AbrirCarpetaDriveButton } from "./AbrirCarpetaDriveButton";
 
@@ -531,6 +533,18 @@ export function AddProviderModalButton({
             });
           }
         }
+
+        if (esSinCosto || esContratado) {
+          await marcarHitoCronogramaPorProveedorContratado(
+            supabase,
+            bodaId,
+            categoria,
+          );
+        }
+      }
+
+      if (esSinCosto || esContratado) {
+        await syncBodaProveedoresContratados(bodaId);
       }
 
       await promptSaveToDirectorioIfNeeded({

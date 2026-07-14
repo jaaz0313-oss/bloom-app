@@ -16,6 +16,7 @@ import {
 import { formatCurrency, formatProveedorValorTotal, formatShortDateStable } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
 import { syncBodaProveedoresContratados } from "@/lib/sync-boda";
+import { marcarHitoCronogramaPorProveedorContratado } from "@/lib/cronograma";
 import type { PagoRow } from "@/app/data/pagos";
 import type { NotaReunionRow } from "@/app/data/notas-reunion";
 import { hasPermission, type UserRole } from "@/lib/auth/roles";
@@ -615,6 +616,13 @@ export function ProviderCard({
 
       if (nuevoEstado === "contratado") {
         await syncBodaProveedoresContratados(bodaId);
+        if (supabase) {
+          await marcarHitoCronogramaPorProveedorContratado(
+            supabase,
+            bodaId,
+            provider.categoria,
+          );
+        }
       }
 
       await logAuditoria({

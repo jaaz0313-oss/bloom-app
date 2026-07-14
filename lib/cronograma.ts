@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { normalizeProviderCategory } from "@/lib/provider-categories";
 
 type HitoTemplate = {
   categoria: string;
@@ -254,4 +255,56 @@ export async function actualizarCronograma(
   }
 
   return { ok: true, added: nuevos.length, removed: obsoleteIds.length };
+}
+
+/**
+ * Al contratar un proveedor, marca como completado el hito del cronograma
+ * cuya descripción (o categoría) coincide con la categoría del proveedor.
+ * No desmarca si el proveedor pierde el estado contratado.
+ */
+export async function marcarHitoCronogramaPorProveedorContratado(
+  client: SupabaseClient,
+  bodaId: string,
+  categoriaProveedor: string,
+): Promise<void> {
+  const categoriaNorm = normalizeProviderCategory(categoriaProveedor);
+  if (!categoriaNorm) return;
+
+  const { data, error } = await client
+    .from("cronograma_items")
+    .select("id, categoria, descripcion, completado")
+    .eq("boda_id", bodaId)
+    .eq("completado", false);
+
+  if (error) {
+    console.error("[cronograma] marcar hito por contratado:", error.message);
+    return;
+  }
+
+  const ids = ((data ?? []) as Array<{
+    id: string;
+    categoria: string;
+    descripcion: string;
+    completado: boolean;
+  }>)
+    .filter((item) => {
+      const desc = normalizeProviderCategory(item.descripcion);
+      const cat = normalizeProviderCategory(item.categoria);
+      return desc === categoriaNorm || cat === categoriaNorm;
+    })
+    .map((item) => item.id);
+
+  if (ids.length === 0) return;
+
+  const { error: updateError } = await client
+    .from("cronograma_items")
+    .update({ completado: true })
+    .in("id", ids);
+
+  if (updateError) {
+    console.error(
+      "[cronograma] update hito por contratado:",
+      updateError.message,
+    );
+  }
 }
