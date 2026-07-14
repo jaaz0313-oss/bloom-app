@@ -283,6 +283,14 @@ export type ClienteUiCopy = {
   pwaInstallBannerAndroid: string;
   pwaInstallBannerOther: string;
   pwaInstallBannerDismiss: string;
+  helpGuideTitle: string;
+  helpGuideClose: string;
+  helpGuideButtonLabel: string;
+  helpGuideItems: Array<{
+    icon: string;
+    title: string;
+    description: string;
+  }>;
 };
 
 const UI_ES: ClienteUiCopy = {
@@ -401,6 +409,42 @@ const UI_ES: ClienteUiCopy = {
   pwaInstallBannerOther:
     "Guarda este link para acceder fácilmente a tu portal 🌸",
   pwaInstallBannerDismiss: "Ahora no",
+  helpGuideTitle: "Guía rápida",
+  helpGuideClose: "Cerrar",
+  helpGuideButtonLabel: "Abrir guía del portal",
+  helpGuideItems: [
+    {
+      icon: "📋",
+      title: "Estado de tu boda",
+      description: "Ve el avance general de tu planeación",
+    },
+    {
+      icon: "📅",
+      title: "Cronograma",
+      description: "Los hitos importantes antes de tu boda",
+    },
+    {
+      icon: "💳",
+      title: "Próximos pagos",
+      description: "Pagos pendientes con fechas y datos de transferencia",
+    },
+    {
+      icon: "🤝",
+      title: "Proveedores contratados",
+      description: "Todos los proveedores con valores y saldos",
+    },
+    {
+      icon: "🍽️",
+      title: "Semana de tastings",
+      description: "Tus citas de prueba agendadas",
+    },
+    {
+      icon: "✏️",
+      title: "Detalles de la boda",
+      description:
+        "Información editable de tu celebración (requiere PIN)",
+    },
+  ],
 };
 
 const UI_EN: ClienteUiCopy = {
@@ -519,6 +563,42 @@ const UI_EN: ClienteUiCopy = {
   pwaInstallBannerOther:
     "Save this link for easy access to your portal 🌸",
   pwaInstallBannerDismiss: "Not now",
+  helpGuideTitle: "Quick guide",
+  helpGuideClose: "Close",
+  helpGuideButtonLabel: "Open portal guide",
+  helpGuideItems: [
+    {
+      icon: "📋",
+      title: "Wedding status",
+      description: "See the overall progress of your planning",
+    },
+    {
+      icon: "📅",
+      title: "Timeline",
+      description: "Key milestones before your wedding",
+    },
+    {
+      icon: "💳",
+      title: "Upcoming payments",
+      description: "Pending payments with dates and transfer details",
+    },
+    {
+      icon: "🤝",
+      title: "Contracted vendors",
+      description: "All your vendors with amounts and balances",
+    },
+    {
+      icon: "🍽️",
+      title: "Tasting week",
+      description: "Your scheduled tasting appointments",
+    },
+    {
+      icon: "✏️",
+      title: "Wedding details",
+      description:
+        "Editable information about your celebration (PIN required)",
+    },
+  ],
 };
 
 export function getClienteUiCopy(locale: ClienteLocale): ClienteUiCopy {

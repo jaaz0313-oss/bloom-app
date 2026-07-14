@@ -9,6 +9,7 @@ import { ClienteProveedoresSugeridosSection } from "@/app/components/cliente/Cli
 import { ClienteTastingsSection } from "@/app/components/cliente/ClienteTastingsSection";
 import { ClientePageFooter } from "@/app/components/cliente/ClientePageFooter";
 import { ClientePageHeader } from "@/app/components/cliente/ClientePageHeader";
+import { ClienteHelpGuide } from "@/app/components/cliente/ClienteHelpGuide";
 import { ClientePaymentOverview } from "@/app/components/cliente/ClientePaymentOverview";
 import { ClienteProveedoresSection } from "@/app/components/cliente/ClienteProveedoresSection";
 import { ClienteProximosPagos } from "@/app/components/cliente/ClienteProximosPagos";
@@ -216,6 +217,7 @@ export default async function ClienteBodaPage({ params }: PageProps) {
       </main>
 
       <ClientePageFooter />
+      <ClienteHelpGuide />
     </div>
   );
 }
