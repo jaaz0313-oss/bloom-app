@@ -256,6 +256,10 @@ export type ClienteUiCopy = {
   accountNumber: string;
   accountHolder: string;
   documentNit: string;
+  address: string;
+  phone: string;
+  swiftCode: string;
+  email: string;
   providersTitle: string;
   providersSubtitle: (count: number) => string;
   providersEmpty: string;
@@ -376,8 +380,12 @@ const UI_ES: ClienteUiCopy = {
   bank: "Banco",
   accountType: "Tipo de cuenta",
   accountNumber: "Número de cuenta",
-  accountHolder: "Titular",
+  accountHolder: "Nombre completo (titular)",
   documentNit: "Documento / NIT",
+  address: "Dirección",
+  phone: "Teléfono",
+  swiftCode: "Código Swift",
+  email: "Email",
   providersTitle: "Proveedores contratados",
   providersSubtitle: (count) =>
     count === 1
@@ -532,8 +540,12 @@ const UI_EN: ClienteUiCopy = {
   bank: "Bank",
   accountType: "Account type",
   accountNumber: "Account number",
-  accountHolder: "Account holder",
+  accountHolder: "Full name (account holder)",
   documentNit: "ID / Tax ID",
+  address: "Address",
+  phone: "Phone",
+  swiftCode: "Swift code",
+  email: "Email",
   providersTitle: "Booked vendors",
   providersSubtitle: (count) =>
     count === 1

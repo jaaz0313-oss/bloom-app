@@ -63,13 +63,36 @@ function ProximoPagoAccordionItem({ item }: { item: ClientePagoPendiente }) {
   const panelId = useId();
   const { locale, t } = useClienteLocale();
   const { proveedor, saldoPendiente, fechaLimite, urgency } = item;
-  const titular = proveedor.titular_cuenta?.trim() || proveedor.nombre;
-  const hasBankInfo =
-    proveedor.banco ||
-    proveedor.tipo_cuenta ||
-    proveedor.numero_cuenta ||
-    proveedor.titular_cuenta ||
-    proveedor.documento_nit;
+
+  const titular = proveedor.titular_cuenta?.trim() || "";
+  const documentoNit = proveedor.documento_nit?.trim() || "";
+  const banco = proveedor.banco?.trim() || "";
+  const tipoCuenta = proveedor.tipo_cuenta?.trim() || "";
+  const numeroCuenta = proveedor.numero_cuenta?.trim() || "";
+  const direccion = proveedor.direccion?.trim() || "";
+  const telefono = proveedor.telefono?.trim() || "";
+  const email = proveedor.email?.trim() || "";
+  const showSwift = Boolean(banco || numeroCuenta);
+
+  const transferFields: Array<{ label: string; value: string; mono?: boolean }> =
+    [
+      titular ? { label: t.accountHolder, value: titular } : null,
+      documentoNit ? { label: t.documentNit, value: documentoNit } : null,
+      banco ? { label: t.bank, value: banco } : null,
+      tipoCuenta ? { label: t.accountType, value: tipoCuenta } : null,
+      numeroCuenta
+        ? { label: t.accountNumber, value: numeroCuenta, mono: true }
+        : null,
+      direccion ? { label: t.address, value: direccion } : null,
+      telefono ? { label: t.phone, value: telefono } : null,
+      showSwift
+        ? { label: t.swiftCode, value: "COLOCOBM", mono: true }
+        : null,
+      email ? { label: t.email, value: email } : null,
+    ].filter(
+      (field): field is { label: string; value: string; mono?: boolean } =>
+        field != null,
+    );
 
   const cardUrgencyClass = urgency
     ? CLIENTE_PAGO_URGENCY_CARD_STYLES[urgency]
@@ -134,37 +157,20 @@ function ProximoPagoAccordionItem({ item }: { item: ClientePagoPendiente }) {
           <div className="space-y-5 border-t border-bloom-border/60 px-5 py-5 sm:px-6">
             <p className="text-sm text-bloom-muted">{proveedor.categoria}</p>
 
-            {hasBankInfo ? (
+            {transferFields.length > 0 ? (
               <div>
                 <p className="text-xs font-medium uppercase tracking-[0.12em] text-bloom-muted">
                   {t.transferDetails}
                 </p>
                 <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-                  {proveedor.banco && (
-                    <BankField label={t.bank} value={proveedor.banco} />
-                  )}
-                  {proveedor.tipo_cuenta && (
+                  {transferFields.map((field) => (
                     <BankField
-                      label={t.accountType}
-                      value={proveedor.tipo_cuenta}
+                      key={field.label}
+                      label={field.label}
+                      value={field.value}
+                      mono={field.mono}
                     />
-                  )}
-                  {proveedor.numero_cuenta && (
-                    <BankField
-                      label={t.accountNumber}
-                      value={proveedor.numero_cuenta}
-                      mono
-                    />
-                  )}
-                  {titular && (
-                    <BankField label={t.accountHolder} value={titular} />
-                  )}
-                  {proveedor.documento_nit && (
-                    <BankField
-                      label={t.documentNit}
-                      value={proveedor.documento_nit}
-                    />
-                  )}
+                  ))}
                 </dl>
               </div>
             ) : null}
