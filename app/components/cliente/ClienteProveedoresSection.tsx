@@ -9,9 +9,11 @@ import { useClienteLocale } from "@/app/components/cliente/ClienteLocaleProvider
 import type { PagoRow } from "@/app/data/pagos";
 import { buildPagosConAnticipo } from "@/app/data/pagos";
 import {
+  getDepositoReembolsableMonto,
   getProviderSaldoPendienteConPagos,
   getProveedorGrupoCategoriasCompaneras,
   getProveedorGrupoPrimaryId,
+  hasDepositoReembolsable,
   hasProveedorValorDefinido,
   isProveedorGrupoPrimario,
   isProveedorSinCosto,
@@ -19,6 +21,7 @@ import {
 } from "@/app/data/providers";
 import {
   formatClienteProveedorValue,
+  getClienteCronogramaCategoriaLabel,
   type ClienteUiCopy,
 } from "@/lib/cliente-i18n";
 import { formatCurrency, formatShortDateStable } from "@/lib/format";
@@ -106,6 +109,17 @@ function ClienteProveedorAccordionItem({
         );
   const titular = provider.titular_cuenta?.trim() || provider.nombre;
   const descripcion = provider.descripcion_servicio?.trim();
+  const depositoMonto = esPrimarioGrupo
+    ? getDepositoReembolsableMonto(provider)
+    : 0;
+  const showDeposito = hasDepositoReembolsable(provider) && esPrimarioGrupo;
+  const categoriaLabel = getClienteCronogramaCategoriaLabel(
+    provider.categoria,
+    locale,
+  );
+  const companerasLabel = categoriasCompaneras
+    .map((cat) => getClienteCronogramaCategoriaLabel(cat, locale))
+    .join(", ");
 
   return (
     <li className="overflow-hidden rounded-xl border border-bloom-border/80 bg-bloom-canvas/30">
@@ -123,7 +137,7 @@ function ClienteProveedorAccordionItem({
               {provider.nombre}
             </span>
             <span className="mt-0.5 flex flex-wrap items-center gap-2 text-sm text-bloom-muted">
-              <span>{provider.categoria}</span>
+              <span>{categoriaLabel}</span>
               {sinCosto ? (
                 <span className="inline-flex rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-800">
                   {t.noCostBadge}
@@ -132,7 +146,7 @@ function ClienteProveedorAccordionItem({
             </span>
             {categoriasCompaneras.length > 0 ? (
               <span className="mt-1 block text-xs text-bloom-muted/90">
-                {t.sharedPriceWith(categoriasCompaneras.join(", "))}
+                {t.sharedPriceWith(companerasLabel)}
               </span>
             ) : null}
           </span>
@@ -140,38 +154,45 @@ function ClienteProveedorAccordionItem({
         </span>
 
         {sinCosto ? null : (
-          <div className="grid gap-3 text-sm sm:grid-cols-3">
-            <SummaryItem
-              label={t.contractedValue}
-              value={formatClienteProveedorValue(provider.valor_total, locale)}
-            />
-            <SummaryItem
-              label={t.pendingBalance}
-              value={
-                !esPrimarioGrupo && categoriasCompaneras.length > 0
-                  ? t.includedInProvider(
-                      primaryProvider.nombre.trim().toLowerCase() ===
-                        provider.nombre.trim().toLowerCase()
-                        ? `${primaryProvider.nombre} (${primaryProvider.categoria})`
-                        : primaryProvider.nombre,
-                    )
-                  : formatClienteProveedorValue(
-                      hasProveedorValorDefinido(provider.valor_total)
-                        ? saldo
-                        : 0,
-                      locale,
-                    )
-              }
-              emphasized={esPrimarioGrupo}
-            />
-            <SummaryItem
-              label={t.balanceDueDate}
-              value={
-                provider.fecha_saldo
-                  ? formatShortDateStable(provider.fecha_saldo)
-                  : t.toBeConfirmed
-              }
-            />
+          <div className="space-y-3">
+            <div className="grid gap-3 text-sm sm:grid-cols-3">
+              <SummaryItem
+                label={t.contractedValue}
+                value={formatClienteProveedorValue(provider.valor_total, locale)}
+              />
+              <SummaryItem
+                label={t.pendingBalance}
+                value={
+                  !esPrimarioGrupo && categoriasCompaneras.length > 0
+                    ? t.includedInProvider(
+                        primaryProvider.nombre.trim().toLowerCase() ===
+                          provider.nombre.trim().toLowerCase()
+                          ? `${primaryProvider.nombre} (${getClienteCronogramaCategoriaLabel(primaryProvider.categoria, locale)})`
+                          : primaryProvider.nombre,
+                      )
+                    : formatClienteProveedorValue(
+                        hasProveedorValorDefinido(provider.valor_total)
+                          ? saldo
+                          : 0,
+                        locale,
+                      )
+                }
+                emphasized={esPrimarioGrupo}
+              />
+              <SummaryItem
+                label={t.balanceDueDate}
+                value={
+                  provider.fecha_saldo
+                    ? formatShortDateStable(provider.fecha_saldo)
+                    : t.toBeConfirmed
+                }
+              />
+            </div>
+            {showDeposito ? (
+              <p className="text-sm font-medium text-sky-800">
+                {t.refundableDeposit(formatCurrency(depositoMonto))}
+              </p>
+            ) : null}
           </div>
         )}
       </button>

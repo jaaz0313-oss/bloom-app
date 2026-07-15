@@ -182,6 +182,60 @@ export function getClienteCronogramaEstadoLabel(
   return "Pendiente";
 }
 
+/** Traduce nombres de hitos/categorías del cronograma (vienen en español desde la BD). */
+const CRONOGRAMA_CATEGORIA_EN: Record<string, string> = {
+  "Wedding Planner": "Wedding Planner",
+  "Lugar del evento": "Venue",
+  "Lugar de ceremonia": "Ceremony venue",
+  "Save the date": "Save the date",
+  Website: "Website",
+  Fotografía: "Photography",
+  Video: "Videography",
+  DJ: "DJ",
+  Banda: "Live band",
+  Entretenimiento: "Entertainment",
+  Decoración: "Decor",
+  Producción: "Production",
+  Catering: "Catering",
+  Repostería: "Pastry / Cake",
+  Coctelería: "Bar service",
+  "Maquillaje y peinado": "Hair & makeup",
+  "Músicos de ceremonia": "Ceremony musicians",
+  "Músicos cóctel": "Cocktail musicians",
+  Transporte: "Transportation",
+  "Carro de la novia": "Bridal car",
+  "Welcome party": "Welcome party",
+  Licor: "Liquor",
+  "Hora loca": "Party hour",
+  "Foto cabina": "Photo booth",
+  "Estación de café": "Coffee station",
+  Oficiante: "Officiant",
+  Ambulancia: "Ambulance",
+  Otros: "Other",
+  // Alias / legacy
+  Música: "Music",
+  Coordinadora: "Wedding Planner",
+  "Fotografía y video": "Photography",
+  "Fotografía y Video": "Photography",
+  "DJ / Banda / Entretenimiento": "DJ",
+  "Músicos ceremonia": "Ceremony musicians",
+};
+
+export function getClienteCronogramaCategoriaLabel(
+  categoria: string,
+  locale: ClienteLocale,
+): string {
+  const trimmed = categoria.trim();
+  if (!trimmed || locale !== "en") return trimmed;
+
+  const suffixMatch = trimmed.match(/^(.+?)\s+(\d+)$/);
+  const base = suffixMatch ? suffixMatch[1].trim() : trimmed;
+  const numberSuffix = suffixMatch ? suffixMatch[2] : null;
+  const translated = CRONOGRAMA_CATEGORIA_EN[base] ?? base;
+
+  return numberSuffix ? `${translated} ${numberSuffix}` : translated;
+}
+
 export function getClientePagoUrgencyLabel(
   urgency: ClientePagoUrgency,
   locale: ClienteLocale,
@@ -270,6 +324,7 @@ export type ClienteUiCopy = {
   contactDetails: string;
   totalValue: string;
   depositPaid: string;
+  refundableDeposit: (amount: string) => string;
   pendingBalance: string;
   includedInProvider: (primaryName: string) => string;
   balanceDueDate: string;
@@ -399,6 +454,7 @@ const UI_ES: ClienteUiCopy = {
   contactDetails: "Datos de contacto",
   totalValue: "Valor total",
   depositPaid: "Anticipo pagado",
+  refundableDeposit: (amount) => `Depósito reembolsable: ${amount}`,
   pendingBalance: "Saldo pendiente",
   includedInProvider: (primaryName) => `Incluido en ${primaryName}`,
   balanceDueDate: "Fecha de pago del saldo",
@@ -559,6 +615,7 @@ const UI_EN: ClienteUiCopy = {
   contactDetails: "Contact details",
   totalValue: "Total amount",
   depositPaid: "Deposit paid",
+  refundableDeposit: (amount) => `Refundable deposit: ${amount}`,
   pendingBalance: "Balance due",
   includedInProvider: (primaryName) => `Included in ${primaryName}`,
   balanceDueDate: "Balance due date",
