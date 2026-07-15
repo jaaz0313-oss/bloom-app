@@ -10,7 +10,7 @@ import {
   buildDirectorioInsertFromBodaProveedor,
   type BodaProveedorDirectorioSource,
 } from "@/lib/directorio-proveedor-from-boda";
-import { CONCEPTO_ANTICIPO } from "@/app/data/pagos";
+import { CONCEPTO_ANTICIPO, MEDIOS_PAGO } from "@/app/data/pagos";
 import { marcarHitoCronogramaPorProveedorContratado } from "@/lib/cronograma";
 import { syncBodaProveedoresContratados } from "@/lib/sync-boda";
 import { ProviderComisionFields } from "./ProviderComisionFields";
@@ -23,6 +23,8 @@ type FormState = {
   anticipo: string;
   fechaAnticipo: string;
   comprobanteAnticipo: string;
+  medioPagoAnticipo: string;
+  depositoReembolsable: string;
   fechaSaldo: string;
   banco: string;
   tipoCuenta: string;
@@ -45,6 +47,8 @@ const emptyForm: FormState = {
   anticipo: "",
   fechaAnticipo: getFechaHoyLocal(),
   comprobanteAnticipo: "",
+  medioPagoAnticipo: "",
+  depositoReembolsable: "",
   fechaSaldo: "",
   banco: "",
   tipoCuenta: "",
@@ -417,6 +421,10 @@ export function AddProviderModalButton({
     const valorTotal =
       valorTotalTrimmed === "" ? 0 : Number(valorTotalTrimmed);
     const anticipo = Number(form.anticipo || "0");
+    const depositoTrimmed = form.depositoReembolsable.trim();
+    const depositoReembolsable =
+      depositoTrimmed === "" ? 0 : Number(depositoTrimmed);
+    const medioPagoAnticipo = form.medioPagoAnticipo.trim() || null;
     const banco = form.banco.trim();
     const numeroCuenta = form.numeroCuenta.trim();
     const titular = form.titular.trim();
@@ -451,6 +459,10 @@ export function AddProviderModalButton({
       if (anticipo > valorTotal) {
         return setError("El anticipo no puede ser mayor que el valor total.");
       }
+    }
+
+    if (!Number.isFinite(depositoReembolsable) || depositoReembolsable < 0) {
+      return setError("Ingresa un depósito reembolsable válido (>= 0).");
     }
 
     const daComision = esSinCosto ? false : form.daComision;
@@ -491,6 +503,9 @@ export function AddProviderModalButton({
             porcentaje_comision: daComision ? porcentajeComision : 10,
             estado: esSinCosto || esContratado ? "contratado" : "pendiente",
             sin_costo: esSinCosto,
+            deposito_reembolsable: Math.round(
+              depositoReembolsable > 0 ? depositoReembolsable : 0,
+            ),
           })
           .select("id")
           .single();
@@ -517,6 +532,7 @@ export function AddProviderModalButton({
             fecha_pago: fechaAnticipo,
             concepto: CONCEPTO_ANTICIPO,
             comprobante_url: form.comprobanteAnticipo.trim() || null,
+            medio_pago: medioPagoAnticipo,
           });
 
           if (pagoError) {
@@ -878,6 +894,27 @@ export function AddProviderModalButton({
                     </div>
                   </Field>
 
+                  <Field label="Medio de pago del anticipo">
+                    <select
+                      className={inputClass}
+                      value={form.medioPagoAnticipo}
+                      onChange={(e) =>
+                        setForm((s) => ({
+                          ...s,
+                          medioPagoAnticipo: e.target.value,
+                        }))
+                      }
+                      disabled={submitting}
+                    >
+                      <option value="">Sin especificar</option>
+                      {MEDIOS_PAGO.map((medio) => (
+                        <option key={medio} value={medio}>
+                          {medio}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+
                   <p className="text-xs text-bloom-muted">
                     Si registras un anticipo, se agregará como primer pago del
                     historial con concepto &quot;Anticipo&quot;.
@@ -897,6 +934,24 @@ export function AddProviderModalButton({
                     />
                   </Field>
                   ) : null}
+
+                  <Field label="Depósito reembolsable">
+                    <input
+                      type="number"
+                      min={0}
+                      step={1}
+                      className={inputClass}
+                      value={form.depositoReembolsable}
+                      onChange={(e) =>
+                        setForm((s) => ({
+                          ...s,
+                          depositoReembolsable: e.target.value,
+                        }))
+                      }
+                      placeholder="Opcional"
+                      disabled={submitting}
+                    />
+                  </Field>
 
                   <Field label="Descripción del servicio / plan elegido">
                     <textarea
@@ -1032,6 +1087,24 @@ export function AddProviderModalButton({
                 />
               </Field>
               ) : null}
+
+              <Field label="Depósito reembolsable">
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  className={inputClass}
+                  value={form.depositoReembolsable}
+                  onChange={(e) =>
+                    setForm((s) => ({
+                      ...s,
+                      depositoReembolsable: e.target.value,
+                    }))
+                  }
+                  placeholder="Opcional"
+                  disabled={submitting}
+                />
+              </Field>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field label="Banco">
