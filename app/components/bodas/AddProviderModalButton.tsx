@@ -477,7 +477,12 @@ export function AddProviderModalButton({
 
     setSubmitting(true);
     try {
+      // Varias categorías → mismo valor compartido; pagos solo en el primer registro.
+      const grupoId =
+        categorias.length > 1 ? crypto.randomUUID() : null;
+
       for (const [index, categoria] of categorias.entries()) {
+        const esPrimarioGrupo = index === 0;
         const { data: nuevoProveedor, error: insertError } = await supabase
           .from("proveedores")
           .insert({
@@ -487,7 +492,14 @@ export function AddProviderModalButton({
             valor_total: esSinCosto ? 0 : valorTotal,
             // En el flujo "Ya contratado" el anticipo se registra como un pago real,
             // por lo que la columna anticipo se deja en 0 para no contarlo doble.
-            anticipo: esSinCosto ? 0 : esContratado ? 0 : anticipo,
+            // Con varias categorías, anticipo/depósito solo en el primario del grupo.
+            anticipo: esSinCosto
+              ? 0
+              : esContratado
+                ? 0
+                : esPrimarioGrupo
+                  ? anticipo
+                  : 0,
             fecha_saldo: esSinCosto ? null : form.fechaSaldo || null,
             banco: banco || null,
             tipo_cuenta: tipoCuenta || null,
@@ -503,9 +515,10 @@ export function AddProviderModalButton({
             porcentaje_comision: daComision ? porcentajeComision : 10,
             estado: esSinCosto || esContratado ? "contratado" : "pendiente",
             sin_costo: esSinCosto,
-            deposito_reembolsable: Math.round(
-              depositoReembolsable > 0 ? depositoReembolsable : 0,
-            ),
+            deposito_reembolsable: esPrimarioGrupo
+              ? Math.round(depositoReembolsable > 0 ? depositoReembolsable : 0)
+              : 0,
+            grupo_id: grupoId,
           })
           .select("id")
           .single();
@@ -523,7 +536,7 @@ export function AddProviderModalButton({
           detalle: `${nombre} · ${categoria}${esSinCosto ? " · Sin costo" : esContratado ? " · Contratado" : ""}`,
         });
 
-        if (esContratado && anticipo > 0 && index === 0 && !esSinCosto) {
+        if (esContratado && anticipo > 0 && esPrimarioGrupo && !esSinCosto) {
           const fechaAnticipo =
             form.fechaAnticipo.trim() || getFechaHoyLocal();
           const { error: pagoError } = await supabase.from("pagos").insert({

@@ -37,6 +37,12 @@ export type ProveedorRow = {
   orden: number | null;
   sin_costo: boolean;
   deposito_reembolsable: number | null;
+  /**
+   * Agrupa filas del mismo proveedor con varias categorías (valor compartido).
+   * Anticipo/pagos/depósito viven en el registro primario del grupo
+   * (el de menor `created_at`).
+   */
+  grupo_id: string | null;
   created_at: string;
 };
 
@@ -73,16 +79,91 @@ export type DepositoReembolsableLine = {
   monto: number;
 };
 
+function compareProveedoresPorCreacion(
+  a: ProveedorRow,
+  b: ProveedorRow,
+): number {
+  const byDate = a.created_at.localeCompare(b.created_at);
+  if (byDate !== 0) return byDate;
+  return a.id.localeCompare(b.id);
+}
+
+/** Id del registro primario de un grupo (más antiguo / id estable). */
+export function getProveedorGrupoPrimaryId(
+  providers: ProveedorRow[],
+  grupoId: string,
+): string | null {
+  const members = providers
+    .filter((p) => p.grupo_id === grupoId)
+    .sort(compareProveedoresPorCreacion);
+  return members[0]?.id ?? null;
+}
+
+export function isProveedorGrupoPrimario(
+  providers: ProveedorRow[],
+  provider: ProveedorRow,
+): boolean {
+  if (!provider.grupo_id) return true;
+  return (
+    getProveedorGrupoPrimaryId(providers, provider.grupo_id) === provider.id
+  );
+}
+
+/** Categorías hermanas (otras filas del mismo grupo), en orden de creación. */
+export function getProveedorGrupoCategoriasCompaneras(
+  providers: ProveedorRow[],
+  provider: ProveedorRow,
+): string[] {
+  if (!provider.grupo_id) return [];
+  return providers
+    .filter((p) => p.grupo_id === provider.grupo_id && p.id !== provider.id)
+    .sort(compareProveedoresPorCreacion)
+    .map((p) => p.categoria);
+}
+
+/** Todas las categorías del grupo, en orden (útil para PDF / etiquetas). */
+export function getProveedorGrupoCategorias(
+  providers: ProveedorRow[],
+  provider: ProveedorRow,
+): string[] {
+  if (!provider.grupo_id) return [provider.categoria];
+  return providers
+    .filter((p) => p.grupo_id === provider.grupo_id)
+    .sort(compareProveedoresPorCreacion)
+    .map((p) => p.categoria);
+}
+
+/**
+ * Una fila por proveedor individual o por grupo (el primario).
+ * Evita sumar `valor_total` varias veces en proyecciones / presupuesto.
+ */
+export function dedupeProveedoresPorGrupo(
+  providers: ProveedorRow[],
+): ProveedorRow[] {
+  const seenGrupos = new Set<string>();
+  const result: ProveedorRow[] = [];
+  const sorted = [...providers].sort(compareProveedoresPorCreacion);
+
+  for (const provider of sorted) {
+    if (provider.grupo_id) {
+      if (seenGrupos.has(provider.grupo_id)) continue;
+      seenGrupos.add(provider.grupo_id);
+    }
+    result.push(provider);
+  }
+  return result;
+}
+
 /** Depósitos registrados (monto > 0). No forman parte del total contratado. */
 export function listDepositosReembolsables(
   providers: ProveedorRow[],
 ): DepositoReembolsableLine[] {
-  return providers
+  return dedupeProveedoresPorGrupo(providers)
     .filter((provider) => hasDepositoReembolsable(provider))
     .map((provider) => ({
       proveedorId: provider.id,
       proveedorNombre: provider.nombre,
-      categoria: provider.categoria,
+      categoria: getProveedorGrupoCategorias(providers, provider).join(", "),
       monto: getDepositoReembolsableMonto(provider),
     }));
 }
@@ -158,7 +239,9 @@ export function computePaymentProjection(
   providers: ProveedorRow[],
   pagosByProveedor: Record<string, { monto: number }[]> = {},
 ) {
-  const contratados = providers.filter((p) => proveedorContribuyeAlPresupuesto(p));
+  const contratados = dedupeProveedoresPorGrupo(
+    providers.filter((p) => proveedorContribuyeAlPresupuesto(p)),
+  );
   const totalContratado = contratados.reduce((sum, p) => sum + p.valor_total, 0);
   const totalPagado = contratados.reduce((sum, p) => {
     const pagos = pagosByProveedor[p.id] ?? [];

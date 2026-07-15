@@ -21,6 +21,7 @@ import { CSS } from "@dnd-kit/utilities";
 import type { NotaReunionRow } from "@/app/data/notas-reunion";
 import type { PagoRow } from "@/app/data/pagos";
 import {
+  dedupeProveedoresPorGrupo,
   isProveedorSinCosto,
   hasProveedorValorDefinido,
   type ProveedorRow,
@@ -173,10 +174,12 @@ export function ProviderList({
         {extra}
         <ProviderCard
           provider={provider}
+          allProviders={sortedFromProps}
           bodaId={bodaId}
           boda={boda}
           plannerName={plannerName}
           pagos={pagosByProveedor[provider.id] ?? []}
+          pagosByProveedor={pagosByProveedor}
           notasReunion={notasReunionByProveedor[provider.id] ?? []}
           currentUserId={currentUserId}
           role={role}
@@ -219,10 +222,12 @@ export function ProviderList({
           <SortableProviderItem
             key={provider.id}
             provider={provider}
+            allProviders={sortedFromProps}
             bodaId={bodaId}
             boda={boda}
             plannerName={plannerName}
             pagos={pagosByProveedor[provider.id] ?? []}
+            pagosByProveedor={pagosByProveedor}
             notasReunion={notasReunionByProveedor[provider.id] ?? []}
             currentUserId={currentUserId}
             role={role}
@@ -322,7 +327,9 @@ export function ProviderList({
 }
 
 function ProviderListSummary({ providers }: { providers: ProveedorRow[] }) {
-  const conCosto = providers.filter((provider) => !isProveedorSinCosto(provider));
+  const conCosto = dedupeProveedoresPorGrupo(
+    providers.filter((provider) => !isProveedorSinCosto(provider)),
+  );
   const hasValor = conCosto.some((provider) => provider.valor_total > 0);
   if (!hasValor) return null;
 
@@ -372,10 +379,12 @@ function ProviderListSummary({ providers }: { providers: ProveedorRow[] }) {
 
 type SortableProviderItemProps = {
   provider: ProveedorRow;
+  allProviders: ProveedorRow[];
   bodaId: string;
   boda: CotizacionBodaContext;
   plannerName: string;
   pagos: PagoRow[];
+  pagosByProveedor: Record<string, PagoRow[]>;
   notasReunion: NotaReunionRow[];
   currentUserId: string;
   role: UserRole;
@@ -386,10 +395,12 @@ type SortableProviderItemProps = {
 
 function SortableProviderItem({
   provider,
+  allProviders,
   bodaId,
   boda,
   plannerName,
   pagos,
+  pagosByProveedor,
   notasReunion,
   currentUserId,
   role,
@@ -434,10 +445,12 @@ function SortableProviderItem({
       {compareBar}
       <ProviderCard
         provider={provider}
+        allProviders={allProviders}
         bodaId={bodaId}
         boda={boda}
         plannerName={plannerName}
         pagos={pagos}
+        pagosByProveedor={pagosByProveedor}
         notasReunion={notasReunion}
         currentUserId={currentUserId}
         role={role}

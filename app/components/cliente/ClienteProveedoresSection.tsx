@@ -10,7 +10,10 @@ import type { PagoRow } from "@/app/data/pagos";
 import { buildPagosConAnticipo } from "@/app/data/pagos";
 import {
   getProviderSaldoPendienteConPagos,
+  getProveedorGrupoCategoriasCompaneras,
+  getProveedorGrupoPrimaryId,
   hasProveedorValorDefinido,
+  isProveedorGrupoPrimario,
   isProveedorSinCosto,
   type ProveedorRow,
 } from "@/app/data/providers";
@@ -46,7 +49,9 @@ export function ClienteProveedoresSection({
             <ClienteProveedorAccordionItem
               key={provider.id}
               provider={provider}
+              allProviders={contratados}
               pagos={pagosByProveedor[provider.id] ?? []}
+              pagosByProveedor={pagosByProveedor}
             />
           ))}
         </ul>
@@ -57,25 +62,48 @@ export function ClienteProveedoresSection({
 
 type ClienteProveedorAccordionItemProps = {
   provider: ProveedorRow;
+  allProviders: ProveedorRow[];
   pagos: PagoRow[];
+  pagosByProveedor: Record<string, PagoRow[]>;
 };
 
 function ClienteProveedorAccordionItem({
   provider,
+  allProviders,
   pagos,
+  pagosByProveedor,
 }: ClienteProveedorAccordionItemProps) {
   const [open, setOpen] = useState(false);
   const panelId = useId();
   const { locale, t } = useClienteLocale();
 
-  const saldo = getProviderSaldoPendienteConPagos(provider, pagos);
+  const esPrimarioGrupo = isProveedorGrupoPrimario(allProviders, provider);
+  const categoriasCompaneras = getProveedorGrupoCategoriasCompaneras(
+    allProviders,
+    provider,
+  );
+  const primaryId = provider.grupo_id
+    ? getProveedorGrupoPrimaryId(allProviders, provider.grupo_id)
+    : provider.id;
+  const primaryProvider =
+    primaryId != null
+      ? (allProviders.find((p) => p.id === primaryId) ?? provider)
+      : provider;
+  const pagosParaSaldo = esPrimarioGrupo
+    ? pagos
+    : (pagosByProveedor[primaryProvider.id] ?? []);
+  const saldo = getProviderSaldoPendienteConPagos(
+    primaryProvider,
+    pagosParaSaldo,
+  );
   const sinCosto = isProveedorSinCosto(provider);
-  const pagosHistorial = sinCosto
-    ? []
-    : [...buildPagosConAnticipo(provider, pagos)].sort(
-        (a, b) =>
-          new Date(a.fecha_pago).getTime() - new Date(b.fecha_pago).getTime(),
-      );
+  const pagosHistorial =
+    sinCosto || !esPrimarioGrupo
+      ? []
+      : [...buildPagosConAnticipo(provider, pagos)].sort(
+          (a, b) =>
+            new Date(a.fecha_pago).getTime() - new Date(b.fecha_pago).getTime(),
+        );
   const titular = provider.titular_cuenta?.trim() || provider.nombre;
   const descripcion = provider.descripcion_servicio?.trim();
 
@@ -102,6 +130,11 @@ function ClienteProveedorAccordionItem({
                 </span>
               ) : null}
             </span>
+            {categoriasCompaneras.length > 0 ? (
+              <span className="mt-1 block text-xs text-bloom-muted/90">
+                {t.sharedPriceWith(categoriasCompaneras.join(", "))}
+              </span>
+            ) : null}
           </span>
           <ClienteAccordionChevron open={open} />
         </span>
@@ -146,7 +179,7 @@ function ClienteProveedorAccordionItem({
               <ServiceDescription descripcion={descripcion} t={t} />
             ) : null}
             <ContactDetails provider={provider} titular={titular} t={t} />
-            {!sinCosto ? (
+            {!sinCosto && esPrimarioGrupo ? (
               <PaymentHistory pagosHistorial={pagosHistorial} t={t} />
             ) : null}
           </div>

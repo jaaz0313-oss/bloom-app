@@ -6,7 +6,9 @@ import { jsPDF } from "jspdf";
 import autoTable, { type CellHookData } from "jspdf-autotable";
 import { buildPagosConAnticipo, type PagoRow } from "@/app/data/pagos";
 import {
+  dedupeProveedoresPorGrupo,
   getDepositoReembolsableMonto,
+  getProveedorGrupoCategorias,
   getProviderSaldoPendienteConPagos,
   hasDepositoReembolsable,
   hasProveedorValorDefinido,
@@ -120,6 +122,7 @@ function formatPagoConcepto(concepto: string | null): string {
 function buildProviderTableRows(
   provider: ProveedorRow,
   pagos: PagoRow[],
+  categoriaLabel: string,
 ): ProjectionTableRow[] {
   const rows: ProjectionTableRow[] = [];
   const valorDefinido = hasProveedorValorDefinido(provider.valor_total);
@@ -131,7 +134,7 @@ function buildProviderTableRows(
   rows.push({
     rowType: "valor",
     cells: [
-      provider.categoria,
+      categoriaLabel,
       provider.nombre,
       "Valor total",
       valorDefinido
@@ -199,8 +202,12 @@ function buildProjectionTableBody(
   proveedores: ProveedorRow[],
   pagosByProveedor: Record<string, PagoRow[]>,
 ): ProjectionTableRow[] {
-  return proveedores.flatMap((provider) =>
-    buildProviderTableRows(provider, pagosByProveedor[provider.id] ?? []),
+  return dedupeProveedoresPorGrupo(proveedores).flatMap((provider) =>
+    buildProviderTableRows(
+      provider,
+      pagosByProveedor[provider.id] ?? [],
+      getProveedorGrupoCategorias(proveedores, provider).join(", "),
+    ),
   );
 }
 
@@ -338,8 +345,8 @@ export function generateClienteProyeccionPdf(
     autoTable(doc, {
       startY: sectionStartY + 4,
       head: [["Categoría", "Proveedor", "Nota"]],
-      body: proveedoresSinCosto.map((provider) => [
-        provider.categoria,
+      body: dedupeProveedoresPorGrupo(proveedoresSinCosto).map((provider) => [
+        getProveedorGrupoCategorias(proveedoresSinCosto, provider).join(", "),
         provider.nombre,
         "Sin costo",
       ]),

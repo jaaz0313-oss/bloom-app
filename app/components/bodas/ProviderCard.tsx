@@ -6,8 +6,11 @@ import type { DraggableAttributes } from "@dnd-kit/core";
 import type { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
 import {
   getProviderSaldoPendienteConPagos,
+  getProveedorGrupoCategoriasCompaneras,
+  getProveedorGrupoPrimaryId,
   hasDepositoReembolsable,
   hasProveedorValorDefinido,
+  isProveedorGrupoPrimario,
   isProveedorSinCosto,
   parseProveedorValorInput,
   getDepositoReembolsableMonto,
@@ -49,10 +52,13 @@ import {
 
 type ProviderCardProps = {
   provider: ProveedorRow;
+  /** Lista completa de la boda, para resolver grupos multi-categoría. */
+  allProviders?: ProveedorRow[];
   bodaId: string;
   boda: CotizacionBodaContext;
   plannerName: string;
   pagos: PagoRow[];
+  pagosByProveedor?: Record<string, PagoRow[]>;
   notasReunion: NotaReunionRow[];
   currentUserId: string;
   role: UserRole;
@@ -110,10 +116,12 @@ function CotizacionWhatsAppButtons({
 
 export function ProviderCard({
   provider,
+  allProviders = [],
   bodaId,
   boda,
   plannerName,
   pagos,
+  pagosByProveedor = {},
   notasReunion,
   currentUserId,
   role,
@@ -146,15 +154,37 @@ export function ProviderCard({
   const canSendWhatsApp = hasPermission(role, "whatsapp.send");
   const isAdmin = role === "admin";
   const [comisionUpdating, setComisionUpdating] = useState(false);
+  const providersForGrupo =
+    allProviders.length > 0 ? allProviders : [provider];
+  const esPrimarioGrupo = isProveedorGrupoPrimario(providersForGrupo, provider);
+  const categoriasCompaneras = getProveedorGrupoCategoriasCompaneras(
+    providersForGrupo,
+    provider,
+  );
+  const primaryId = provider.grupo_id
+    ? getProveedorGrupoPrimaryId(providersForGrupo, provider.grupo_id)
+    : provider.id;
+  const primaryProvider =
+    primaryId != null
+      ? (providersForGrupo.find((p) => p.id === primaryId) ?? provider)
+      : provider;
+  const pagosParaSaldo = esPrimarioGrupo
+    ? pagos
+    : (pagosByProveedor[primaryProvider.id] ?? []);
   const showPayments =
+    esPrimarioGrupo &&
     (provider.estado === "contratado" || provider.estado === "en_negociacion") &&
     !isProveedorSinCosto(provider);
-  const saldoPendiente = getProviderSaldoPendienteConPagos(provider, pagos);
+  const saldoPendiente = getProviderSaldoPendienteConPagos(
+    primaryProvider,
+    pagosParaSaldo,
+  );
   const sinCosto = isProveedorSinCosto(provider);
   const hasWhatsAppTarget =
     Boolean(boda.whatsappGrupoLink?.trim()) ||
     Boolean(boda.telefonoNovia?.trim());
   const showPaymentReminder =
+    esPrimarioGrupo &&
     provider.estado === "contratado" &&
     !sinCosto &&
     saldoPendiente > 0 &&
@@ -356,6 +386,12 @@ export function ProviderCard({
 
     setEditSubmitting(true);
     try {
+      // En registros secundarios del grupo, anticipo/depósito no deben duplicarse.
+      const anticipoGuardar = esPrimarioGrupo ? Math.round(anticipo) : 0;
+      const depositoGuardar = esPrimarioGrupo
+        ? Math.round(depositoReembolsable)
+        : 0;
+
       const { error: updateError } = await supabase
         .from("proveedores")
         .update({
@@ -363,7 +399,7 @@ export function ProviderCard({
           categoria,
           descripcion_servicio: descripcionServicio || null,
           valor_total: Math.round(valorTotal),
-          anticipo: Math.round(anticipo),
+          anticipo: anticipoGuardar,
           fecha_saldo: fechaSaldo,
           banco,
           numero_cuenta: numeroCuenta,
@@ -379,7 +415,7 @@ export function ProviderCard({
           porcentaje_comision: daComision
             ? porcentajeComision
             : (provider.porcentaje_comision ?? 10),
-          deposito_reembolsable: Math.round(depositoReembolsable),
+          deposito_reembolsable: depositoGuardar,
         })
         .eq("id", provider.id);
 
@@ -705,6 +741,11 @@ export function ProviderCard({
               <span className="mt-1 block text-sm text-bloom-muted">
                 {provider.categoria}
               </span>
+              {categoriasCompaneras.length > 0 ? (
+                <span className="mt-1 block text-xs text-bloom-muted/90">
+                  Precio compartido con {categoriasCompaneras.join(", ")}
+                </span>
+              ) : null}
             </span>
             {sinCosto ? null : (
               <dl className="grid shrink-0 grid-cols-2 gap-x-5 gap-y-1 text-sm sm:text-right">
@@ -1294,23 +1335,32 @@ export function ProviderCard({
                     disabled={editSubmitting}
                   />
                 </Field>
-                <Field label="Anticipo">
-                  <input
-                    type="number"
-                    min={0}
-                    step={1}
-                    className={inputClass}
-                    value={editForm.anticipo}
-                    onChange={(e) =>
-                      setEditForm((s) => ({
-                        ...s,
-                        anticipo: e.target.value,
-                      }))
-                    }
-                    placeholder="Ej: 1000000"
-                    disabled={editSubmitting}
-                  />
-                </Field>
+                {esPrimarioGrupo ? (
+                  <Field label="Anticipo">
+                    <input
+                      type="number"
+                      min={0}
+                      step={1}
+                      className={inputClass}
+                      value={editForm.anticipo}
+                      onChange={(e) =>
+                        setEditForm((s) => ({
+                          ...s,
+                          anticipo: e.target.value,
+                        }))
+                      }
+                      placeholder="Ej: 1000000"
+                      disabled={editSubmitting}
+                    />
+                  </Field>
+                ) : (
+                  <div className="flex items-end">
+                    <p className="text-xs text-bloom-muted">
+                      Anticipo y pagos se gestionan en la categoría primaria del
+                      grupo.
+                    </p>
+                  </div>
+                )}
               </div>
 
               <Field label="Fecha de saldo">
@@ -1328,28 +1378,30 @@ export function ProviderCard({
                 />
               </Field>
 
-              <div className="rounded-xl border border-sky-200/80 bg-sky-50/40 p-4 space-y-4">
-                <p className="text-sm font-medium text-bloom-ink">
-                  Depósito reembolsable
-                </p>
-                <Field label="Monto del depósito">
-                  <input
-                    type="number"
-                    min={0}
-                    step={1}
-                    className={inputClass}
-                    value={editForm.depositoReembolsable}
-                    onChange={(e) =>
-                      setEditForm((s) => ({
-                        ...s,
-                        depositoReembolsable: e.target.value,
-                      }))
-                    }
-                    placeholder="Opcional"
-                    disabled={editSubmitting}
-                  />
-                </Field>
-              </div>
+              {esPrimarioGrupo ? (
+                <div className="rounded-xl border border-sky-200/80 bg-sky-50/40 p-4 space-y-4">
+                  <p className="text-sm font-medium text-bloom-ink">
+                    Depósito reembolsable
+                  </p>
+                  <Field label="Monto del depósito">
+                    <input
+                      type="number"
+                      min={0}
+                      step={1}
+                      className={inputClass}
+                      value={editForm.depositoReembolsable}
+                      onChange={(e) =>
+                        setEditForm((s) => ({
+                          ...s,
+                          depositoReembolsable: e.target.value,
+                        }))
+                      }
+                      placeholder="Opcional"
+                      disabled={editSubmitting}
+                    />
+                  </Field>
+                </div>
+              ) : null}
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field label="Banco">
