@@ -267,6 +267,7 @@ export type ClienteUiCopy = {
   totalValue: string;
   depositPaid: string;
   pendingBalance: string;
+  includedInProvider: (primaryName: string) => string;
   balanceDueDate: string;
   paymentHistory: string;
   noPaymentsRecorded: string;
@@ -391,6 +392,7 @@ const UI_ES: ClienteUiCopy = {
   totalValue: "Valor total",
   depositPaid: "Anticipo pagado",
   pendingBalance: "Saldo pendiente",
+  includedInProvider: (primaryName) => `Incluido en ${primaryName}`,
   balanceDueDate: "Fecha de pago del saldo",
   paymentHistory: "Historial de pagos",
   noPaymentsRecorded: "No hay pagos registrados.",
@@ -546,6 +548,7 @@ const UI_EN: ClienteUiCopy = {
   totalValue: "Total amount",
   depositPaid: "Deposit paid",
   pendingBalance: "Balance due",
+  includedInProvider: (primaryName) => `Included in ${primaryName}`,
   balanceDueDate: "Balance due date",
   paymentHistory: "Payment history",
   noPaymentsRecorded: "No payments recorded.",

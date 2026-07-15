@@ -147,11 +147,22 @@ function ClienteProveedorAccordionItem({
             />
             <SummaryItem
               label={t.pendingBalance}
-              value={formatClienteProveedorValue(
-                hasProveedorValorDefinido(provider.valor_total) ? saldo : 0,
-                locale,
-              )}
-              emphasized
+              value={
+                !esPrimarioGrupo && categoriasCompaneras.length > 0
+                  ? t.includedInProvider(
+                      primaryProvider.nombre.trim().toLowerCase() ===
+                        provider.nombre.trim().toLowerCase()
+                        ? `${primaryProvider.nombre} (${primaryProvider.categoria})`
+                        : primaryProvider.nombre,
+                    )
+                  : formatClienteProveedorValue(
+                      hasProveedorValorDefinido(provider.valor_total)
+                        ? saldo
+                        : 0,
+                      locale,
+                    )
+              }
+              emphasized={esPrimarioGrupo}
             />
             <SummaryItem
               label={t.balanceDueDate}

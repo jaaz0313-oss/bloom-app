@@ -149,6 +149,10 @@ export function ProviderCard({
     provider.notas_cotizacion ?? "",
   );
   const [whatsappLocale, setWhatsappLocale] = useState<WhatsAppLocale>("es");
+  const [vincularOpen, setVincularOpen] = useState(false);
+  const [vincularTargetId, setVincularTargetId] = useState("");
+  const [vincularSubmitting, setVincularSubmitting] = useState(false);
+  const [vincularError, setVincularError] = useState<string | null>(null);
 
   const canManage = hasPermission(role, "providers.manage");
   const canSendWhatsApp = hasPermission(role, "whatsapp.send");
@@ -189,6 +193,170 @@ export function ProviderCard({
     !sinCosto &&
     saldoPendiente > 0 &&
     canSendWhatsApp;
+
+  const candidatosVinculo = providersForGrupo
+    .filter(
+      (p) =>
+        p.id !== provider.id &&
+        p.estado !== "descartado" &&
+        !(
+          provider.grupo_id &&
+          p.grupo_id &&
+          provider.grupo_id === p.grupo_id
+        ),
+    )
+    .slice()
+    .sort((a, b) => {
+      const byName = a.nombre.localeCompare(b.nombre, "es");
+      if (byName !== 0) return byName;
+      return a.categoria.localeCompare(b.categoria, "es");
+    });
+
+  async function handleVincularProveedor(e: React.FormEvent) {
+    e.preventDefault();
+    if (!canManage || !supabase) {
+      setVincularError(
+        !supabase
+          ? "Supabase no está configurado."
+          : "No tienes permiso para vincular proveedores.",
+      );
+      return;
+    }
+
+    const other = providersForGrupo.find((p) => p.id === vincularTargetId);
+    if (!other) {
+      setVincularError("Selecciona un proveedor para vincular.");
+      return;
+    }
+
+    setVincularSubmitting(true);
+    setVincularError(null);
+    try {
+      const memberIds = new Set<string>([provider.id, other.id]);
+      for (const p of providersForGrupo) {
+        if (
+          (provider.grupo_id && p.grupo_id === provider.grupo_id) ||
+          (other.grupo_id && p.grupo_id === other.grupo_id)
+        ) {
+          memberIds.add(p.id);
+        }
+      }
+
+      const grupoId =
+        provider.grupo_id ?? other.grupo_id ?? crypto.randomUUID();
+
+      const { error: updateGrupoError } = await supabase
+        .from("proveedores")
+        .update({ grupo_id: grupoId })
+        .in("id", [...memberIds]);
+
+      if (updateGrupoError) {
+        setVincularError(updateGrupoError.message);
+        return;
+      }
+
+      const members = providersForGrupo
+        .filter((p) => memberIds.has(p.id))
+        .map((p) => ({ ...p, grupo_id: grupoId }))
+        .sort((a, b) => {
+          const byDate = a.created_at.localeCompare(b.created_at);
+          if (byDate !== 0) return byDate;
+          return a.id.localeCompare(b.id);
+        });
+
+      const primary = members[0];
+      const secondaries = members.slice(1);
+      if (primary && secondaries.length > 0) {
+        const primaryAnticipo = Math.max(Number(primary.anticipo) || 0, 0);
+        let anticipoExtra = 0;
+        let depositoExtra = 0;
+
+        for (const secondary of secondaries) {
+          const secondaryAnticipo = Math.max(
+            Number(secondary.anticipo) || 0,
+            0,
+          );
+          // Si el primario ya tiene anticipo, se asume duplicado en secundarios.
+          if (primaryAnticipo === 0 && secondaryAnticipo > 0) {
+            anticipoExtra += secondaryAnticipo;
+          }
+          depositoExtra += getDepositoReembolsableMonto(secondary);
+
+          const { error: movePagosError } = await supabase
+            .from("pagos")
+            .update({ proveedor_id: primary.id })
+            .eq("proveedor_id", secondary.id);
+
+          if (movePagosError) {
+            setVincularError(
+              `Grupo vinculado, pero no se pudieron mover pagos: ${movePagosError.message}`,
+            );
+            router.refresh();
+            return;
+          }
+        }
+
+        const primaryUpdate: {
+          anticipo?: number;
+          deposito_reembolsable?: number;
+        } = {};
+        if (anticipoExtra > 0) {
+          primaryUpdate.anticipo = primaryAnticipo + anticipoExtra;
+        }
+        if (
+          depositoExtra > 0 &&
+          getDepositoReembolsableMonto(primary) === 0
+        ) {
+          primaryUpdate.deposito_reembolsable = depositoExtra;
+        }
+
+        if (Object.keys(primaryUpdate).length > 0) {
+          const { error: primaryError } = await supabase
+            .from("proveedores")
+            .update(primaryUpdate)
+            .eq("id", primary.id);
+
+          if (primaryError) {
+            setVincularError(
+              `Grupo vinculado, pero no se pudo consolidar anticipo/depósito: ${primaryError.message}`,
+            );
+            router.refresh();
+            return;
+          }
+        }
+
+        const { error: clearError } = await supabase
+          .from("proveedores")
+          .update({ anticipo: 0, deposito_reembolsable: 0 })
+          .in(
+            "id",
+            secondaries.map((p) => p.id),
+          );
+
+        if (clearError) {
+          setVincularError(
+            `Grupo vinculado, pero no se pudo limpiar anticipo/depósito de secundarios: ${clearError.message}`,
+          );
+          router.refresh();
+          return;
+        }
+      }
+
+      await logAuditoria({
+        accion: AUDITORIA_ACCIONES.ESTADO_PROVEEDOR,
+        entidad: "proveedor",
+        entidadId: provider.id,
+        bodaNombre: boda.nombrePareja,
+        detalle: `Grupo vinculado: ${provider.nombre} (${provider.categoria}) ↔ ${other.nombre} (${other.categoria})`,
+      });
+
+      setVincularOpen(false);
+      setVincularTargetId("");
+      router.refresh();
+    } finally {
+      setVincularSubmitting(false);
+    }
+  }
 
   function handlePaymentReminder() {
     const message = buildPaymentReminderDashboardMessage(
@@ -758,9 +926,19 @@ export function ProviderCard({
                 <div>
                   <dt className="text-bloom-muted">Saldo pendiente</dt>
                   <dd className="font-medium text-bloom-ink">
-                    {hasProveedorValorDefinido(provider.valor_total)
-                      ? formatCurrency(saldoPendiente)
-                      : formatProveedorValorTotal(0)}
+                    {!esPrimarioGrupo && categoriasCompaneras.length > 0 ? (
+                      <span className="text-bloom-muted">
+                        Incluido en {primaryProvider.nombre}
+                        {primaryProvider.nombre.trim().toLowerCase() ===
+                        provider.nombre.trim().toLowerCase()
+                          ? ` (${primaryProvider.categoria})`
+                          : ""}
+                      </span>
+                    ) : hasProveedorValorDefinido(provider.valor_total) ? (
+                      formatCurrency(saldoPendiente)
+                    ) : (
+                      formatProveedorValorTotal(0)
+                    )}
                   </dd>
                 </div>
               </dl>
@@ -1048,10 +1226,25 @@ export function ProviderCard({
                   setError(null);
                   setDeleteOpen(true);
                 }}
-                disabled={updating || editSubmitting || deleting}
+                disabled={updating || editSubmitting || deleting || vincularSubmitting}
                 className="rounded-full border border-red-200 bg-red-50 px-4 py-2 text-xs font-medium text-red-700 transition-colors hover:bg-red-100 disabled:opacity-60"
               >
                 Eliminar
+              </button>
+            )}
+
+            {canManage && candidatosVinculo.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setVincularError(null);
+                  setVincularTargetId("");
+                  setVincularOpen(true);
+                }}
+                disabled={updating || editSubmitting || deleting || vincularSubmitting}
+                className="rounded-full border border-bloom-border bg-bloom-canvas px-4 py-2 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-border disabled:opacity-60"
+              >
+                Vincular con otro proveedor
               </button>
             )}
           </div>
@@ -1654,6 +1847,80 @@ export function ProviderCard({
                 {deleting ? "Eliminando…" : "Eliminar"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {vincularOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="vincular-provider-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !vincularSubmitting) {
+              setVincularOpen(false);
+            }
+          }}
+        >
+          <div className="w-full max-w-md rounded-2xl border border-bloom-border bg-bloom-surface p-6 shadow-lg">
+            <h2
+              id="vincular-provider-title"
+              className="font-display text-xl text-bloom-ink"
+            >
+              Vincular con otro proveedor
+            </h2>
+            <p className="mt-3 text-sm text-bloom-muted">
+              Comparte el mismo valor en la proyección. El saldo y los pagos
+              quedan en el proveedor primario del grupo (el más antiguo).
+            </p>
+
+            <form className="mt-5 space-y-4" onSubmit={handleVincularProveedor}>
+              <label className="block text-sm">
+                <span className="text-bloom-muted">Proveedor</span>
+                <select
+                  className="mt-1 w-full rounded-xl border border-bloom-border bg-bloom-canvas px-3 py-2.5 text-sm text-bloom-ink outline-none focus:border-bloom-accent"
+                  value={vincularTargetId}
+                  onChange={(e) => setVincularTargetId(e.target.value)}
+                  disabled={vincularSubmitting}
+                  required
+                >
+                  <option value="">Selecciona un proveedor…</option>
+                  {candidatosVinculo.map((candidato) => (
+                    <option key={candidato.id} value={candidato.id}>
+                      {candidato.nombre} · {candidato.categoria}
+                      {candidato.estado !== "contratado"
+                        ? ` (${PROVIDER_STATUS_LABELS[candidato.estado]})`
+                        : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {vincularError && (
+                <p className="text-sm text-red-700" role="alert">
+                  {vincularError}
+                </p>
+              )}
+
+              <div className="flex items-center justify-end gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setVincularOpen(false)}
+                  disabled={vincularSubmitting}
+                  className="rounded-full border border-bloom-border bg-bloom-surface px-5 py-2.5 text-sm font-medium text-bloom-ink transition-colors hover:bg-bloom-border disabled:opacity-60"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={vincularSubmitting || !vincularTargetId}
+                  className="inline-flex items-center justify-center rounded-full bg-bloom-accent px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-bloom-accent-hover disabled:opacity-60"
+                >
+                  {vincularSubmitting ? "Vinculando…" : "Vincular"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
