@@ -1,9 +1,11 @@
 import { formatCurrency } from "@/lib/format";
+import type { DepositoReembolsableLine } from "@/app/data/providers";
 
 type PaymentProjectionProps = {
   totalContratado: number;
   totalPagado: number;
   saldoPendiente: number;
+  depositos?: DepositoReembolsableLine[];
   embedded?: boolean;
 };
 
@@ -11,6 +13,7 @@ export function PaymentProjection({
   totalContratado,
   totalPagado,
   saldoPendiente,
+  depositos = [],
   embedded = false,
 }: PaymentProjectionProps) {
   const shellClass = embedded
@@ -62,6 +65,32 @@ export function PaymentProjection({
           </dd>
         </div>
       </dl>
+
+      {depositos.length > 0 && (
+        <div className="mt-5 space-y-2 border-t border-bloom-border/70 pt-4">
+          <p className="text-xs font-medium uppercase tracking-wider text-bloom-muted">
+            Depósitos reembolsables
+          </p>
+          <p className="text-xs text-bloom-muted">
+            No se suman al total contratado
+          </p>
+          <ul className="space-y-2">
+            {depositos.map((deposito) => (
+              <li
+                key={deposito.proveedorId}
+                className="flex flex-wrap items-baseline justify-between gap-2 rounded-xl border border-sky-200/80 bg-sky-50/60 px-4 py-3 text-sm"
+              >
+                <p className="min-w-0 font-medium text-bloom-ink">
+                  Depósito reembolsable · {deposito.proveedorNombre}
+                </p>
+                <p className="shrink-0 font-semibold text-sky-800">
+                  {formatCurrency(deposito.monto)}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </Shell>
   );
 }

@@ -32,6 +32,7 @@ import { groupPagosByProveedor, type PagoRow } from "@/app/data/pagos";
 import type { ProveedorSugeridoWithSelection } from "@/app/data/proveedores-sugeridos";
 import {
   computePaymentProjection,
+  listDepositosReembolsables,
   type ProveedorRow,
 } from "@/app/data/providers";
 import type { TastingRow } from "@/app/data/tastings";
@@ -108,10 +109,12 @@ export function BodaDetailSections({
   driveFolderUrl = null,
 }: BodaDetailSectionsProps) {
   const projection = computePaymentProjection(providers, pagosByProveedor);
+  const depositos = listDepositosReembolsables(providers);
   const notasReunionByProveedor = groupNotasReunionByProveedor(notasReunion);
   const hasPaymentContent =
     projection.totalContratado > 0 ||
     projection.totalPagado > 0 ||
+    depositos.length > 0 ||
     providers.length > 0;
   const canManageSugeridos = canManageProveedoresSugeridos(role);
 
@@ -267,6 +270,7 @@ export function BodaDetailSections({
           totalContratado={projection.totalContratado}
           totalPagado={projection.totalPagado}
           saldoPendiente={projection.saldoPendiente}
+          depositos={depositos}
         />
       </BodaAccordionSection>
 

@@ -6,9 +6,11 @@ import type { DraggableAttributes } from "@dnd-kit/core";
 import type { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
 import {
   getProviderSaldoPendienteConPagos,
+  hasDepositoReembolsable,
   hasProveedorValorDefinido,
   isProveedorSinCosto,
   parseProveedorValorInput,
+  getDepositoReembolsableMonto,
   PROVIDER_STATUS_LABELS,
   PROVIDER_STATUS_STYLES,
   type ProveedorRow,
@@ -197,6 +199,7 @@ export function ProviderCard({
     notas: string;
     daComision: boolean;
     porcentajeComision: string;
+    depositoReembolsable: string;
   };
 
   const [editOpen, setEditOpen] = useState(false);
@@ -229,6 +232,10 @@ export function ProviderCard({
     porcentajeComision: String(
       provider.porcentaje_comision != null ? provider.porcentaje_comision : 10,
     ),
+    depositoReembolsable:
+      getDepositoReembolsableMonto(provider) > 0
+        ? String(getDepositoReembolsableMonto(provider))
+        : "",
   });
 
   useEffect(() => {
@@ -259,6 +266,10 @@ export function ProviderCard({
       porcentajeComision: String(
         provider.porcentaje_comision != null ? provider.porcentaje_comision : 10,
       ),
+      depositoReembolsable:
+        getDepositoReembolsableMonto(provider) > 0
+          ? String(getDepositoReembolsableMonto(provider))
+          : "",
     });
   }, [editOpen, provider]);
 
@@ -336,6 +347,13 @@ export function ProviderCard({
       porcentajeComision = pct;
     }
 
+    const depositoTrimmed = editForm.depositoReembolsable.trim();
+    const depositoReembolsable =
+      depositoTrimmed === "" ? 0 : Number(depositoTrimmed);
+    if (!Number.isFinite(depositoReembolsable) || depositoReembolsable < 0) {
+      return setEditError("Ingresa un depósito reembolsable válido (>= 0).");
+    }
+
     setEditSubmitting(true);
     try {
       const { error: updateError } = await supabase
@@ -361,6 +379,7 @@ export function ProviderCard({
           porcentaje_comision: daComision
             ? porcentajeComision
             : (provider.porcentaje_comision ?? 10),
+          deposito_reembolsable: Math.round(depositoReembolsable),
         })
         .eq("id", provider.id);
 
@@ -719,6 +738,15 @@ export function ProviderCard({
         >
           <div className="min-h-0 overflow-hidden">
             <div className="border-t border-bloom-border/70 px-5 pb-5 pt-4 sm:px-6 sm:pb-6">
+          {hasDepositoReembolsable(provider) && (
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <span className="inline-flex rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-medium text-sky-800">
+                Depósito reembolsable:{" "}
+                {formatCurrency(getDepositoReembolsableMonto(provider))}
+              </span>
+            </div>
+          )}
+
           {isAdmin && provider.da_comision && (
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex rounded-full bg-violet-100 px-2.5 py-0.5 text-xs font-medium text-violet-800">
@@ -1299,6 +1327,29 @@ export function ProviderCard({
                   disabled={editSubmitting}
                 />
               </Field>
+
+              <div className="rounded-xl border border-sky-200/80 bg-sky-50/40 p-4 space-y-4">
+                <p className="text-sm font-medium text-bloom-ink">
+                  Depósito reembolsable
+                </p>
+                <Field label="Monto del depósito">
+                  <input
+                    type="number"
+                    min={0}
+                    step={1}
+                    className={inputClass}
+                    value={editForm.depositoReembolsable}
+                    onChange={(e) =>
+                      setEditForm((s) => ({
+                        ...s,
+                        depositoReembolsable: e.target.value,
+                      }))
+                    }
+                    placeholder="Opcional"
+                    disabled={editSubmitting}
+                  />
+                </Field>
+              </div>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field label="Banco">

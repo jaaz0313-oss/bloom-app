@@ -36,6 +36,7 @@ export type ProveedorRow = {
   comision_recibida_at: string | null;
   orden: number | null;
   sin_costo: boolean;
+  deposito_reembolsable: number | null;
   created_at: string;
 };
 
@@ -50,6 +51,40 @@ export function hasProveedorValorDefinido(
 ): boolean {
   const valor = Number(valorTotal ?? 0);
   return Number.isFinite(valor) && valor > 0;
+}
+
+export function getDepositoReembolsableMonto(
+  provider: Pick<ProveedorRow, "deposito_reembolsable">,
+): number {
+  const monto = Number(provider.deposito_reembolsable ?? 0);
+  return Number.isFinite(monto) && monto > 0 ? monto : 0;
+}
+
+export function hasDepositoReembolsable(
+  provider: Pick<ProveedorRow, "deposito_reembolsable">,
+): boolean {
+  return getDepositoReembolsableMonto(provider) > 0;
+}
+
+export type DepositoReembolsableLine = {
+  proveedorId: string;
+  proveedorNombre: string;
+  categoria: string;
+  monto: number;
+};
+
+/** Depósitos registrados (monto > 0). No forman parte del total contratado. */
+export function listDepositosReembolsables(
+  providers: ProveedorRow[],
+): DepositoReembolsableLine[] {
+  return providers
+    .filter((provider) => hasDepositoReembolsable(provider))
+    .map((provider) => ({
+      proveedorId: provider.id,
+      proveedorNombre: provider.nombre,
+      categoria: provider.categoria,
+      monto: getDepositoReembolsableMonto(provider),
+    }));
 }
 
 export function parseProveedorValorInput(value: string): number {

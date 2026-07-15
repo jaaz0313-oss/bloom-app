@@ -6,7 +6,9 @@ import { jsPDF } from "jspdf";
 import autoTable, { type CellHookData } from "jspdf-autotable";
 import { buildPagosConAnticipo, type PagoRow } from "@/app/data/pagos";
 import {
+  getDepositoReembolsableMonto,
   getProviderSaldoPendienteConPagos,
+  hasDepositoReembolsable,
   hasProveedorValorDefinido,
   type ProveedorRow,
 } from "@/app/data/providers";
@@ -33,7 +35,7 @@ const COLORS = {
 
 type ProjectionTableRow = {
   cells: [string, string, string, string, string];
-  rowType: "valor" | "pago" | "sin-pagos" | "saldo" | "spacer";
+  rowType: "valor" | "pago" | "sin-pagos" | "saldo" | "deposito" | "spacer";
 };
 
 const TABLE_THEME = {
@@ -170,6 +172,21 @@ function buildProviderTableRows(
     ],
   });
 
+  if (hasDepositoReembolsable(provider)) {
+    const montoDeposito = getDepositoReembolsableMonto(provider);
+
+    rows.push({
+      rowType: "deposito",
+      cells: [
+        "",
+        "",
+        "Depósito reembolsable",
+        formatCurrency(montoDeposito),
+        "",
+      ],
+    });
+  }
+
   rows.push({
     rowType: "spacer",
     cells: ["", "", "", "", ""],
@@ -198,6 +215,10 @@ function styleProjectionTableRow(
 
   if (row.rowType === "valor" || row.rowType === "saldo") {
     data.cell.styles.fontStyle = "bold";
+  }
+
+  if (row.rowType === "deposito") {
+    data.cell.styles.textColor = COLORS.accent;
   }
 
   if (row.rowType === "sin-pagos") {
