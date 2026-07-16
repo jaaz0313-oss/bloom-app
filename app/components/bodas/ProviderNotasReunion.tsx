@@ -42,6 +42,15 @@ function emptyForm(): FormState {
   };
 }
 
+function canEditNota(
+  nota: NotaReunionRow,
+  currentUserId: string,
+  role: UserRole,
+): boolean {
+  if (role === "admin" || role === "lider") return true;
+  return Boolean(nota.creado_por && nota.creado_por === currentUserId);
+}
+
 export function ProviderNotasReunion({
   bodaId,
   bodaNombre,
@@ -61,6 +70,9 @@ export function ProviderNotasReunion({
   const [form, setForm] = useState<FormState>(emptyForm);
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editResumen, setEditResumen] = useState("");
+  const [editSubmitting, setEditSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const sortedNotas = useMemo(
@@ -73,8 +85,23 @@ export function ProviderNotasReunion({
 
   function openForm() {
     setError(null);
+    setEditingId(null);
     setForm(emptyForm());
     setFormOpen(true);
+  }
+
+  function startEdit(nota: NotaReunionRow) {
+    if (!canEditNota(nota, currentUserId, role)) return;
+    setError(null);
+    setFormOpen(false);
+    setEditingId(nota.id);
+    setEditResumen(nota.resumen);
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setEditResumen("");
+    setError(null);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -140,6 +167,57 @@ export function ProviderNotasReunion({
     }
   }
 
+  async function handleSaveEdit(nota: NotaReunionRow) {
+    if (!canEditNota(nota, currentUserId, role)) return;
+
+    const resumen = editResumen.trim();
+    if (!resumen) {
+      setError("Escribe el resumen de la reunión.");
+      return;
+    }
+
+    if (!supabase) {
+      setError("Supabase no está configurado.");
+      return;
+    }
+
+    setEditSubmitting(true);
+    setError(null);
+    try {
+      const { data, error: updateError } = await supabase
+        .from("notas_reunion")
+        .update({ resumen })
+        .eq("id", nota.id)
+        .select("*")
+        .single();
+
+      if (updateError) {
+        setError(updateError.message);
+        return;
+      }
+
+      if (data) {
+        const updated = data as NotaReunionRow;
+        setNotas((current) =>
+          current.map((n) => (n.id === updated.id ? updated : n)),
+        );
+        await logAuditoria({
+          accion: AUDITORIA_ACCIONES.NOTA_REUNION_EDITADA,
+          entidad: "nota_reunion",
+          entidadId: updated.id,
+          bodaNombre,
+          detalle: `${provider.nombre} · ${resumen.slice(0, 120)}${resumen.length > 120 ? "…" : ""}`,
+        });
+      }
+
+      setEditingId(null);
+      setEditResumen("");
+      router.refresh();
+    } finally {
+      setEditSubmitting(false);
+    }
+  }
+
   async function handleDelete(notaId: string) {
     if (!supabase || role !== "admin") return;
 
@@ -157,6 +235,10 @@ export function ProviderNotasReunion({
       }
 
       setNotas((current) => current.filter((n) => n.id !== notaId));
+      if (editingId === notaId) {
+        setEditingId(null);
+        setEditResumen("");
+      }
       router.refresh();
     } finally {
       setDeletingId(null);
@@ -240,40 +322,111 @@ export function ProviderNotasReunion({
         </p>
       ) : (
         <ul className="mt-4 space-y-3">
-          {sortedNotas.map((nota) => (
-            <li
-              key={nota.id}
-              className="rounded-xl border border-bloom-border bg-bloom-canvas/60 px-4 py-3"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-medium text-bloom-muted">
-                    {formatDateTimeStable(nota.fecha)}
-                  </p>
-                  <p className="mt-2 whitespace-pre-wrap text-sm text-bloom-ink">
-                    {nota.resumen}
-                  </p>
-                  <p className="mt-2 text-xs text-bloom-muted">
-                    Registrado por{" "}
-                    {nota.creado_por_nombre?.trim() || "Equipo"}
-                  </p>
+          {sortedNotas.map((nota) => {
+            const isEditing = editingId === nota.id;
+            const canEdit = canEditNota(nota, currentUserId, role);
+            const busy =
+              editSubmitting || deletingId === nota.id || submitting;
+
+            return (
+              <li
+                key={nota.id}
+                className="rounded-xl border border-bloom-border bg-bloom-canvas/60 px-4 py-3"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium text-bloom-muted">
+                      {formatDateTimeStable(nota.fecha)}
+                    </p>
+
+                    {isEditing ? (
+                      <div className="mt-2 space-y-3">
+                        <textarea
+                          rows={4}
+                          className={textareaClass}
+                          value={editResumen}
+                          onChange={(e) => setEditResumen(e.target.value)}
+                          disabled={editSubmitting}
+                          autoFocus
+                        />
+                        <div className="flex flex-wrap justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={cancelEdit}
+                            disabled={editSubmitting}
+                            className="rounded-full border border-bloom-border bg-bloom-surface px-4 py-2 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-border disabled:opacity-60"
+                          >
+                            Cancelar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSaveEdit(nota)}
+                            disabled={editSubmitting}
+                            className="inline-flex items-center justify-center rounded-full bg-bloom-accent px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-bloom-accent-hover disabled:opacity-60"
+                          >
+                            {editSubmitting ? "Guardando…" : "Guardar"}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="mt-2 whitespace-pre-wrap text-sm text-bloom-ink">
+                        {nota.resumen}
+                      </p>
+                    )}
+
+                    <p className="mt-2 text-xs text-bloom-muted">
+                      Registrado por{" "}
+                      {nota.creado_por_nombre?.trim() || "Equipo"}
+                    </p>
+                  </div>
+
+                  {!isEditing && (
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      {canEdit && (
+                        <button
+                          type="button"
+                          onClick={() => startEdit(nota)}
+                          disabled={busy}
+                          aria-label="Editar nota"
+                          title="Editar nota"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-bloom-border bg-bloom-surface text-bloom-ink transition-colors hover:bg-bloom-border disabled:opacity-60"
+                        >
+                          <PencilIcon />
+                        </button>
+                      )}
+                      {role === "admin" && (
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(nota.id)}
+                          disabled={deletingId === nota.id}
+                          className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-medium text-red-700 transition-colors hover:bg-red-100 disabled:opacity-60"
+                        >
+                          {deletingId === nota.id ? "Eliminando…" : "Eliminar"}
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
-                {role === "admin" && (
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(nota.id)}
-                    disabled={deletingId === nota.id}
-                    className="shrink-0 rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-medium text-red-700 transition-colors hover:bg-red-100 disabled:opacity-60"
-                  >
-                    {deletingId === nota.id ? "Eliminando…" : "Eliminar"}
-                  </button>
-                )}
-              </div>
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ul>
       )}
     </section>
+  );
+}
+
+function PencilIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      className="h-3.5 w-3.5"
+      aria-hidden
+    >
+      <path d="m2.695 14.762-1.262 3.155a.5.5 0 0 0 .65.65l3.155-1.262a4 4 0 0 0 1.343-.886L17.5 5.501a2.121 2.121 0 0 0-3-3L3.58 13.419a4 4 0 0 0-.885 1.343Z" />
+    </svg>
   );
 }
 
