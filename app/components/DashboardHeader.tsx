@@ -35,6 +35,7 @@ const BASE_NAV_ITEMS: NavItem[] = [
 ];
 
 const ADMIN_NAV_ITEMS: NavItem[] = [
+  { href: "/admin", label: "Admin" },
   { href: "/admin/reporte-financiero", label: "Reporte financiero" },
   { href: "/admin/comisiones", label: "Comisiones" },
   { href: "/admin/auditoria", label: "Auditoría" },

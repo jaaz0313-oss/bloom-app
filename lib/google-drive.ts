@@ -63,24 +63,176 @@ async function shareFolderWithTeamWriters(
 ) {
   for (const emailAddress of BODA_DRIVE_TEAM_WRITER_EMAILS) {
     try {
-      await drive.permissions.create({
-        fileId,
-        sendNotificationEmail: false,
-        requestBody: {
-          type: "user",
-          role: "writer",
-          emailAddress,
-        },
-      });
+      await shareFolderWithWriter(drive, fileId, emailAddress);
     } catch (error) {
-      if (!isDrivePermissionAlreadyExistsError(error)) {
-        console.error(
-          `No se pudo compartir la carpeta ${fileId} con ${emailAddress}:`,
-          error,
-        );
-      }
+      console.error(
+        `No se pudo compartir la carpeta ${fileId} con ${emailAddress}:`,
+        error,
+      );
     }
   }
+}
+
+async function shareFolderWithWriter(
+  drive: ReturnType<typeof getDriveClient>,
+  fileId: string,
+  emailAddress: string,
+) {
+  try {
+    await drive.permissions.create({
+      fileId,
+      sendNotificationEmail: false,
+      requestBody: {
+        type: "user",
+        role: "writer",
+        emailAddress,
+      },
+    });
+  } catch (error) {
+    if (isDrivePermissionAlreadyExistsError(error)) {
+      return;
+    }
+    throw error;
+  }
+}
+
+async function listChildFolders(
+  drive: ReturnType<typeof getDriveClient>,
+  parentFolderId: string,
+): Promise<Array<{ id: string; name: string | null }>> {
+  const { data } = await drive.files.list({
+    q: `'${parentFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+    fields: "files(id, name)",
+    pageSize: 100,
+    supportsAllDrives: true,
+    includeItemsFromAllDrives: true,
+  });
+
+  return (data.files ?? [])
+    .filter((file): file is { id: string; name?: string | null } =>
+      Boolean(file.id),
+    )
+    .map((file) => ({
+      id: file.id,
+      name: file.name ?? null,
+    }));
+}
+
+export type DriveShareFolderResult = {
+  folderId: string;
+  folderName: string | null;
+  bodaId: string;
+  kind: "principal" | "subcarpeta";
+  ok: boolean;
+  error?: string;
+};
+
+export type ShareRegisteredFoldersSummary = {
+  email: string;
+  total: number;
+  shared: number;
+  failed: number;
+  results: DriveShareFolderResult[];
+};
+
+/** Comparte todas las carpetas registradas (y subcarpetas hijas) con un writer. */
+export async function shareAllRegisteredFoldersWithWriter(
+  emailAddress: string,
+): Promise<ShareRegisteredFoldersSummary> {
+  const drive = getDriveClient();
+  const { data, error } = await supabaseAdmin
+    .from("boda_drive_folders")
+    .select("boda_id, drive_folder_id, folder_name")
+    .order("created_at", { ascending: true });
+
+  if (error) throw new Error(error.message);
+
+  const folders = (data ?? []) as Array<{
+    boda_id: string;
+    drive_folder_id: string;
+    folder_name: string | null;
+  }>;
+
+  const results: DriveShareFolderResult[] = [];
+
+  for (const folder of folders) {
+    try {
+      await shareFolderWithWriter(drive, folder.drive_folder_id, emailAddress);
+      results.push({
+        folderId: folder.drive_folder_id,
+        folderName: folder.folder_name,
+        bodaId: folder.boda_id,
+        kind: "principal",
+        ok: true,
+      });
+    } catch (shareError) {
+      results.push({
+        folderId: folder.drive_folder_id,
+        folderName: folder.folder_name,
+        bodaId: folder.boda_id,
+        kind: "principal",
+        ok: false,
+        error:
+          shareError instanceof Error
+            ? shareError.message
+            : "Error desconocido al compartir",
+      });
+      continue;
+    }
+
+    try {
+      const children = await listChildFolders(drive, folder.drive_folder_id);
+      for (const child of children) {
+        try {
+          await shareFolderWithWriter(drive, child.id, emailAddress);
+          results.push({
+            folderId: child.id,
+            folderName: child.name,
+            bodaId: folder.boda_id,
+            kind: "subcarpeta",
+            ok: true,
+          });
+        } catch (childError) {
+          results.push({
+            folderId: child.id,
+            folderName: child.name,
+            bodaId: folder.boda_id,
+            kind: "subcarpeta",
+            ok: false,
+            error:
+              childError instanceof Error
+                ? childError.message
+                : "Error desconocido al compartir subcarpeta",
+          });
+        }
+      }
+    } catch (listError) {
+      results.push({
+        folderId: folder.drive_folder_id,
+        folderName: folder.folder_name
+          ? `${folder.folder_name} (subcarpetas)`
+          : "Subcarpetas",
+        bodaId: folder.boda_id,
+        kind: "subcarpeta",
+        ok: false,
+        error:
+          listError instanceof Error
+            ? listError.message
+            : "No se pudieron listar las subcarpetas",
+      });
+    }
+  }
+
+  const shared = results.filter((result) => result.ok).length;
+  const failed = results.length - shared;
+
+  return {
+    email: emailAddress,
+    total: results.length,
+    shared,
+    failed,
+    results,
+  };
 }
 
 async function configureFolderSharing(
