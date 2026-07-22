@@ -295,6 +295,23 @@ export async function createDriveFolderForBoda(
     return existing;
   }
 
+  return createAndPersistDriveFolder(bodaId, bodaNombre, createdBy);
+}
+
+/** Crea carpetas nuevas y actualiza el registro; no elimina la carpeta anterior. */
+export async function recreateDriveFolderForBoda(
+  bodaId: string,
+  bodaNombre: string,
+  createdBy?: string,
+) {
+  return createAndPersistDriveFolder(bodaId, bodaNombre, createdBy);
+}
+
+async function createAndPersistDriveFolder(
+  bodaId: string,
+  bodaNombre: string,
+  createdBy?: string,
+) {
   const drive = getDriveClient();
   const folderName = `Boda - ${bodaNombre.trim() || "Sin nombre"}`;
   const parents = [process.env.GOOGLE_DRIVE_FOLDER_ID].filter(Boolean) as string[];

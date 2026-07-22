@@ -2,20 +2,26 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import type { UserRole } from "@/lib/auth/roles";
 
 type BodaDriveFolderButtonProps = {
   bodaId: string;
   driveFolderUrl: string | null;
+  role: UserRole;
 };
 
 export function BodaDriveFolderButton({
   bodaId,
   driveFolderUrl,
+  role,
 }: BodaDriveFolderButtonProps) {
   const router = useRouter();
   const [folderUrl, setFolderUrl] = useState(driveFolderUrl);
   const [loading, setLoading] = useState(false);
+  const [recreating, setRecreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const canRecreate = role === "admin" || role === "lider";
 
   async function handleCreateFolder() {
     setLoading(true);
@@ -49,11 +55,48 @@ export function BodaDriveFolderButton({
     }
   }
 
+  async function handleRecreateFolder() {
+    const confirmed = window.confirm(
+      "¿Recrear la carpeta de Drive? Se crearán carpetas nuevas con los permisos correctos. La carpeta anterior no se elimina.",
+    );
+    if (!confirmed) return;
+
+    setRecreating(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/drive/recrear-carpeta-boda", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bodaId }),
+      });
+
+      const data = (await response.json()) as {
+        folder_url?: string;
+        error?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(data.error ?? "No se pudo recrear la carpeta.");
+      }
+
+      if (data.folder_url) {
+        setFolderUrl(data.folder_url);
+      }
+
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error inesperado.");
+    } finally {
+      setRecreating(false);
+    }
+  }
+
   const buttonClass =
     "inline-flex shrink-0 items-center justify-center rounded-full border border-bloom-border bg-bloom-surface px-4 py-2 text-sm font-medium text-bloom-ink transition-colors hover:bg-bloom-border disabled:opacity-60";
 
   const secondaryButtonClass =
-    "inline-flex shrink-0 items-center justify-center rounded-full border border-bloom-border/80 bg-bloom-canvas px-3 py-1.5 text-xs font-medium text-bloom-muted transition-colors hover:border-bloom-border hover:bg-bloom-surface hover:text-bloom-ink";
+    "inline-flex shrink-0 items-center justify-center rounded-full border border-bloom-border/80 bg-bloom-canvas px-3 py-1.5 text-xs font-medium text-bloom-muted transition-colors hover:border-bloom-border hover:bg-bloom-surface hover:text-bloom-ink disabled:opacity-60";
 
   return (
     <div className="mt-4 flex flex-col gap-3 rounded-xl border border-bloom-border bg-bloom-canvas/50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
@@ -73,14 +116,26 @@ export function BodaDriveFolderButton({
 
       {folderUrl ? (
         <div className="flex shrink-0 flex-col items-stretch gap-2 sm:items-end">
-          <a
-            href={folderUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={buttonClass}
-          >
-            Abrir carpeta
-          </a>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <a
+              href={folderUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={buttonClass}
+            >
+              Abrir carpeta
+            </a>
+            {canRecreate && (
+              <button
+                type="button"
+                onClick={handleRecreateFolder}
+                disabled={recreating || loading}
+                className={buttonClass}
+              >
+                {recreating ? "Recreando..." : "Recrear carpeta"}
+              </button>
+            )}
+          </div>
           <div className="flex flex-col gap-1 sm:items-end">
             <a
               href={folderUrl}
@@ -100,7 +155,7 @@ export function BodaDriveFolderButton({
         <button
           type="button"
           onClick={handleCreateFolder}
-          disabled={loading}
+          disabled={loading || recreating}
           className={buttonClass}
         >
           {loading ? "Creando..." : "Crear carpeta en Drive"}

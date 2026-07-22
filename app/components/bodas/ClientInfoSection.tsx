@@ -380,6 +380,7 @@ export function ClientInfoSection({
         <BodaDriveFolderButton
           bodaId={bodaId}
           driveFolderUrl={driveFolderUrl}
+          role={role}
         />
       )}
 
