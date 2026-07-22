@@ -24,7 +24,7 @@ import {
 import type { CitaRow } from "./data/citas";
 import type { ProveedorRow } from "./data/providers";
 import {
-  normalizeTareaPrioridad,
+  normalizeTareaRow,
   type TareaRow,
 } from "./data/tareas";
 import { mapBodaToWedding, buildProviderCountsByBoda, type BodaRow } from "./data/weddings";
@@ -72,6 +72,8 @@ export default async function Home({ searchParams }: HomeProps) {
   let tastingPaymentAlerts: ReturnType<typeof buildTastingPaymentAlerts> = [];
   let citasHoy: CitaRow[] = [];
   let misTareas: TareaRow[] = [];
+  let tareasCompletadasRecientes: TareaRow[] = [];
+  let nombresByUsername: Record<string, string> = {};
 
   const { data: bodasData, error: bodasError } = await supabase
     .from("bodas")
@@ -246,10 +248,53 @@ export default async function Home({ searchParams }: HomeProps) {
   if (tareasError) {
     console.error(tareasError);
   } else if (tareasData) {
-    misTareas = (tareasData as TareaRow[]).map((tarea) => ({
-      ...tarea,
-      prioridad: normalizeTareaPrioridad(tarea.prioridad),
-    }));
+    misTareas = (tareasData as TareaRow[]).map(normalizeTareaRow);
+  }
+
+  const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { data: tareasCompletadasData, error: tareasCompletadasError } =
+    await supabase
+      .from("tareas")
+      .select("*")
+      .eq("creado_por", user.username)
+      .eq("completada", true)
+      .gte("completada_at", since24h)
+      .order("completada_at", { ascending: false });
+
+  if (tareasCompletadasError) {
+    // Fallback si aún no existe la columna completada_at en Supabase.
+    console.error(tareasCompletadasError);
+    const { data: fallbackData } = await supabase
+      .from("tareas")
+      .select("*")
+      .eq("creado_por", user.username)
+      .eq("completada", true)
+      .gte("updated_at", since24h)
+      .order("updated_at", { ascending: false });
+
+    if (fallbackData) {
+      tareasCompletadasRecientes = (fallbackData as TareaRow[]).map(
+        normalizeTareaRow,
+      );
+    }
+  } else if (tareasCompletadasData) {
+    tareasCompletadasRecientes = (tareasCompletadasData as TareaRow[]).map(
+      normalizeTareaRow,
+    );
+  }
+
+  const { data: perfilesData } = await supabase
+    .from("user_profiles")
+    .select("username, nombre")
+    .eq("activo", true);
+
+  if (perfilesData) {
+    nombresByUsername = Object.fromEntries(
+      perfilesData.map((perfil) => [
+        perfil.username as string,
+        perfil.nombre as string,
+      ]),
+    );
   }
 
   const { data: unpaidTastingsData, error: unpaidTastingsError } =
@@ -355,11 +400,13 @@ export default async function Home({ searchParams }: HomeProps) {
           context={{ bodasById, leadsById, proveedoresById }}
         />
         <MisTareasPendientesSection
-          tareas={misTareas}
+          tareasPendientes={misTareas}
+          tareasCompletadasRecientes={tareasCompletadasRecientes}
           username={user.username}
           bodaNombresById={Object.fromEntries(
             bodaRows.map((boda) => [boda.id, boda.nombre_pareja]),
           )}
+          nombresByUsername={nombresByUsername}
         />
         <PaymentAlertsSection
           alerts={paymentAlerts}

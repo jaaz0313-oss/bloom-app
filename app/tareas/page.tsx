@@ -3,7 +3,7 @@ import { DashboardHeader } from "@/app/components/DashboardHeader";
 import { TareasPageClient } from "@/app/components/tareas/TareasPageClient";
 import {
   isTareaVisibleForUser,
-  normalizeTareaPrioridad,
+  normalizeTareaRow,
   type TareaRow,
 } from "@/app/data/tareas";
 import { isBodaActiva } from "@/lib/boda-estado";
@@ -26,10 +26,7 @@ export default async function TareasPage() {
   }
 
   const tareas = ((tareasData ?? []) as TareaRow[])
-    .map((tarea) => ({
-      ...tarea,
-      prioridad: normalizeTareaPrioridad(tarea.prioridad),
-    }))
+    .map(normalizeTareaRow)
     .filter((tarea) => isTareaVisibleForUser(tarea, user.username));
 
   const { data: bodasData } = await supabase

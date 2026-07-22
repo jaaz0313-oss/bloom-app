@@ -8,6 +8,7 @@ import {
   type TareaBodaOption,
   type TareaEquipoUsuario,
 } from "@/app/components/tareas/TareaFormModal";
+import { TareaCommentsSection } from "@/app/components/tareas/TareaCommentsSection";
 import { ResponsiveModal } from "@/app/components/ui/ResponsiveModal";
 import {
   compareTareasByFechaLimite,
@@ -20,6 +21,7 @@ import {
 } from "@/app/data/tareas";
 import { formatShortDateStable } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
+import { ChevronDown, ChevronUp, MessageSquare } from "lucide-react";
 
 type FilterTab = "todas" | "pendientes" | "completadas";
 
@@ -48,6 +50,7 @@ export function TareasPageClient({
   const [transferring, setTransferring] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
 
   const nombreByUsername = useMemo(() => {
@@ -118,17 +121,29 @@ export function TareasPageClient({
     router.refresh();
   }
 
+  function toggleExpanded(tareaId: string) {
+    setExpandedIds((current) => {
+      const next = new Set(current);
+      if (next.has(tareaId)) next.delete(tareaId);
+      else next.add(tareaId);
+      return next;
+    });
+  }
+
   async function handleToggleCompletada(tarea: TareaRow) {
     if (!supabase) return;
     setError(null);
     setTogglingId(tarea.id);
     const nextCompletada = !tarea.completada;
+    const now = new Date().toISOString();
     try {
       const { data, error: updateError } = await supabase
         .from("tareas")
         .update({
           completada: nextCompletada,
-          updated_at: new Date().toISOString(),
+          completada_por: nextCompletada ? currentUsername : null,
+          completada_at: nextCompletada ? now : null,
+          updated_at: now,
         })
         .eq("id", tarea.id)
         .select("*")
@@ -358,6 +373,19 @@ export function TareasPageClient({
                     <div className="mt-3 flex flex-wrap gap-2">
                       <button
                         type="button"
+                        onClick={() => toggleExpanded(tarea.id)}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-bloom-border bg-bloom-canvas px-3 py-1 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-border/60"
+                      >
+                        <MessageSquare className="h-3.5 w-3.5" aria-hidden />
+                        Comentarios
+                        {expandedIds.has(tarea.id) ? (
+                          <ChevronUp className="h-3.5 w-3.5" aria-hidden />
+                        ) : (
+                          <ChevronDown className="h-3.5 w-3.5" aria-hidden />
+                        )}
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => openTransfer(tarea)}
                         className="rounded-full border border-bloom-border bg-bloom-canvas px-3 py-1 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-border/60"
                       >
@@ -383,6 +411,14 @@ export function TareasPageClient({
                         </>
                       ) : null}
                     </div>
+
+                    {expandedIds.has(tarea.id) ? (
+                      <TareaCommentsSection
+                        tareaId={tarea.id}
+                        currentUsername={currentUsername}
+                        nombreByUsername={nombreByUsername}
+                      />
+                    ) : null}
                   </div>
                 </div>
               </li>
