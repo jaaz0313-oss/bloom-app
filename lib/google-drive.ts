@@ -15,7 +15,7 @@ export type BodaDriveFolderRow = {
 const SUBFOLDERS = ["Cotizaciones", "Comprobantes de pago", "Contratos"];
 
 export const BODA_DRIVE_TEAM_WRITER_EMAILS = [
-  "infocelestia@gmail.com",
+  "infocelestiaevents@gmail.com",
   "contabilidadcelestia@gmail.com",
 ] as const;
 
