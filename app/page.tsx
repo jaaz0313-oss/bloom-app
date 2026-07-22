@@ -9,7 +9,7 @@ import { TastingPaymentAlertsSection } from "./components/TastingPaymentAlertsSe
 import { DashboardHeader } from "./components/DashboardHeader";
 import { FinishedWeddingsSection } from "./components/FinishedWeddingsSection";
 import { ExportarDatosButton } from "./components/ExportarDatosButton";
-import { WeddingCard } from "./components/WeddingCard";
+import { ActiveWeddingsSection } from "./components/ActiveWeddingsSection";
 import { NewWeddingModalButton } from "./components/NewWeddingModalButton";
 import { buildBodaInactivityAlerts } from "./data/boda-alerts";
 import { buildCronogramaAlerts } from "./data/cronograma-alerts";
@@ -54,7 +54,12 @@ export default async function Home({ searchParams }: HomeProps) {
 
   const tab = wantsLeadsTab && showLeads ? "leads" : "bodas";
 
-  let activeWeddings: ReturnType<typeof mapBodaToWedding>[] = [];
+  let activeWeddings: Array<
+    ReturnType<typeof mapBodaToWedding> & {
+      brideName: string | null;
+      groomName: string | null;
+    }
+  > = [];
   let finishedWeddings: ReturnType<typeof mapBodaToWedding>[] = [];
   let bodaRows: BodaRow[] = [];
   let activeLeads: LeadRow[] = [];
@@ -113,14 +118,16 @@ export default async function Home({ searchParams }: HomeProps) {
       }
     }
 
-    activeWeddings = activeBodaRows.map((row) =>
-      mapBodaToWedding(
+    activeWeddings = activeBodaRows.map((row) => ({
+      ...mapBodaToWedding(
         row,
         providerCountsLoaded
           ? (providerCountsByBoda.get(row.id) ?? { contracted: 0, total: 0 })
           : undefined,
       ),
-    );
+      brideName: row.nombre_novia,
+      groomName: row.nombre_novio,
+    }));
     finishedWeddings = finishedBodaRows.map((row) =>
       mapBodaToWedding(
         row,
@@ -404,27 +411,14 @@ export default async function Home({ searchParams }: HomeProps) {
 
         {tab === "bodas" ? (
           <>
-            <div className="mt-8 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <h1 className="font-display text-3xl text-bloom-ink">
-                  Bodas activas
-                </h1>
-                <p className="mt-1 text-bloom-muted">
-                  {activeWeddings.length}{" "}
-                  {activeWeddings.length === 1 ? "boda" : "bodas"} en curso
-                </p>
-              </div>
-
-              {hasPermission(user.rol, "weddings.create") && <NewWeddingModalButton />}
-            </div>
-
-            <ul className="mt-8 space-y-4">
-              {activeWeddings.map((wedding) => (
-                <li key={wedding.id}>
-                  <WeddingCard wedding={wedding} />
-                </li>
-              ))}
-            </ul>
+            <ActiveWeddingsSection
+              weddings={activeWeddings}
+              newWeddingButton={
+                hasPermission(user.rol, "weddings.create") ? (
+                  <NewWeddingModalButton />
+                ) : undefined
+              }
+            />
 
             <div className="mt-10">
               <FinishedWeddingsSection weddings={finishedWeddings} />
