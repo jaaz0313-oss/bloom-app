@@ -50,6 +50,7 @@ type TastingsSectionProps = {
 type FormState = {
   proveedor: TastingProveedorSelection | null;
   nombreManual: string;
+  emailInvitado: string;
   fecha: string;
   horaInicio: string;
   horaFin: string;
@@ -70,6 +71,7 @@ function emptyForm(): FormState {
   return {
     proveedor: null,
     nombreManual: "",
+    emailInvitado: "",
     fecha: "",
     horaInicio: "",
     horaFin: "",
@@ -84,15 +86,18 @@ function emptyForm(): FormState {
 
 function formToState(tasting: TastingRow): FormState {
   const hasProveedor = Boolean(tasting.proveedor_id);
+  const emailInvitado = tasting.email_invitado?.trim() ?? "";
   return {
     proveedor: hasProveedor
       ? {
           proveedor_id: tasting.proveedor_id as string,
           nombre: tasting.nombre_proveedor,
           categoria: tasting.categoria ?? "",
+          email: emailInvitado || null,
         }
       : null,
     nombreManual: hasProveedor ? "" : tasting.nombre_proveedor,
+    emailInvitado,
     fecha: tasting.fecha,
     horaInicio: citaTimeFromDb(tasting.hora_inicio),
     horaFin: tasting.hora_fin ? citaTimeFromDb(tasting.hora_fin) : "",
@@ -300,6 +305,7 @@ export function TastingsSection({
       asignado_nombre: asignadoNombre || null,
       confirmado: form.confirmado,
       notas: form.notas.trim() || null,
+      email_invitado: form.emailInvitado.trim() || null,
     };
 
     setSubmitting(true);
@@ -429,7 +435,14 @@ export function TastingsSection({
             <TastingProveedorPicker
               value={form.proveedor}
               onChange={(proveedor) =>
-                setForm((current) => ({ ...current, proveedor }))
+                setForm((current) => ({
+                  ...current,
+                  proveedor,
+                  // Prefill from directorio when a provider is selected; clear if none.
+                  emailInvitado: proveedor
+                    ? proveedor.email?.trim() || ""
+                    : current.emailInvitado,
+                }))
               }
               disabled={submitting}
             />
@@ -452,6 +465,23 @@ export function TastingsSection({
               />
             </Field>
           )}
+
+          <Field label="Email para invitar (opcional)">
+            <input
+              type="email"
+              className={inputClass}
+              value={form.emailInvitado}
+              onChange={(e) =>
+                setForm((current) => ({
+                  ...current,
+                  emailInvitado: e.target.value,
+                }))
+              }
+              disabled={submitting}
+              placeholder="Se agrega como invitado al evento de Calendar"
+              autoComplete="off"
+            />
+          </Field>
 
           <div className="grid gap-4 sm:grid-cols-3">
             <Field label="Fecha">

@@ -206,7 +206,26 @@ export type TastingForCalendar = {
   direccion: string | null;
   notas: string | null;
   asignado_nombre: string | null;
+  email_invitado?: string | null;
 };
+
+function buildCalendarAttendees(
+  emails: Array<string | null | undefined>,
+): calendar_v3.Schema$EventAttendee[] | undefined {
+  const seen = new Set<string>();
+  const attendees: calendar_v3.Schema$EventAttendee[] = [];
+
+  for (const raw of emails) {
+    const email = raw?.trim();
+    if (!email) continue;
+    const key = email.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    attendees.push({ email });
+  }
+
+  return attendees.length > 0 ? attendees : undefined;
+}
 
 function buildTastingEventTimes(tasting: TastingForCalendar) {
   const startDateTime = buildDateTime(tasting.fecha, tasting.hora_inicio);
@@ -259,6 +278,7 @@ function buildTastingEventResource(
   const timeZone = getCalendarTimezone();
   const { startDateTime, endDateTime } = buildTastingEventTimes(tasting);
   const summary = `Tasting · ${getTastingDisplayTitle(tasting)}`;
+  const attendees = buildCalendarAttendees([tasting.email_invitado]);
 
   return {
     summary,
@@ -266,6 +286,8 @@ function buildTastingEventResource(
     location: tasting.direccion?.trim() || undefined,
     start: { dateTime: startDateTime, timeZone },
     end: { dateTime: endDateTime, timeZone },
+    // Always set attendees so patch clears them when email_invitado is removed.
+    attendees: attendees ?? [],
   };
 }
 

@@ -15,6 +15,7 @@ export type TastingRow = {
   asignado_nombre: string | null;
   confirmado: boolean;
   notas: string | null;
+  email_invitado: string | null;
   google_event_id: string | null;
   created_at: string;
 };
@@ -26,6 +27,7 @@ export function normalizeTastingRow(row: TastingRow): TastingRow {
     costo_pagado: Boolean(row.costo_pagado),
     prueba_pagada: Boolean(row.prueba_pagada ?? row.costo_pagado),
     confirmado: Boolean(row.confirmado),
+    email_invitado: row.email_invitado?.trim() || null,
   };
 }
 

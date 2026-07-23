@@ -8,6 +8,7 @@ export type TastingProveedorSelection = {
   proveedor_id: string;
   nombre: string;
   categoria: string;
+  email: string | null;
 };
 
 type TastingProveedorPickerProps = {
@@ -26,7 +27,7 @@ export function TastingProveedorPicker({
 }: TastingProveedorPickerProps) {
   const [query, setQuery] = useState(value?.nombre ?? "");
   const [results, setResults] = useState<
-    Pick<DirectorioProveedorRow, "id" | "nombre" | "categoria">[]
+    Pick<DirectorioProveedorRow, "id" | "nombre" | "categoria" | "email">[]
   >([]);
   const [searchedQuery, setSearchedQuery] = useState<string | null>(null);
 
@@ -49,7 +50,7 @@ export function TastingProveedorPicker({
     const timeout = window.setTimeout(async () => {
       const { data, error } = await supabase
         .from("directorio_proveedores")
-        .select("id, nombre, categoria")
+        .select("id, nombre, categoria, email")
         .eq("activo", true)
         .ilike("nombre", `%${trimmed}%`)
         .order("nombre", { ascending: true })
@@ -62,7 +63,12 @@ export function TastingProveedorPicker({
         return;
       }
 
-      setResults((data ?? []) as Pick<DirectorioProveedorRow, "id" | "nombre" | "categoria">[]);
+      setResults(
+        (data ?? []) as Pick<
+          DirectorioProveedorRow,
+          "id" | "nombre" | "categoria" | "email"
+        >[],
+      );
       setSearchedQuery(trimmed);
     }, 250);
 
@@ -73,12 +79,16 @@ export function TastingProveedorPicker({
   }, [query, value, disabled]);
 
   function selectProvider(
-    provider: Pick<DirectorioProveedorRow, "id" | "nombre" | "categoria">,
+    provider: Pick<
+      DirectorioProveedorRow,
+      "id" | "nombre" | "categoria" | "email"
+    >,
   ) {
     onChange({
       proveedor_id: provider.id,
       nombre: provider.nombre,
       categoria: provider.categoria,
+      email: provider.email?.trim() || null,
     });
     setQuery(provider.nombre);
     setResults([]);

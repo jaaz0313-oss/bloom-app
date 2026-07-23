@@ -63,6 +63,7 @@ export async function POST(request: Request) {
         direccion: tasting.direccion,
         notas: tasting.notas,
         asignado_nombre: tasting.asignado_nombre,
+        email_invitado: tasting.email_invitado,
       },
       bodaNombre,
     );
