@@ -255,7 +255,7 @@ export function CotizacionEditor({
         .from("cotizaciones")
         .update({
           numero_invitados: invitados,
-          ciudad: ciudad.trim() || null,
+          ciudad: ciudad?.trim() || null,
           fecha_estimada: fechaEstimada || null,
           notas: notas.trim() || null,
           estado: nuevoEstado,

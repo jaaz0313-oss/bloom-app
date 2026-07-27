@@ -55,7 +55,7 @@ export function NewWeddingModalButton() {
     }
 
     const nombrePareja = form.nombrePareja.trim();
-    const ciudad = form.ciudad.trim();
+    const ciudad = form.ciudad?.trim();
     const fechaBoda = form.fechaBoda;
     const totalProveedores = Number(form.totalProveedores);
 

@@ -240,7 +240,7 @@ export function LeadsBoard({
     const email = form.email.trim();
     const telefono = form.telefono.trim();
     const fechaTentativa = form.fechaTentativa.trim() || null;
-    const ciudad = form.ciudad.trim() || null;
+    const ciudad = form.ciudad?.trim() || null;
     const presupuesto = form.presupuestoEstimado.trim()
       ? parseInputCurrency(form.presupuestoEstimado)
       : null;
@@ -1087,7 +1087,7 @@ function formatLeadMeta(
   lead: Pick<LeadRow, "ciudad" | "fecha_tentativa">,
 ): string {
   const parts: string[] = [];
-  if (lead.ciudad?.trim()) parts.push(lead.ciudad.trim());
+  if (lead.ciudad?.trim()) parts.push(lead.ciudad?.trim());
   if (lead.fecha_tentativa) {
     parts.push(formatShortDateStable(lead.fecha_tentativa));
   }

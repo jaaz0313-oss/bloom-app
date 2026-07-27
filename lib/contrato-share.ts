@@ -24,7 +24,7 @@ export function buildContratoShareMessage(
 ): string {
   const nombrePareja =
     boda.nombre_pareja.trim() || (locale === "en" ? "team" : "equipo");
-  const ciudad = boda.ciudad.trim() || whatsappToBeDefined(locale);
+  const ciudad = boda.ciudad?.trim() || whatsappToBeDefined(locale);
   const fecha =
     locale === "en"
       ? formatWeddingDateWhatsApp(boda.fecha_boda, locale)

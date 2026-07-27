@@ -160,7 +160,7 @@ function buildVariables(data: ContratoDocumentData) {
     letrasEn: numeroALetrasPesosEn(data.saldo),
   };
 
-  const ciudad = data.boda.ciudad.trim() || "Medellín";
+  const ciudad = data.boda.ciudad?.trim() || "Medellín";
   const fechaFirmaIso = resolveFechaFirmaIso(data.fechaFirma);
 
   return {

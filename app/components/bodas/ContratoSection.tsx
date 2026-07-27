@@ -129,7 +129,7 @@ export function ContratoSection({
     () => ({
       nombre_pareja: boda.nombre_pareja,
       fecha_boda: boda.fecha_boda,
-      ciudad: form.ciudad.trim() || boda.ciudad,
+      ciudad: form.ciudad?.trim() || boda.ciudad,
       telefono_novia: boda.telefono_novia,
       email_novia: boda.email_novia,
       email_novio: boda.email_novio,
@@ -193,7 +193,7 @@ export function ContratoSection({
         firmante: ContratoFirmante;
       }
     | { error: string } {
-    const ciudad = form.ciudad.trim() || null;
+    const ciudad = form.ciudad?.trim() || null;
     const fechaFirma = form.fechaFirma.trim() || null;
 
     if (
