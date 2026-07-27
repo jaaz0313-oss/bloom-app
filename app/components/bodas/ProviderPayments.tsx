@@ -9,7 +9,7 @@ import {
   CONCEPTO_ANTICIPO,
   MEDIOS_PAGO,
 } from "@/app/data/pagos";
-import { formatCurrency, formatShortDateStable } from "@/lib/format";
+import { formatCurrency, formatInputCurrency, formatInputCurrencyFromNumber, formatShortDateStable, parseInputCurrency } from "@/lib/format";
 import { AUDITORIA_ACCIONES, logAuditoria } from "@/lib/auditoria";
 import { supabase } from "@/lib/supabase";
 import { hasPermission, type UserRole } from "@/lib/auth/roles";
@@ -104,7 +104,7 @@ export function ProviderPayments({
       return;
     }
 
-    const monto = Number(form.monto);
+    const monto = parseInputCurrency(form.monto);
     const fechaPago = form.fechaPago;
     const concepto = form.concepto.trim();
     const medioPago = form.medioPago.trim() || null;
@@ -165,7 +165,7 @@ export function ProviderPayments({
       return;
     }
 
-    const monto = Number(form.monto);
+    const monto = parseInputCurrency(form.monto);
     const fechaPago = form.fechaPago;
     const concepto = form.concepto.trim();
     const medioPago = form.medioPago.trim() || null;
@@ -291,7 +291,7 @@ export function ProviderPayments({
     setError(null);
     setEditingPago(pago);
     setForm({
-      monto: String(pago.monto),
+      monto: formatInputCurrencyFromNumber(pago.monto),
       fechaPago: pago.fecha_pago,
       concepto: pago.concepto ?? "",
       comprobante: pago.comprobante_url ?? "",
@@ -430,15 +430,18 @@ export function ProviderPayments({
             <form className="mt-5 space-y-4" onSubmit={handleCreateSubmit}>
               <Field label="Monto">
                 <input
-                  type="number"
-                  min={1}
-                  step={1}
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
                   className={inputClass}
                   value={form.monto}
                   onChange={(e) =>
-                    setForm((s) => ({ ...s, monto: e.target.value }))
+                    setForm((s) => ({
+                      ...s,
+                      monto: formatInputCurrency(e.target.value),
+                    }))
                   }
-                  placeholder="Ej: 500000"
+                  placeholder="Ej: 500.000"
                   required
                   disabled={submitting}
                 />
@@ -562,13 +565,16 @@ export function ProviderPayments({
             <form className="mt-5 space-y-4" onSubmit={handleEditSubmit}>
               <Field label="Monto">
                 <input
-                  type="number"
-                  min={1}
-                  step={1}
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
                   className={inputClass}
                   value={form.monto}
                   onChange={(e) =>
-                    setForm((s) => ({ ...s, monto: e.target.value }))
+                    setForm((s) => ({
+                      ...s,
+                      monto: formatInputCurrency(e.target.value),
+                    }))
                   }
                   required
                   disabled={submitting}

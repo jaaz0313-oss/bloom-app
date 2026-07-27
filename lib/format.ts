@@ -15,6 +15,33 @@ export function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
+/**
+ * Formato de miles colombiano para inputs (puntos): "1500000" → "1.500.000".
+ * Solo conserva dígitos; el punto se inserta automáticamente.
+ */
+export function formatInputCurrency(value: string): string {
+  const digits = value.replace(/\D/g, "");
+  if (!digits) return "";
+  const normalized = digits.replace(/^0+(?=\d)/, "");
+  return normalized.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+}
+
+/** Convierte un string con formato de miles ("1.500.000") a número entero. */
+export function parseInputCurrency(value: string): number {
+  const digits = value.replace(/\D/g, "");
+  if (!digits) return 0;
+  const amount = Number(digits);
+  return Number.isFinite(amount) ? amount : 0;
+}
+
+/** Formatea un número existente para mostrarlo en un input monetario. */
+export function formatInputCurrencyFromNumber(
+  value: number | null | undefined,
+): string {
+  if (value == null || !Number.isFinite(Number(value))) return "";
+  return formatInputCurrency(String(Math.round(Number(value))));
+}
+
 export function formatValorProveedorPendiente(): string {
   return "Pendiente de definir";
 }

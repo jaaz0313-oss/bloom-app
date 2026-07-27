@@ -9,7 +9,7 @@ import {
   type LeadSeguimientoStatus,
 } from "@/app/data/leads";
 import Link from "next/link";
-import { formatCurrency, formatShortDateStable } from "@/lib/format";
+import { formatCurrency, formatInputCurrency, formatInputCurrencyFromNumber, formatShortDateStable, parseInputCurrency } from "@/lib/format";
 import { importarCotizacionLeadABoda } from "@/lib/import-cotizacion-to-boda";
 import { insertarCronograma } from "@/lib/cronograma";
 import { createCotizacionForLead } from "@/lib/create-lead-cotizacion";
@@ -170,8 +170,9 @@ export function LeadsBoard({
       nombrePareja: lead.nombre_pareja,
       fechaTentativa: lead.fecha_tentativa,
       ciudad: lead.ciudad,
-      presupuestoEstimado:
-        lead.presupuesto_estimado === null ? "" : String(lead.presupuesto_estimado),
+      presupuestoEstimado: formatInputCurrencyFromNumber(
+        lead.presupuesto_estimado,
+      ),
       cantidadInvitados:
         lead.cantidad_invitados === null ? "" : String(lead.cantidad_invitados),
       tipoCeremonia: lead.tipo_ceremonia ?? "",
@@ -181,12 +182,10 @@ export function LeadsBoard({
       prioridades: lead.prioridades ?? "",
       estadoSeguimiento: lead.estado_seguimiento,
       notas: lead.notas ?? "",
-      honorariosAcordados:
-        lead.honorarios_acordados === null
-          ? ""
-          : String(lead.honorarios_acordados),
-      anticipoAcordado:
-        lead.anticipo_acordado === null ? "" : String(lead.anticipo_acordado),
+      honorariosAcordados: formatInputCurrencyFromNumber(
+        lead.honorarios_acordados,
+      ),
+      anticipoAcordado: formatInputCurrencyFromNumber(lead.anticipo_acordado),
       lugarVenue: lead.lugar_venue ?? "",
       telefono: lead.telefono ?? "",
       email: lead.email ?? "",
@@ -198,10 +197,10 @@ export function LeadsBoard({
     | { honorarios: number | null; anticipo: number | null; lugarVenue: string | null }
     | { error: string } {
     const honorarios = form.honorariosAcordados.trim()
-      ? Number(form.honorariosAcordados)
+      ? parseInputCurrency(form.honorariosAcordados)
       : null;
     const anticipo = form.anticipoAcordado.trim()
-      ? Number(form.anticipoAcordado)
+      ? parseInputCurrency(form.anticipoAcordado)
       : null;
     const lugarVenue = form.lugarVenue.trim() || null;
 
@@ -231,7 +230,7 @@ export function LeadsBoard({
     const fechaTentativa = form.fechaTentativa;
     const ciudad = form.ciudad.trim();
     const presupuesto = form.presupuestoEstimado.trim()
-      ? Number(form.presupuestoEstimado)
+      ? parseInputCurrency(form.presupuestoEstimado)
       : null;
     const cantidadInvitados = form.cantidadInvitados.trim()
       ? Number(form.cantidadInvitados)
@@ -873,14 +872,20 @@ export function LeadsBoard({
                 onAnticipoTouched={() => setAnticipoTouched(true)}
                 onHonorariosChange={(value) => {
                   if (anticipoTouched) return;
-                  const honorarios = Number(value);
-                  if (!value.trim() || !Number.isFinite(honorarios) || honorarios < 0) {
+                  if (!value.trim()) {
+                    setForm((s) => ({ ...s, anticipoAcordado: "" }));
+                    return;
+                  }
+                  const honorarios = parseInputCurrency(value);
+                  if (!Number.isFinite(honorarios) || honorarios < 0) {
                     setForm((s) => ({ ...s, anticipoAcordado: "" }));
                     return;
                   }
                   setForm((s) => ({
                     ...s,
-                    anticipoAcordado: String(Math.round(honorarios * 0.5)),
+                    anticipoAcordado: formatInputCurrencyFromNumber(
+                      Math.round(honorarios * 0.5),
+                    ),
                   }));
                 }}
               />
@@ -945,14 +950,20 @@ export function LeadsBoard({
                 onAnticipoTouched={() => setAnticipoTouched(true)}
                 onHonorariosChange={(value) => {
                   if (anticipoTouched) return;
-                  const honorarios = Number(value);
-                  if (!value.trim() || !Number.isFinite(honorarios) || honorarios < 0) {
+                  if (!value.trim()) {
+                    setForm((s) => ({ ...s, anticipoAcordado: "" }));
+                    return;
+                  }
+                  const honorarios = parseInputCurrency(value);
+                  if (!Number.isFinite(honorarios) || honorarios < 0) {
                     setForm((s) => ({ ...s, anticipoAcordado: "" }));
                     return;
                   }
                   setForm((s) => ({
                     ...s,
-                    anticipoAcordado: String(Math.round(honorarios * 0.5)),
+                    anticipoAcordado: formatInputCurrencyFromNumber(
+                      Math.round(honorarios * 0.5),
+                    ),
                   }));
                 }}
               />
@@ -992,30 +1003,33 @@ function LeadAcuerdosFields({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Honorarios acordados (COP)">
           <input
-            type="number"
-            min={0}
-            step={1}
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
             className={inputClass}
             value={form.honorariosAcordados}
             onChange={(e) => {
-              const value = e.target.value;
+              const value = formatInputCurrency(e.target.value);
               setForm((s) => ({ ...s, honorariosAcordados: value }));
               onHonorariosChange(value);
             }}
             disabled={submitting}
-            placeholder="Ej. 15000000"
+            placeholder="Ej. 15.000.000"
           />
         </Field>
         <Field label="Anticipo (COP)">
           <input
-            type="number"
-            min={0}
-            step={1}
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
             className={inputClass}
             value={form.anticipoAcordado}
             onChange={(e) => {
               onAnticipoTouched();
-              setForm((s) => ({ ...s, anticipoAcordado: e.target.value }));
+              setForm((s) => ({
+                ...s,
+                anticipoAcordado: formatInputCurrency(e.target.value),
+              }));
             }}
             disabled={submitting}
             placeholder={
@@ -1122,13 +1136,16 @@ function LeadBaseFields({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Presupuesto estimado">
           <input
-            type="number"
-            min={0}
-            step={1}
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
             className={inputClass}
             value={form.presupuestoEstimado}
             onChange={(e) =>
-              setForm((s) => ({ ...s, presupuestoEstimado: e.target.value }))
+              setForm((s) => ({
+                ...s,
+                presupuestoEstimado: formatInputCurrency(e.target.value),
+              }))
             }
             disabled={submitting}
           />

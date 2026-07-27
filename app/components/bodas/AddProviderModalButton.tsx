@@ -15,6 +15,7 @@ import { marcarHitoCronogramaPorProveedorContratado } from "@/lib/cronograma";
 import { syncBodaProveedoresContratados } from "@/lib/sync-boda";
 import { ProviderComisionFields } from "./ProviderComisionFields";
 import { AbrirCarpetaDriveButton } from "./AbrirCarpetaDriveButton";
+import { formatInputCurrency, parseInputCurrency } from "@/lib/format";
 
 type FormState = {
   nombre: string;
@@ -417,13 +418,9 @@ export function AddProviderModalButton({
 
     const nombre = form.nombre.trim();
     const categorias = getFilledCategorias();
-    const valorTotalTrimmed = form.valorTotal.trim();
-    const valorTotal =
-      valorTotalTrimmed === "" ? 0 : Number(valorTotalTrimmed);
-    const anticipo = Number(form.anticipo || "0");
-    const depositoTrimmed = form.depositoReembolsable.trim();
-    const depositoReembolsable =
-      depositoTrimmed === "" ? 0 : Number(depositoTrimmed);
+    const valorTotal = parseInputCurrency(form.valorTotal);
+    const anticipo = parseInputCurrency(form.anticipo);
+    const depositoReembolsable = parseInputCurrency(form.depositoReembolsable);
     const medioPagoAnticipo = form.medioPagoAnticipo.trim() || null;
     const banco = form.banco.trim();
     const numeroCuenta = form.numeroCuenta.trim();
@@ -843,30 +840,36 @@ export function AddProviderModalButton({
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <Field label="Valor contratado">
                       <input
-                        type="number"
-                        min={0}
-                        step={1}
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="off"
                         className={inputClass}
                         value={form.valorTotal}
                         onChange={(e) =>
-                          setForm((s) => ({ ...s, valorTotal: e.target.value }))
+                          setForm((s) => ({
+                            ...s,
+                            valorTotal: formatInputCurrency(e.target.value),
+                          }))
                         }
-                        placeholder="Ej: 3500000"
+                        placeholder="Ej: 3.500.000"
                         required
                       />
                     </Field>
 
                     <Field label="Anticipo pagado">
                       <input
-                        type="number"
-                        min={0}
-                        step={1}
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="off"
                         className={inputClass}
                         value={form.anticipo}
                         onChange={(e) =>
-                          setForm((s) => ({ ...s, anticipo: e.target.value }))
+                          setForm((s) => ({
+                            ...s,
+                            anticipo: formatInputCurrency(e.target.value),
+                          }))
                         }
-                        placeholder="Ej: 1000000"
+                        placeholder="Ej: 1.000.000"
                       />
                     </Field>
                   </div>
@@ -950,15 +953,17 @@ export function AddProviderModalButton({
 
                   <Field label="Depósito reembolsable">
                     <input
-                      type="number"
-                      min={0}
-                      step={1}
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="off"
                       className={inputClass}
                       value={form.depositoReembolsable}
                       onChange={(e) =>
                         setForm((s) => ({
                           ...s,
-                          depositoReembolsable: e.target.value,
+                          depositoReembolsable: formatInputCurrency(
+                            e.target.value,
+                          ),
                         }))
                       }
                       placeholder="Opcional"
@@ -1060,29 +1065,35 @@ export function AddProviderModalButton({
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field label="Valor total">
                   <input
-                    type="number"
-                    min={0}
-                    step={1}
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="off"
                     className={inputClass}
                     value={form.valorTotal}
                     onChange={(e) =>
-                      setForm((s) => ({ ...s, valorTotal: e.target.value }))
+                      setForm((s) => ({
+                        ...s,
+                        valorTotal: formatInputCurrency(e.target.value),
+                      }))
                     }
-                    placeholder="Ej: 3500000"
+                    placeholder="Ej: 3.500.000"
                   />
                 </Field>
 
                 <Field label="Anticipo">
                   <input
-                    type="number"
-                    min={0}
-                    step={1}
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="off"
                     className={inputClass}
                     value={form.anticipo}
                     onChange={(e) =>
-                      setForm((s) => ({ ...s, anticipo: e.target.value }))
+                      setForm((s) => ({
+                        ...s,
+                        anticipo: formatInputCurrency(e.target.value),
+                      }))
                     }
-                    placeholder="Ej: 1000000"
+                    placeholder="Ej: 1.000.000"
                   />
                 </Field>
               </div>
@@ -1103,15 +1114,15 @@ export function AddProviderModalButton({
 
               <Field label="Depósito reembolsable">
                 <input
-                  type="number"
-                  min={0}
-                  step={1}
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
                   className={inputClass}
                   value={form.depositoReembolsable}
                   onChange={(e) =>
                     setForm((s) => ({
                       ...s,
-                      depositoReembolsable: e.target.value,
+                      depositoReembolsable: formatInputCurrency(e.target.value),
                     }))
                   }
                   placeholder="Opcional"

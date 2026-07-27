@@ -11,6 +11,11 @@ import {
   type UserRole,
 } from "@/lib/auth/roles";
 import { supabase } from "@/lib/supabase";
+import {
+  formatInputCurrency,
+  formatInputCurrencyFromNumber,
+  parseInputCurrency,
+} from "@/lib/format";
 
 type Props = {
   initialRows: DirectorioProveedorRow[];
@@ -201,8 +206,7 @@ export function DirectorioPageClient({
       ciudadBase: row.ciudad_base ?? "",
       otrasCiudades: row.otras_ciudades ?? "",
       direccion: row.direccion ?? "",
-      anticipoRequerido:
-        row.anticipo_requerido != null ? String(row.anticipo_requerido) : "",
+      anticipoRequerido: formatInputCurrencyFromNumber(row.anticipo_requerido),
       incluyeIva: row.incluye_iva ?? false,
       condicionesPago: row.condiciones_pago ?? "",
       banco: row.banco ?? "",
@@ -233,7 +237,7 @@ export function DirectorioPageClient({
     }
 
     const anticipoRequeridoValue = form.anticipoRequerido.trim()
-      ? Number(form.anticipoRequerido)
+      ? parseInputCurrency(form.anticipoRequerido)
       : null;
 
     if (
@@ -653,13 +657,16 @@ export function DirectorioPageClient({
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <Field label="Anticipo requerido">
                     <input
-                      type="number"
-                      min="0"
-                      step="0.01"
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="off"
                       className={inputClass}
                       value={form.anticipoRequerido}
                       onChange={(e) =>
-                        setForm((s) => ({ ...s, anticipoRequerido: e.target.value }))
+                        setForm((s) => ({
+                          ...s,
+                          anticipoRequerido: formatInputCurrency(e.target.value),
+                        }))
                       }
                     />
                   </Field>

@@ -17,8 +17,11 @@ import {
 } from "@/lib/provider-categories";
 import {
   formatCurrency,
+  formatInputCurrency,
+  formatInputCurrencyFromNumber,
   formatShortDateStable,
   formatWeddingDate,
+  parseInputCurrency,
 } from "@/lib/format";
 import {
   canRemoveCotizacionItem,
@@ -790,18 +793,25 @@ function CategoriaItemCard({
               Precio estimado (COP)
             </label>
             <input
-              type="number"
-              min={0}
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
               className={inputClass}
-              value={item.precio_estimado ?? ""}
-              onChange={(e) =>
-                onUpdate({
-                  precio_estimado: e.target.value
-                    ? Number(e.target.value)
-                    : null,
-                })
+              value={
+                item.precio_estimado != null
+                  ? formatInputCurrencyFromNumber(item.precio_estimado)
+                  : ""
               }
+              onChange={(e) => {
+                const formatted = formatInputCurrency(e.target.value);
+                onUpdate({
+                  precio_estimado: formatted
+                    ? parseInputCurrency(formatted)
+                    : null,
+                });
+              }}
               disabled={saving}
+              placeholder="Ej: 3.500.000"
             />
           </div>
 

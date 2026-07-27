@@ -18,7 +18,7 @@ import {
   PROVIDER_STATUS_STYLES,
   type ProveedorRow,
 } from "@/app/data/providers";
-import { formatCurrency, formatProveedorValorTotal, formatShortDateStable } from "@/lib/format";
+import { formatCurrency, formatInputCurrency, formatInputCurrencyFromNumber, formatProveedorValorTotal, formatShortDateStable, parseInputCurrency } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
 import { syncBodaProveedoresContratados } from "@/lib/sync-boda";
 import { marcarHitoCronogramaPorProveedorContratado } from "@/lib/cronograma";
@@ -140,7 +140,7 @@ export function ProviderCard({
   const [cotizacionSubmitting, setCotizacionSubmitting] = useState(false);
   const [cotizacionError, setCotizacionError] = useState<string | null>(null);
   const [montoCotizado, setMontoCotizado] = useState(
-    provider.monto_cotizado != null ? String(provider.monto_cotizado) : "",
+    formatInputCurrencyFromNumber(provider.monto_cotizado),
   );
   const [descripcionCotizacion, setDescripcionCotizacion] = useState(
     provider.descripcion_servicio ?? "",
@@ -412,9 +412,9 @@ export function ProviderCard({
     descripcionServicio: provider.descripcion_servicio ?? "",
     valorTotal:
       provider.valor_total != null && provider.valor_total > 0
-        ? String(provider.valor_total)
+        ? formatInputCurrencyFromNumber(provider.valor_total)
         : "",
-    anticipo: String(provider.anticipo),
+    anticipo: formatInputCurrencyFromNumber(provider.anticipo),
     fechaSaldo: provider.fecha_saldo ?? "",
     banco: provider.banco ?? "",
     numeroCuenta: provider.numero_cuenta ?? "",
@@ -432,7 +432,7 @@ export function ProviderCard({
     ),
     depositoReembolsable:
       getDepositoReembolsableMonto(provider) > 0
-        ? String(getDepositoReembolsableMonto(provider))
+        ? formatInputCurrencyFromNumber(getDepositoReembolsableMonto(provider))
         : "",
   });
 
@@ -446,9 +446,9 @@ export function ProviderCard({
       descripcionServicio: provider.descripcion_servicio ?? "",
       valorTotal:
         provider.valor_total != null && provider.valor_total > 0
-          ? String(provider.valor_total)
+          ? formatInputCurrencyFromNumber(provider.valor_total)
           : "",
-      anticipo: String(provider.anticipo ?? 0),
+      anticipo: formatInputCurrencyFromNumber(provider.anticipo ?? 0),
       fechaSaldo: provider.fecha_saldo ?? "",
       banco: provider.banco ?? "",
       numeroCuenta: provider.numero_cuenta ?? "",
@@ -466,7 +466,7 @@ export function ProviderCard({
       ),
       depositoReembolsable:
         getDepositoReembolsableMonto(provider) > 0
-          ? String(getDepositoReembolsableMonto(provider))
+          ? formatInputCurrencyFromNumber(getDepositoReembolsableMonto(provider))
           : "",
     });
   }, [editOpen, provider]);
@@ -502,7 +502,7 @@ export function ProviderCard({
     const fechaSaldo = editForm.fechaSaldo || null;
 
     const valorTotal = parseProveedorValorInput(editForm.valorTotal);
-    const anticipo = Number(editForm.anticipo || "0");
+    const anticipo = parseInputCurrency(editForm.anticipo);
 
     const banco = editForm.banco.trim() || null;
     const numeroCuenta = editForm.numeroCuenta.trim() || null;
@@ -545,9 +545,9 @@ export function ProviderCard({
       porcentajeComision = pct;
     }
 
-    const depositoTrimmed = editForm.depositoReembolsable.trim();
-    const depositoReembolsable =
-      depositoTrimmed === "" ? 0 : Number(depositoTrimmed);
+    const depositoReembolsable = parseInputCurrency(
+      editForm.depositoReembolsable,
+    );
     if (!Number.isFinite(depositoReembolsable) || depositoReembolsable < 0) {
       return setEditError("Ingresa un depósito reembolsable válido (>= 0).");
     }
@@ -752,7 +752,7 @@ export function ProviderCard({
       setNotasCotizacion("");
     } else {
       setMontoCotizado(
-        provider.monto_cotizado != null ? String(provider.monto_cotizado) : "",
+        formatInputCurrencyFromNumber(provider.monto_cotizado),
       );
       setDescripcionCotizacion(provider.descripcion_servicio ?? "");
       setNotasCotizacion(provider.notas_cotizacion ?? "");
@@ -772,7 +772,7 @@ export function ProviderCard({
       return;
     }
 
-    const monto = Number(montoCotizado);
+    const monto = parseInputCurrency(montoCotizado);
     if (!Number.isFinite(monto) || monto <= 0) {
       setCotizacionError("Ingresa un monto cotizado válido mayor a 0.");
       return;
@@ -1369,13 +1369,15 @@ export function ProviderCard({
             <form className="mt-5 space-y-4" onSubmit={handleRegistrarCotizacion}>
               <Field label="Monto cotizado">
                 <input
-                  type="number"
-                  min={1}
-                  step={1}
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
                   className={inputClass}
                   value={montoCotizado}
-                  onChange={(e) => setMontoCotizado(e.target.value)}
-                  placeholder="Ej: 3500000"
+                  onChange={(e) =>
+                    setMontoCotizado(formatInputCurrency(e.target.value))
+                  }
+                  placeholder="Ej: 3.500.000"
                   required
                   disabled={cotizacionSubmitting}
                 />
@@ -1513,15 +1515,15 @@ export function ProviderCard({
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field label="Valor total">
                   <input
-                    type="number"
-                    min={0}
-                    step={1}
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="off"
                     className={inputClass}
                     value={editForm.valorTotal}
                     onChange={(e) =>
                       setEditForm((s) => ({
                         ...s,
-                        valorTotal: e.target.value,
+                        valorTotal: formatInputCurrency(e.target.value),
                       }))
                     }
                     placeholder="Pendiente de definir"
@@ -1531,18 +1533,18 @@ export function ProviderCard({
                 {esPrimarioGrupo ? (
                   <Field label="Anticipo">
                     <input
-                      type="number"
-                      min={0}
-                      step={1}
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="off"
                       className={inputClass}
                       value={editForm.anticipo}
                       onChange={(e) =>
                         setEditForm((s) => ({
                           ...s,
-                          anticipo: e.target.value,
+                          anticipo: formatInputCurrency(e.target.value),
                         }))
                       }
-                      placeholder="Ej: 1000000"
+                      placeholder="Ej: 1.000.000"
                       disabled={editSubmitting}
                     />
                   </Field>
@@ -1578,15 +1580,17 @@ export function ProviderCard({
                   </p>
                   <Field label="Monto del depósito">
                     <input
-                      type="number"
-                      min={0}
-                      step={1}
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="off"
                       className={inputClass}
                       value={editForm.depositoReembolsable}
                       onChange={(e) =>
                         setEditForm((s) => ({
                           ...s,
-                          depositoReembolsable: e.target.value,
+                          depositoReembolsable: formatInputCurrency(
+                            e.target.value,
+                          ),
                         }))
                       }
                       placeholder="Opcional"

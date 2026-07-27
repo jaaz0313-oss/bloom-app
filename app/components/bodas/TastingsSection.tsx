@@ -20,7 +20,7 @@ import {
   citaTimeToDb,
   getCitaEndTimeSlotOptions,
 } from "@/lib/cita-time-slots";
-import { formatCurrency, formatShortDateStable } from "@/lib/format";
+import { formatCurrency, formatInputCurrency, formatInputCurrencyFromNumber, formatShortDateStable, parseInputCurrency } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
 import {
   actualizarEventoCalendarTasting,
@@ -111,7 +111,9 @@ function formToState(tasting: TastingRow): FormState {
     horaInicio: citaTimeFromDb(tasting.hora_inicio),
     horaFin: tasting.hora_fin ? citaTimeFromDb(tasting.hora_fin) : "",
     direccion: tasting.direccion ?? "",
-    costo: tasting.costo ? String(tasting.costo) : "",
+    costo: formatInputCurrencyFromNumber(
+      tasting.costo > 0 ? tasting.costo : null,
+    ),
     pruebaPagada: tasting.prueba_pagada,
     asignadoId: tasting.asignado_a ?? "",
     confirmado: tasting.confirmado,
@@ -294,7 +296,7 @@ export function TastingsSection({
       return;
     }
 
-    const costoNum = form.costo.trim() ? Number(form.costo) : 0;
+    const costoNum = form.costo.trim() ? parseInputCurrency(form.costo) : 0;
     if (!Number.isFinite(costoNum) || costoNum < 0) {
       setError("Ingresa un costo válido.");
       return;
@@ -660,15 +662,19 @@ export function TastingsSection({
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Costo">
               <input
-                type="number"
-                min={0}
-                step="1000"
+                type="text"
+                inputMode="numeric"
+                autoComplete="off"
                 className={inputClass}
                 value={form.costo}
                 onChange={(e) =>
-                  setForm((current) => ({ ...current, costo: e.target.value }))
+                  setForm((current) => ({
+                    ...current,
+                    costo: formatInputCurrency(e.target.value),
+                  }))
                 }
                 disabled={submitting}
+                placeholder="Ej: 150.000"
               />
             </Field>
             <Field label="Asignado a">

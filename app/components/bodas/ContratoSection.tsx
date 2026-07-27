@@ -11,7 +11,7 @@ import {
   type ContratoRow,
 } from "@/app/data/contratos";
 import type { BodaRow } from "@/app/data/weddings";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatInputCurrency, formatInputCurrencyFromNumber, parseInputCurrency } from "@/lib/format";
 import {
   resolveClienteFromBoda,
 } from "@/lib/contrato-celestia-template";
@@ -72,8 +72,8 @@ function buildInitialForm(
   const ciudad = contrato?.ciudad ?? boda.ciudad ?? "";
 
   return {
-    honorarios: honorarios === null ? "" : String(honorarios),
-    anticipo: anticipo === null ? "" : String(anticipo),
+    honorarios: formatInputCurrencyFromNumber(honorarios),
+    anticipo: formatInputCurrencyFromNumber(anticipo),
     ciudad,
     fechaFirma: contrato?.fecha_firma ?? "",
     firmante: contrato?.firmante ?? "novia",
@@ -110,9 +110,11 @@ export function ContratoSection({
   );
 
   const honorariosNum = form.honorarios.trim()
-    ? Number(form.honorarios)
+    ? parseInputCurrency(form.honorarios)
     : null;
-  const anticipoNum = form.anticipo.trim() ? Number(form.anticipo) : null;
+  const anticipoNum = form.anticipo.trim()
+    ? parseInputCurrency(form.anticipo)
+    : null;
   const saldo = useMemo(
     () => computeContratoSaldo(honorariosNum, anticipoNum),
     [honorariosNum, anticipoNum],
@@ -476,26 +478,32 @@ export function ContratoSection({
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Honorarios (COP)">
             <input
-              type="number"
-              min={0}
-              step={1}
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
               className={inputClass}
               value={form.honorarios}
               onChange={(e) =>
-                setForm((s) => ({ ...s, honorarios: e.target.value }))
+                setForm((s) => ({
+                  ...s,
+                  honorarios: formatInputCurrency(e.target.value),
+                }))
               }
               disabled={saving || generating}
             />
           </Field>
           <Field label="Anticipo (COP)">
             <input
-              type="number"
-              min={0}
-              step={1}
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
               className={inputClass}
               value={form.anticipo}
               onChange={(e) =>
-                setForm((s) => ({ ...s, anticipo: e.target.value }))
+                setForm((s) => ({
+                  ...s,
+                  anticipo: formatInputCurrency(e.target.value),
+                }))
               }
               disabled={saving || generating}
             />

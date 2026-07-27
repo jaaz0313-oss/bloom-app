@@ -1,3 +1,5 @@
+import { parseInputCurrency } from "@/lib/format";
+
 export type ProviderStatus =
   | "pendiente"
   | "cotizacion_solicitada"
@@ -169,9 +171,7 @@ export function listDepositosReembolsables(
 }
 
 export function parseProveedorValorInput(value: string): number {
-  const trimmed = value.trim();
-  if (trimmed === "") return 0;
-  return Number(trimmed);
+  return parseInputCurrency(value);
 }
 
 export function proveedorContribuyeAlPresupuesto(
