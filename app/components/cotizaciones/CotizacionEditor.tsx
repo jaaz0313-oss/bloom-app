@@ -612,7 +612,7 @@ export function CotizacionEditor({
           {fechaEstimada
             ? formatWeddingDate(fechaEstimada)
             : "Sin definir"}{" "}
-          · {formatShortDateStable(fechaEstimada || lead.fecha_tentativa)}
+          · {formatShortDateStable(fechaEstimada || lead.fecha_tentativa || '')}
         </p>
       </section>
 
