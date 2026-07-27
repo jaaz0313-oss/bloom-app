@@ -4,6 +4,10 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AUDITORIA_ACCIONES, logAuditoria } from "@/lib/auditoria";
 import { insertarCronograma } from "@/lib/cronograma";
+import {
+  DRIVE_FOLDER_CREATE_WARNING,
+  ensureBodaDriveFolder,
+} from "@/lib/ensure-boda-drive-folder";
 import { supabase } from "@/lib/supabase";
 
 type FormState = {
@@ -19,6 +23,7 @@ export function NewWeddingModalButton() {
   const [open, setOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [driveWarning, setDriveWarning] = useState<string | null>(null);
 
   const [form, setForm] = useState<FormState>({
     nombrePareja: "",
@@ -101,6 +106,9 @@ export function NewWeddingModalButton() {
         detalle: `${ciudad} · ${fechaBoda}`,
       });
 
+      const driveResult = await ensureBodaDriveFolder(nuevaBoda.id);
+      setDriveWarning(driveResult.ok ? null : DRIVE_FOLDER_CREATE_WARNING);
+
       setOpen(false);
       setForm({
         nombrePareja: "",
@@ -116,14 +124,27 @@ export function NewWeddingModalButton() {
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="inline-flex items-center justify-center gap-2 rounded-full bg-bloom-accent px-6 py-3 text-sm font-medium text-white shadow-sm transition-colors hover:bg-bloom-accent-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-bloom-accent"
-      >
-        <PlusIcon />
-        Nueva boda
-      </button>
+      <div className="flex flex-col items-stretch gap-2 sm:items-end">
+        <button
+          type="button"
+          onClick={() => {
+            setDriveWarning(null);
+            setOpen(true);
+          }}
+          className="inline-flex items-center justify-center gap-2 rounded-full bg-bloom-accent px-6 py-3 text-sm font-medium text-white shadow-sm transition-colors hover:bg-bloom-accent-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-bloom-accent"
+        >
+          <PlusIcon />
+          Nueva boda
+        </button>
+        {driveWarning && (
+          <p
+            className="max-w-sm rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-left text-xs text-amber-900 sm:text-right"
+            role="status"
+          >
+            {driveWarning}
+          </p>
+        )}
+      </div>
 
       {open && (
         <div

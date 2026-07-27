@@ -12,6 +12,10 @@ import Link from "next/link";
 import { formatCurrency, formatInputCurrency, formatInputCurrencyFromNumber, formatShortDateStable, parseInputCurrency } from "@/lib/format";
 import { importarCotizacionLeadABoda } from "@/lib/import-cotizacion-to-boda";
 import { insertarCronograma } from "@/lib/cronograma";
+import {
+  DRIVE_FOLDER_CREATE_WARNING,
+  ensureBodaDriveFolder,
+} from "@/lib/ensure-boda-drive-folder";
 import { createCotizacionForLead } from "@/lib/create-lead-cotizacion";
 import { AUDITORIA_ACCIONES, logAuditoria } from "@/lib/auditoria";
 import { insertLeadRow, updateLeadSeguimiento } from "@/lib/leads-mutations";
@@ -89,6 +93,7 @@ export function LeadsBoard({
   const [discardedOpen, setDiscardedOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [driveWarning, setDriveWarning] = useState<string | null>(null);
   const [form, setForm] = useState<LeadFormState>(emptyLeadForm);
   const [fechaConflicto, setFechaConflicto] = useState<string[]>([]);
   const [anticipoTouched, setAnticipoTouched] = useState(false);
@@ -431,6 +436,7 @@ export function LeadsBoard({
 
   async function handleConvert(lead: LeadRow) {
     setError(null);
+    setDriveWarning(null);
     if (!hasPermission(role, "weddings.create")) {
       setError("No tienes permisos para crear bodas.");
       return;
@@ -480,6 +486,11 @@ export function LeadsBoard({
         bodaNombre: lead.nombre_pareja,
         detalle: `Nueva boda: ${lead.nombre_pareja}`,
       });
+
+      const driveResult = await ensureBodaDriveFolder(nuevaBoda.id);
+      if (!driveResult.ok) {
+        setDriveWarning(DRIVE_FOLDER_CREATE_WARNING);
+      }
 
       const sugerencias = await fetchSugerenciasBodasSimilares(supabase, lead);
       const items = sugerenciasBodasSimilaresToInsertItems(sugerencias);
@@ -574,6 +585,15 @@ export function LeadsBoard({
       {error && (
         <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
           {error}
+        </p>
+      )}
+
+      {driveWarning && (
+        <p
+          className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900"
+          role="status"
+        >
+          {driveWarning}
         </p>
       )}
 
