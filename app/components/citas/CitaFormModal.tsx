@@ -68,6 +68,8 @@ type CitaFormModalProps = {
   equipo: CitaLookupEquipo[];
   defaultBodaId?: string | null;
   defaultLeadId?: string | null;
+  /** Si se define, la cita queda fija a esa boda y no se muestra el selector. */
+  lockBodaId?: string | null;
   defaultFecha?: string;
   editingCita?: CitaRow | null;
   onCreated?: (cita: CitaRow) => void;
@@ -89,6 +91,7 @@ export function CitaFormModal({
   equipo,
   defaultBodaId = null,
   defaultLeadId = null,
+  lockBodaId = null,
   defaultFecha,
   editingCita = null,
   onCreated,
@@ -98,6 +101,11 @@ export function CitaFormModal({
   const isEditing = !!editingCita;
   const scheduleBeforeRef = useRef<CitaScheduleSnapshot | null>(null);
   const tiposDisponibles = useMemo(() => getCitaTiposForRole(role), [role]);
+  const lockedBodaId = lockBodaId?.trim() || null;
+  const lockedBodaNombre = useMemo(() => {
+    if (!lockedBodaId) return null;
+    return bodas.find((b) => b.id === lockedBodaId)?.nombre_pareja ?? null;
+  }, [bodas, lockedBodaId]);
 
   const [tipo, setTipo] = useState<CitaTipo>(tiposDisponibles[0] ?? "reunion_seguimiento");
   const [titulo, setTitulo] = useState("");
@@ -108,9 +116,9 @@ export function CitaFormModal({
   const [linkMeet, setLinkMeet] = useState("");
   const [notas, setNotas] = useState("");
   const [relacionTipo, setRelacionTipo] = useState<"ninguna" | "boda" | "lead">(
-    defaultBodaId ? "boda" : defaultLeadId ? "lead" : "ninguna",
+    lockedBodaId || defaultBodaId ? "boda" : defaultLeadId ? "lead" : "ninguna",
   );
-  const [bodaId, setBodaId] = useState(defaultBodaId ?? "");
+  const [bodaId, setBodaId] = useState(lockedBodaId ?? defaultBodaId ?? "");
   const [leadId, setLeadId] = useState(defaultLeadId ?? "");
   const [proveedorCita, setProveedorCita] = useState<CitaProveedorCita | null>(
     null,
@@ -199,6 +207,11 @@ export function CitaFormModal({
 
     if (editingCita) {
       loadFormFromCita(editingCita);
+      if (lockedBodaId) {
+        setRelacionTipo("boda");
+        setBodaId(lockedBodaId);
+        setLeadId("");
+      }
       return;
     }
 
@@ -210,9 +223,15 @@ export function CitaFormModal({
     setLugar("");
     setLinkMeet("");
     setNotas("");
-    setRelacionTipo(defaultBodaId ? "boda" : defaultLeadId ? "lead" : "ninguna");
-    setBodaId(defaultBodaId ?? "");
-    setLeadId(defaultLeadId ?? "");
+    if (lockedBodaId) {
+      setRelacionTipo("boda");
+      setBodaId(lockedBodaId);
+      setLeadId("");
+    } else {
+      setRelacionTipo(defaultBodaId ? "boda" : defaultLeadId ? "lead" : "ninguna");
+      setBodaId(defaultBodaId ?? "");
+      setLeadId(defaultLeadId ?? "");
+    }
     setProveedorCita(null);
     setAsignadoId(currentUserId);
     setTituloEditadoManual(false);
@@ -224,6 +243,7 @@ export function CitaFormModal({
     defaultFecha,
     defaultBodaId,
     defaultLeadId,
+    lockedBodaId,
     currentUserId,
   ]);
 
@@ -234,7 +254,10 @@ export function CitaFormModal({
     }
     setRelacionTipo("boda");
     setLeadId("");
-  }, [esReunionProveedor]);
+    if (lockedBodaId) {
+      setBodaId(lockedBodaId);
+    }
+  }, [esReunionProveedor, lockedBodaId]);
 
   const relacionNombre = useMemo(
     () =>
@@ -309,14 +332,18 @@ export function CitaFormModal({
     if (!fecha) return setError("Selecciona una fecha.");
     if (!horaInicio) return setError("Selecciona la hora de inicio.");
 
-    if (relacionTipo === "boda" && !bodaId) {
+    const effectiveRelacionTipo = lockedBodaId ? "boda" : relacionTipo;
+    const effectiveBodaId = lockedBodaId ?? bodaId;
+    const effectiveLeadId = lockedBodaId ? "" : leadId;
+
+    if (effectiveRelacionTipo === "boda" && !effectiveBodaId) {
       return setError("Selecciona una boda.");
     }
-    if (relacionTipo === "lead" && !leadId) {
+    if (effectiveRelacionTipo === "lead" && !effectiveLeadId) {
       return setError("Selecciona un lead.");
     }
     if (esReunionProveedor) {
-      if (relacionTipo !== "boda" || !bodaId) {
+      if (effectiveRelacionTipo !== "boda" || !effectiveBodaId) {
         return setError("Selecciona una boda para la reunión con proveedor.");
       }
       if (!proveedorCita?.nombre.trim()) {
@@ -328,11 +355,11 @@ export function CitaFormModal({
 
     const emailEntries = collectCitaInvolvedEmails({
       tipo,
-      relacionTipo,
-      bodaId,
+      relacionTipo: effectiveRelacionTipo,
+      bodaId: effectiveBodaId,
       asignadoId,
       equipo,
-      boda: bodaId ? (bodasById[bodaId] ?? null) : null,
+      boda: effectiveBodaId ? (bodasById[effectiveBodaId] ?? null) : null,
       proveedor: proveedorCita,
     });
     const emailsInvolucrados = emailsToStrings(emailEntries);
@@ -351,8 +378,8 @@ export function CitaFormModal({
       lugar: lugar.trim() || null,
       link_meet: linkMeet.trim() || null,
       notas: notas.trim() || null,
-      boda_id: relacionTipo === "boda" ? bodaId : null,
-      lead_id: relacionTipo === "lead" ? leadId : null,
+      boda_id: effectiveRelacionTipo === "boda" ? effectiveBodaId : null,
+      lead_id: effectiveRelacionTipo === "lead" ? effectiveLeadId : null,
       proveedor_id: null,
       emails_involucrados:
         emailsInvolucrados.length > 0 ? emailsInvolucrados : null,
@@ -526,7 +553,26 @@ export function CitaFormModal({
             </Field>
 
             {/* 2. Boda / lead / proveedor */}
-            {esReunionProveedor ? (
+            {lockedBodaId ? (
+              <>
+                {lockedBodaNombre && (
+                  <p className="rounded-xl border border-bloom-border bg-bloom-canvas/60 px-3 py-2 text-sm text-bloom-muted">
+                    Boda:{" "}
+                    <span className="font-medium text-bloom-ink">
+                      {lockedBodaNombre}
+                    </span>
+                  </p>
+                )}
+                {esReunionProveedor && (
+                  <CitaProveedorPicker
+                    open={open}
+                    value={proveedorCita}
+                    onChange={setProveedorCita}
+                    onInteraction={() => setTituloEditadoManual(false)}
+                  />
+                )}
+              </>
+            ) : esReunionProveedor ? (
               <>
                 <CitaProveedorPicker
                   open={open}

@@ -12,7 +12,12 @@ export type BodaDriveFolderRow = {
   created_at: string;
 };
 
-const SUBFOLDERS = ["Cotizaciones", "Comprobantes de pago", "Contratos"];
+const SUBFOLDERS = [
+  "Cotizaciones",
+  "Comprobantes de pago",
+  "Contratos",
+  "Tastings",
+];
 
 export const BODA_DRIVE_TEAM_WRITER_EMAILS = [
   "infocelestiaevents@gmail.com",
@@ -21,6 +26,7 @@ export const BODA_DRIVE_TEAM_WRITER_EMAILS = [
 
 export const COMPROBANTES_PAGO_SUBFOLDER = "Comprobantes de pago";
 export const COTIZACIONES_SUBFOLDER = "Cotizaciones";
+export const TASTINGS_SUBFOLDER = "Tastings";
 
 function getDriveClient() {
   const { email, key } = getGoogleServiceAccountCredentials();
@@ -449,6 +455,24 @@ export async function getComprobantesPagoFolderUrl(
   const subfolderUrl = await findDriveSubfolderUrl(
     folder.drive_folder_id,
     COMPROBANTES_PAGO_SUBFOLDER,
+  );
+
+  return (
+    subfolderUrl ??
+    folder.folder_url ??
+    buildDriveFolderUrl(folder.drive_folder_id)
+  );
+}
+
+export async function getTastingsFolderUrl(
+  bodaId: string,
+): Promise<string | null> {
+  const folder = await getDriveFolderForBoda(bodaId);
+  if (!folder?.drive_folder_id) return null;
+
+  const subfolderUrl = await findDriveSubfolderUrl(
+    folder.drive_folder_id,
+    TASTINGS_SUBFOLDER,
   );
 
   return (

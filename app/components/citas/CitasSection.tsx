@@ -117,6 +117,7 @@ export function CitasSection({
                 role={role}
                 currentUserId={currentUserId}
                 currentUserNombre={currentUserNombre}
+                lockBodaId={defaultBodaId}
                 showDate
                 onChange={(next) => handleCitaChange(cita.id, next)}
               />
@@ -141,6 +142,7 @@ export function CitasSection({
         equipo={equipo}
         defaultBodaId={defaultBodaId}
         defaultLeadId={defaultLeadId}
+        lockBodaId={defaultBodaId}
       />
     </Shell>
   );

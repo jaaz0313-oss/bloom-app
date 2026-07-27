@@ -30,6 +30,7 @@ type CitaConAccionesProps = {
   role: UserRole;
   currentUserId: string;
   currentUserNombre: string;
+  lockBodaId?: string | null;
   showDate?: boolean;
   compact?: boolean;
   onChange: (cita: CitaRow | null) => void;
@@ -43,6 +44,7 @@ export function CitaConAcciones({
   role,
   currentUserId,
   currentUserNombre,
+  lockBodaId = null,
   showDate = false,
   compact = false,
   onChange,
@@ -260,6 +262,8 @@ export function CitaConAcciones({
         bodas={bodas}
         leads={leads}
         equipo={equipo}
+        lockBodaId={lockBodaId}
+        defaultBodaId={lockBodaId}
       />
 
       {cancelConfirmOpen && (

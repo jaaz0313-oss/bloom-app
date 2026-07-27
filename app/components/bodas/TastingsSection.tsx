@@ -6,6 +6,7 @@ import {
   TastingProveedorPicker,
   type TastingProveedorSelection,
 } from "@/app/components/bodas/TastingProveedorPicker";
+import { SubirFotosTastingDriveButton } from "@/app/components/bodas/SubirFotosTastingDriveButton";
 import {
   normalizeTastingRow,
   sortTastingsBySchedule,
@@ -1033,6 +1034,37 @@ export function TastingsSection({
                 <p className="mt-3 whitespace-pre-wrap text-sm text-bloom-muted">
                   {tasting.notas}
                 </p>
+              )}
+
+              {canManage && (
+                <SubirFotosTastingDriveButton
+                  bodaId={bodaId}
+                  tastingId={tasting.id}
+                  fotosDriveUrl={tasting.fotos_drive_url}
+                  disabled={deletingId === tasting.id}
+                  onSaved={(url) => {
+                    setTastings((current) =>
+                      current.map((item) =>
+                        item.id === tasting.id
+                          ? { ...item, fotos_drive_url: url }
+                          : item,
+                      ),
+                    );
+                  }}
+                />
+              )}
+
+              {!canManage && tasting.fotos_drive_url && (
+                <div className="mt-3">
+                  <a
+                    href={tasting.fotos_drive_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex rounded-full border border-bloom-border bg-bloom-surface px-3 py-1.5 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-border"
+                  >
+                    Ver fotos
+                  </a>
+                </div>
               )}
 
               {(() => {

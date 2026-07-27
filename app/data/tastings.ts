@@ -23,6 +23,7 @@ export type TastingRow = {
   notas: string | null;
   notas_reunion: TastingNotaReunionEntry[] | null;
   email_invitado: string | null;
+  fotos_drive_url: string | null;
   google_event_id: string | null;
   created_at: string;
 };
@@ -37,6 +38,7 @@ export function normalizeTastingRow(row: TastingRow): TastingRow {
     confirmado: Boolean(row.confirmado),
     email_invitado: row.email_invitado?.trim() || null,
     notas_reunion: parseTastingNotasReunion(row.notas_reunion),
+    fotos_drive_url: row.fotos_drive_url?.trim() || null,
   };
 }
 
