@@ -193,7 +193,7 @@ export function CotizacionEditor({
             ? Number(numeroInvitados)
             : null,
           fechaEstimada: fechaEstimada || null,
-          ciudad: ciudad.trim() || lead.ciudad,
+          ciudad: ciudad?.trim() || lead.ciudad || '',
           items,
         },
         whatsappLocale,
@@ -368,7 +368,7 @@ export function CotizacionEditor({
         ? Number(numeroInvitados)
         : null,
       fechaEstimada: fechaEstimada || null,
-      ciudad: ciudad.trim() || lead.ciudad,
+      ciudad: ciudad?.trim() || lead.ciudad || '',
       items,
     });
     openCotizacionLeadEmail(email, subject, body);
