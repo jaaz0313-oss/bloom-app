@@ -10,6 +10,7 @@ import { BodaCotizacionInicialButton } from "@/app/components/bodas/BodaCotizaci
 import { BodaFechaConfirmada } from "@/app/components/bodas/BodaFechaConfirmada";
 import { BodaNumInvitados } from "@/app/components/bodas/BodaNumInvitados";
 import { ShareWithClientButton } from "@/app/components/bodas/ShareWithClientButton";
+import { AutoSyncCronograma } from "@/app/components/bodas/AutoSyncCronograma";
 import type { CitaRow } from "@/app/data/citas";
 import type { BriefBodaRow } from "@/app/data/brief-boda";
 import type { ContratoRow } from "@/app/data/contratos";
@@ -217,9 +218,16 @@ export default async function BodaDetailPage({ params, searchParams }: PageProps
     lugar_venue: bodaRow.lugar_venue,
   };
 
+  const hasCronograma = (cronogramaCount ?? 0) > 0;
+
   return (
     <div className="min-h-full bg-bloom-canvas font-sans">
       <DashboardHeader user={user} />
+      <AutoSyncCronograma
+        bodaId={id}
+        fechaBoda={bodaRow.fecha_boda}
+        hasCronograma={hasCronograma}
+      />
 
       <main className="mx-auto max-w-5xl px-6 py-10 sm:px-8">
         <Link
@@ -302,7 +310,7 @@ export default async function BodaDetailPage({ params, searchParams }: PageProps
           equipoCitas={equipoCitas}
           canViewBrief={canViewBrief}
           canViewContrato={canViewContrato}
-          hasCronograma={(cronogramaCount ?? 0) > 0}
+          hasCronograma={hasCronograma}
           hasClientInfo={hasClientInfoContent(bodaRow)}
           hasBrief={hasBriefContent(brief)}
           hasContrato={hasContratoContent(contrato, bodaRow)}

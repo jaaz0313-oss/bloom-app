@@ -192,14 +192,25 @@ function findObsoleteHitoIds(items: CronogramaItemExisting[]): string[] {
   return [...idsToDelete];
 }
 
+export type ActualizarCronogramaOptions = {
+  /**
+   * Si es true (default), también elimina hitos combinados obsoletos cuando
+   * ya existen las versiones separadas. El sync automático pasa false.
+   */
+  removeObsolete?: boolean;
+};
+
 /** Agrega hitos de la plantilla actual que aún no existen en el cronograma de la boda. */
 export async function actualizarCronograma(
   client: SupabaseClient,
   bodaId: string,
   fechaBoda: string,
+  options?: ActualizarCronogramaOptions,
 ): Promise<
   { ok: true; added: number; removed: number } | { ok: false; message: string }
 > {
+  const removeObsolete = options?.removeObsolete !== false;
+
   const { data: existing, error: fetchError } = await client
     .from("cronograma_items")
     .select("id, categoria, descripcion")
@@ -228,6 +239,10 @@ export async function actualizarCronograma(
     if (insertError) {
       return { ok: false, message: insertError.message };
     }
+  }
+
+  if (!removeObsolete) {
+    return { ok: true, added: nuevos.length, removed: 0 };
   }
 
   const { data: refreshed, error: refreshError } = await client

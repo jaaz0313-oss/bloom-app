@@ -10,6 +10,7 @@ import {
   getCronogramaItemStatus,
   type CronogramaItemRow,
 } from "@/app/data/cronograma";
+import { CRONOGRAMA_AUTO_SYNCED_EVENT } from "@/app/components/bodas/AutoSyncCronograma";
 import { insertarCronograma, actualizarCronograma, regenerarCronograma } from "@/lib/cronograma";
 import { formatShortDate } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
@@ -80,6 +81,19 @@ export function CronogramaContratacion({
   useEffect(() => {
     loadItems();
   }, [loadItems]);
+
+  useEffect(() => {
+    function handleAutoSynced(event: Event) {
+      const detail = (event as CustomEvent<{ bodaId?: string }>).detail;
+      if (detail?.bodaId !== bodaId) return;
+      void loadItems();
+    }
+
+    window.addEventListener(CRONOGRAMA_AUTO_SYNCED_EVENT, handleAutoSynced);
+    return () => {
+      window.removeEventListener(CRONOGRAMA_AUTO_SYNCED_EVENT, handleAutoSynced);
+    };
+  }, [bodaId, loadItems]);
 
   async function handleToggle(item: CronogramaItemRow) {
     if (!canManage) return;
