@@ -149,9 +149,11 @@ export function CotizacionEditor({
         ? String(lead.cantidad_invitados)
         : "",
   );
-  const [ciudad, setCiudad] = useState(cotizacion.ciudad ?? lead.ciudad);
+  const [ciudad, setCiudad] = useState(
+    cotizacion.ciudad ?? lead.ciudad ?? "",
+  );
   const [fechaEstimada, setFechaEstimada] = useState(
-    cotizacion.fecha_estimada ?? lead.fecha_tentativa,
+    cotizacion.fecha_estimada ?? lead.fecha_tentativa ?? "",
   );
   const [notas, setNotas] = useState(cotizacion.notas ?? "");
   const [estado, setEstado] = useState<CotizacionEstado>(cotizacion.estado);
@@ -512,7 +514,7 @@ export function CotizacionEditor({
             <label className="text-sm font-medium text-bloom-ink">Ciudad</label>
             <input
               className={inputClass}
-              value={ciudad}
+              value={ciudad ?? ""}
               onChange={(e) => setCiudad(e.target.value)}
               disabled={saving}
             />
@@ -524,7 +526,7 @@ export function CotizacionEditor({
             <input
               type="date"
               className={inputClass}
-              value={fechaEstimada}
+              value={fechaEstimada ?? ""}
               onChange={(e) => setFechaEstimada(e.target.value)}
               disabled={saving}
             />
