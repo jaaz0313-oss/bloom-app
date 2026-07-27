@@ -46,12 +46,15 @@ export async function POST(request: Request) {
 
     const { data: bodaData } = await supabase
       .from("bodas")
-      .select("nombre_pareja")
+      .select("nombre_pareja, email_novia, email_novio")
       .eq("id", tasting.boda_id)
       .maybeSingle();
 
-    const bodaNombre =
-      (bodaData as { nombre_pareja: string } | null)?.nombre_pareja ?? null;
+    const boda = bodaData as {
+      nombre_pareja: string;
+      email_novia: string | null;
+      email_novio: string | null;
+    } | null;
 
     const event = await createTastingCalendarEvent(
       {
@@ -65,8 +68,10 @@ export async function POST(request: Request) {
         notas: tasting.notas,
         asignado_nombre: tasting.asignado_nombre,
         email_invitado: tasting.email_invitado,
+        email_novia: boda?.email_novia ?? null,
+        email_novio: boda?.email_novio ?? null,
       },
-      bodaNombre,
+      boda?.nombre_pareja ?? null,
     );
 
     const { error: updateError } = await supabase

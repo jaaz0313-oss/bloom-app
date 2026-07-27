@@ -208,25 +208,9 @@ export type TastingForCalendar = {
   notas: string | null;
   asignado_nombre: string | null;
   email_invitado?: string | null;
+  email_novia?: string | null;
+  email_novio?: string | null;
 };
-
-function buildCalendarAttendees(
-  emails: Array<string | null | undefined>,
-): calendar_v3.Schema$EventAttendee[] | undefined {
-  const seen = new Set<string>();
-  const attendees: calendar_v3.Schema$EventAttendee[] = [];
-
-  for (const raw of emails) {
-    const email = raw?.trim();
-    if (!email) continue;
-    const key = email.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    attendees.push({ email });
-  }
-
-  return attendees.length > 0 ? attendees : undefined;
-}
 
 function buildTastingEventTimes(tasting: TastingForCalendar) {
   const startDateTime = buildDateTime(tasting.fecha, tasting.hora_inicio);
@@ -241,6 +225,17 @@ function buildTastingEventTimes(tasting: TastingForCalendar) {
       );
 
   return { startDateTime, endDateTime };
+}
+
+function buildTastingClientesLine(
+  emailNovia: string | null | undefined,
+  emailNovio: string | null | undefined,
+): string | null {
+  const novia = emailNovia?.trim() || "";
+  const novio = emailNovio?.trim() || "";
+  if (!novia && !novio) return null;
+  if (novia && novio) return `Clientes: ${novia} / ${novio}`;
+  return `Clientes: ${novia || novio}`;
 }
 
 function buildTastingEventDescription(
@@ -265,6 +260,19 @@ function buildTastingEventDescription(
     lines.push(`Dirección: ${tasting.direccion.trim()}`);
   }
 
+  const emailInvitado = tasting.email_invitado?.trim();
+  if (emailInvitado) {
+    lines.push(`Proveedor: ${emailInvitado}`);
+  }
+
+  const clientesLine = buildTastingClientesLine(
+    tasting.email_novia,
+    tasting.email_novio,
+  );
+  if (clientesLine) {
+    lines.push(clientesLine);
+  }
+
   if (tasting.notas?.trim()) {
     lines.push("", "Notas:", tasting.notas.trim());
   }
@@ -279,7 +287,6 @@ function buildTastingEventResource(
   const timeZone = getCalendarTimezone();
   const { startDateTime, endDateTime } = buildTastingEventTimes(tasting);
   const summary = getTastingEventTitle(tasting);
-  const attendees = buildCalendarAttendees([tasting.email_invitado]);
 
   return {
     summary,
@@ -287,8 +294,6 @@ function buildTastingEventResource(
     location: tasting.direccion?.trim() || undefined,
     start: { dateTime: startDateTime, timeZone },
     end: { dateTime: endDateTime, timeZone },
-    // Always set attendees so patch clears them when email_invitado is removed.
-    attendees: attendees ?? [],
   };
 }
 
