@@ -40,8 +40,8 @@ export const COTIZACION_ESTADOS: CotizacionEstado[] = [
 export type CotizacionWithLead = CotizacionRow & {
   leads: {
     nombre_pareja: string;
-    fecha_tentativa: string;
-    ciudad: string;
+    fecha_tentativa: string | null;
+    ciudad: string | null;
     cantidad_invitados: number | null;
     presupuesto_estimado: number | null;
     notas: string | null;

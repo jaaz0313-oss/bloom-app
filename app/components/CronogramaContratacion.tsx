@@ -101,7 +101,7 @@ export function CronogramaContratacion({
   }, [bodaId, loadItems]);
 
   useEffect(() => {
-    return subscribeRealtimeTables(`cronograma:${bodaId}`, [
+    return subscribeRealtimeTables(`boda:${bodaId}:cronograma`, [
       {
         table: "cronograma_items",
         filter: `boda_id=eq.${bodaId}`,

@@ -5,8 +5,8 @@ export type LeadListadoEstado = "activo" | "descartado";
 export type LeadRow = {
   id: string;
   nombre_pareja: string;
-  fecha_tentativa: string;
-  ciudad: string;
+  fecha_tentativa: string | null;
+  ciudad: string | null;
   presupuesto_estimado: number | null;
   cantidad_invitados: number | null;
   tipo_ceremonia: string | null;

@@ -67,7 +67,7 @@ export function TareaCommentsSection({
   }, [loadComentarios]);
 
   useEffect(() => {
-    return subscribeRealtimeTables(`tarea-comentarios:${tareaId}`, [
+    return subscribeRealtimeTables(`tareas:comentarios:${tareaId}`, [
       {
         table: "tareas_comentarios",
         event: "INSERT",

@@ -65,7 +65,7 @@ export function TareasPageClient({
   }, [initialTareas]);
 
   useEffect(() => {
-    return subscribeRealtimeTables(`tareas:${currentUsername}`, [
+    return subscribeRealtimeTables(`tareas:list:${currentUsername}`, [
       {
         table: "tareas",
         onPayload: (payload) => {

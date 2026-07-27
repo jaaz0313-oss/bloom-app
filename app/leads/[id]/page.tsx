@@ -5,6 +5,7 @@ import { CitasSection } from "@/app/components/citas/CitasSection";
 import { LeadCotizacionesSection } from "@/app/components/leads/LeadCotizacionesSection";
 import { LeadCotizacionPanel } from "@/app/components/leads/LeadCotizacionPanel";
 import { LeadSugerenciasBodasSimilares } from "@/app/components/leads/LeadSugerenciasBodasSimilares";
+import { LeadAgendarReunionButton } from "@/app/components/leads/LeadAgendarReunionModal";
 import type { CotizacionItemRow } from "@/app/data/cotizaciones";
 import { pickActiveLeadCotizacion } from "@/lib/lead-cotizacion";
 import { buildHistoricoPrecios } from "@/lib/cotizacion-historico";
@@ -154,8 +155,24 @@ export default async function LeadDetailPage({ params }: PageProps) {
             </span>
           </div>
           <p className="mt-1 text-sm text-bloom-muted">
-            {leadRow.ciudad} · {formatShortDate(leadRow.fecha_tentativa)}
+            {[
+              leadRow.ciudad?.trim() || null,
+              leadRow.fecha_tentativa
+                ? formatShortDate(leadRow.fecha_tentativa)
+                : null,
+            ]
+              .filter(Boolean)
+              .join(" · ") || "Sin fecha ni ciudad"}
           </p>
+          <div className="mt-4">
+            <LeadAgendarReunionButton
+              lead={leadRow}
+              role={user.rol}
+              currentUserId={user.id}
+              currentUserNombre={user.nombre}
+              className="rounded-full bg-bloom-accent px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-bloom-accent-hover"
+            />
+          </div>
         </header>
 
         <dl className="mt-6 grid gap-3 rounded-2xl border border-bloom-border bg-bloom-surface p-5 text-sm sm:grid-cols-2">

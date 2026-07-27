@@ -25,6 +25,7 @@ export type CitaForCalendar = Pick<
   | "link_meet"
   | "boda_id"
   | "lead_id"
+  | "emails_involucrados"
 >;
 
 const DEFAULT_TIMEZONE = "America/Bogota";
@@ -92,19 +93,32 @@ function buildEventTimes(cita: CitaForCalendar) {
 
 function buildEventDescription(
   cita: CitaForCalendar,
-  bodaNombre: string | null,
+  relacionNombre: string | null,
 ): string {
   const lines: string[] = [];
 
-  if (bodaNombre?.trim()) {
-    lines.push(`Boda: ${bodaNombre.trim()}`);
-  } else if (cita.boda_id) {
-    lines.push(`Boda ID: ${cita.boda_id}`);
+  if (cita.boda_id) {
+    lines.push(
+      relacionNombre?.trim()
+        ? `Boda: ${relacionNombre.trim()}`
+        : `Boda ID: ${cita.boda_id}`,
+    );
   } else if (cita.lead_id) {
-    lines.push(`Lead ID: ${cita.lead_id}`);
+    lines.push(
+      relacionNombre?.trim()
+        ? `Lead: ${relacionNombre.trim()}`
+        : `Lead ID: ${cita.lead_id}`,
+    );
   }
 
   lines.push(`Tipo de cita: ${CITA_TIPO_LABELS[cita.tipo]}`);
+
+  const emails = (cita.emails_involucrados ?? [])
+    .map((email) => email.trim())
+    .filter(Boolean);
+  if (emails.length > 0) {
+    lines.push(`Email: ${emails.join(", ")}`);
+  }
 
   if (cita.lugar?.trim()) {
     lines.push(`Lugar: ${cita.lugar.trim()}`);

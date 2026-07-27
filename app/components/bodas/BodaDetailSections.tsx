@@ -208,7 +208,7 @@ export function BodaDetailSections({
   }, [hasCronograma]);
 
   useEffect(() => {
-    return subscribeRealtimeTables(`boda-detail:${bodaId}`, [
+    return subscribeRealtimeTables(`boda:${bodaId}:detail`, [
       {
         table: "proveedores",
         filter: `boda_id=eq.${bodaId}`,

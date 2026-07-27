@@ -68,7 +68,7 @@ export function DashboardWeddingsRealtime({
   }, [initialFinished]);
 
   useEffect(() => {
-    return subscribeRealtimeTables("dashboard-bodas", [
+    return subscribeRealtimeTables("dashboard:bodas", [
       {
         table: "bodas",
         event: "*",

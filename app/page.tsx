@@ -470,6 +470,8 @@ export default async function Home({ searchParams }: HomeProps) {
             activeLeads={activeLeads}
             discardedLeads={discardedLeads}
             role={user.rol}
+            currentUserId={user.id}
+            currentUserNombre={user.nombre}
           />
         )}
       </main>
