@@ -2,6 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { TareaComentarioRow } from "@/app/data/tareas";
+import {
+  subscribeRealtimeTables,
+  upsertById,
+} from "@/lib/supabase-realtime";
 import { supabase } from "@/lib/supabase";
 
 type TareaCommentsSectionProps = {
@@ -61,6 +65,25 @@ export function TareaCommentsSection({
     setLoading(true);
     void loadComentarios();
   }, [loadComentarios]);
+
+  useEffect(() => {
+    return subscribeRealtimeTables(`tarea-comentarios:${tareaId}`, [
+      {
+        table: "tareas_comentarios",
+        event: "INSERT",
+        filter: `tarea_id=eq.${tareaId}`,
+        onPayload: (payload) => {
+          const row = payload.new as TareaComentarioRow;
+          if (!row?.id || row.tarea_id !== tareaId) return;
+          setComentarios((prev) =>
+            [...upsertById(prev, row)].sort((a, b) =>
+              a.created_at.localeCompare(b.created_at),
+            ),
+          );
+        },
+      },
+    ]);
+  }, [tareaId]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

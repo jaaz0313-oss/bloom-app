@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { wasNotaBodaEdited, type NotaBodaRow } from "@/app/data/notas-boda";
 import { formatDateTimeStable } from "@/lib/format";
@@ -41,6 +41,10 @@ export function NotasInternas({
   const router = useRouter();
   const [notas, setNotas] = useState(initialNotas);
   const [contenido, setContenido] = useState("");
+
+  useEffect(() => {
+    setNotas(initialNotas);
+  }, [initialNotas]);
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { AddProviderModalButton } from "@/app/components/bodas/AddProviderModalButton";
 import { BriefBoda } from "@/app/components/bodas/BriefBoda";
 import {
@@ -28,7 +29,7 @@ import {
   groupNotasReunionByProveedor,
   type NotaReunionRow,
 } from "@/app/data/notas-reunion";
-import { groupPagosByProveedor, type PagoRow } from "@/app/data/pagos";
+import type { PagoRow } from "@/app/data/pagos";
 import type { ProveedorSugeridoWithSelection } from "@/app/data/proveedores-sugeridos";
 import {
   computePaymentProjection,
@@ -39,10 +40,19 @@ import type { TastingRow } from "@/app/data/tastings";
 import type { BodaRow } from "@/app/data/weddings";
 import { canManageBodaEstado, hasPermission, type UserRole } from "@/lib/auth/roles";
 import type { EquipoUsuarioMencion } from "@/lib/notas-menciones";
-import type { CitaLookupBoda, CitaLookupEquipo, CitaLookupLead } from "@/app/components/citas/CitaFormModal";
+import type {
+  CitaLookupBoda,
+  CitaLookupEquipo,
+  CitaLookupLead,
+} from "@/app/components/citas/CitaFormModal";
 import { BODA_SECTION_PROVEEDORES, BODA_SECTION_TASTINGS } from "@/lib/boda-url";
 import { filterCitasFuturas } from "@/lib/citas";
 import { canManageProveedoresSugeridos } from "@/lib/proveedores-sugeridos";
+import {
+  removeById,
+  subscribeRealtimeTables,
+  upsertById,
+} from "@/lib/supabase-realtime";
 import { canViewTastings } from "@/lib/tastings";
 
 type BodaDetailSectionsProps = {
@@ -77,6 +87,70 @@ type BodaDetailSectionsProps = {
   driveFolderUrl?: string | null;
 };
 
+function sortProveedores(list: ProveedorRow[]): ProveedorRow[] {
+  return [...list].sort((a, b) => {
+    const ordenA = a.orden ?? Number.MAX_SAFE_INTEGER;
+    const ordenB = b.orden ?? Number.MAX_SAFE_INTEGER;
+    if (ordenA !== ordenB) return ordenA - ordenB;
+    return a.created_at.localeCompare(b.created_at);
+  });
+}
+
+function sortNotas(list: NotaBodaRow[]): NotaBodaRow[] {
+  return [...list].sort((a, b) => b.created_at.localeCompare(a.created_at));
+}
+
+function sortPagos(list: PagoRow[]): PagoRow[] {
+  return [...list].sort((a, b) => {
+    const byFecha = b.fecha_pago.localeCompare(a.fecha_pago);
+    if (byFecha !== 0) return byFecha;
+    return (b.created_at ?? "").localeCompare(a.created_at ?? "");
+  });
+}
+
+function applyPagoRealtime(
+  current: Record<string, PagoRow[]>,
+  eventType: string,
+  nextRow: PagoRow | null,
+  prevRow: Partial<PagoRow> | null,
+): Record<string, PagoRow[]> {
+  const result: Record<string, PagoRow[]> = { ...current };
+
+  if (eventType === "DELETE") {
+    const id = prevRow?.id;
+    if (!id) return current;
+    if (prevRow.proveedor_id) {
+      result[prevRow.proveedor_id] = removeById(
+        result[prevRow.proveedor_id] ?? [],
+        id,
+      );
+      return result;
+    }
+    for (const key of Object.keys(result)) {
+      result[key] = removeById(result[key] ?? [], id);
+    }
+    return result;
+  }
+
+  if ((eventType === "INSERT" || eventType === "UPDATE") && nextRow) {
+    if (
+      eventType === "UPDATE" &&
+      prevRow?.proveedor_id &&
+      prevRow.proveedor_id !== nextRow.proveedor_id
+    ) {
+      result[prevRow.proveedor_id] = removeById(
+        result[prevRow.proveedor_id] ?? [],
+        nextRow.id,
+      );
+    }
+    result[nextRow.proveedor_id] = sortPagos(
+      upsertById(result[nextRow.proveedor_id] ?? [], nextRow),
+    );
+  }
+
+  return result;
+}
+
 export function BodaDetailSections({
   bodaId,
   boda,
@@ -108,14 +182,144 @@ export function BodaDetailSections({
   canManageDrive = false,
   driveFolderUrl = null,
 }: BodaDetailSectionsProps) {
-  const projection = computePaymentProjection(providers, pagosByProveedor);
-  const depositos = listDepositosReembolsables(providers);
+  const [liveProviders, setLiveProviders] = useState(providers);
+  const [livePagosByProveedor, setLivePagosByProveedor] =
+    useState(pagosByProveedor);
+  const [liveNotas, setLiveNotas] = useState(notas);
+  const [liveHasCronograma, setLiveHasCronograma] = useState(hasCronograma);
+
+  const providerIdsRef = useRef(new Set(providers.map((p) => p.id)));
+
+  useEffect(() => {
+    setLiveProviders(providers);
+    providerIdsRef.current = new Set(providers.map((p) => p.id));
+  }, [providers]);
+
+  useEffect(() => {
+    setLivePagosByProveedor(pagosByProveedor);
+  }, [pagosByProveedor]);
+
+  useEffect(() => {
+    setLiveNotas(notas);
+  }, [notas]);
+
+  useEffect(() => {
+    setLiveHasCronograma(hasCronograma);
+  }, [hasCronograma]);
+
+  useEffect(() => {
+    return subscribeRealtimeTables(`boda-detail:${bodaId}`, [
+      {
+        table: "proveedores",
+        filter: `boda_id=eq.${bodaId}`,
+        onPayload: (payload) => {
+          if (payload.eventType === "DELETE") {
+            const oldRow = payload.old as Partial<ProveedorRow>;
+            if (!oldRow.id) return;
+            setLiveProviders((prev) => {
+              const next = removeById(prev, oldRow.id!);
+              providerIdsRef.current = new Set(next.map((p) => p.id));
+              return next;
+            });
+            setLivePagosByProveedor((prev) => {
+              if (!oldRow.id || !(oldRow.id in prev)) return prev;
+              const next = { ...prev };
+              delete next[oldRow.id];
+              return next;
+            });
+            return;
+          }
+
+          const row = payload.new as ProveedorRow;
+          if (!row?.id || row.boda_id !== bodaId) return;
+
+          setLiveProviders((prev) => {
+            const next = sortProveedores(upsertById(prev, row));
+            providerIdsRef.current = new Set(next.map((p) => p.id));
+            return next;
+          });
+        },
+      },
+      {
+        table: "pagos",
+        onPayload: (payload) => {
+          const nextRow =
+            payload.eventType === "DELETE" ? null : (payload.new as PagoRow);
+          const prevRow =
+            payload.eventType === "INSERT"
+              ? null
+              : ((payload.old as Partial<PagoRow> | null) ?? null);
+
+          if (payload.eventType === "DELETE") {
+            const id = prevRow?.id;
+            if (!id) return;
+            // Sin proveedor_id (replica identity default) buscamos en todos los buckets.
+            if (
+              prevRow?.proveedor_id &&
+              !providerIdsRef.current.has(prevRow.proveedor_id)
+            ) {
+              return;
+            }
+            setLivePagosByProveedor((current) =>
+              applyPagoRealtime(current, "DELETE", null, prevRow),
+            );
+            return;
+          }
+
+          const proveedorId = nextRow?.proveedor_id ?? null;
+          if (!proveedorId || !providerIdsRef.current.has(proveedorId)) {
+            return;
+          }
+
+          setLivePagosByProveedor((current) =>
+            applyPagoRealtime(
+              current,
+              payload.eventType,
+              nextRow,
+              prevRow,
+            ),
+          );
+        },
+      },
+      {
+        table: "notas_boda",
+        filter: `boda_id=eq.${bodaId}`,
+        onPayload: (payload) => {
+          if (payload.eventType === "DELETE") {
+            const oldRow = payload.old as Partial<NotaBodaRow>;
+            if (!oldRow.id) return;
+            setLiveNotas((prev) => removeById(prev, oldRow.id!));
+            return;
+          }
+
+          const row = payload.new as NotaBodaRow;
+          if (!row?.id || row.boda_id !== bodaId) return;
+          setLiveNotas((prev) => sortNotas(upsertById(prev, row)));
+        },
+      },
+      {
+        table: "cronograma_items",
+        filter: `boda_id=eq.${bodaId}`,
+        onPayload: (payload) => {
+          if (payload.eventType === "INSERT") {
+            setLiveHasCronograma(true);
+          }
+        },
+      },
+    ]);
+  }, [bodaId]);
+
+  const projection = computePaymentProjection(
+    liveProviders,
+    livePagosByProveedor,
+  );
+  const depositos = listDepositosReembolsables(liveProviders);
   const notasReunionByProveedor = groupNotasReunionByProveedor(notasReunion);
   const hasPaymentContent =
     projection.totalContratado > 0 ||
     projection.totalPagado > 0 ||
     depositos.length > 0 ||
-    providers.length > 0;
+    liveProviders.length > 0;
   const canManageSugeridos = canManageProveedoresSugeridos(role);
 
   return (
@@ -123,9 +327,7 @@ export function BodaDetailSections({
       <BodaAccordionSection
         title="Información de los clientes"
         defaultOpen={false}
-        hasContent={
-          hasClientInfo || (canViewContrato && hasContrato)
-        }
+        hasContent={hasClientInfo || (canViewContrato && hasContrato)}
       >
         <ClientInfoSection
           embedded
@@ -133,8 +335,8 @@ export function BodaDetailSections({
           boda={boda}
           role={role}
           plannerName={plannerName}
-          providers={providers}
-          pagosByProveedor={pagosByProveedor}
+          providers={liveProviders}
+          pagosByProveedor={livePagosByProveedor}
           canManageDrive={canManageDrive}
           driveFolderUrl={driveFolderUrl}
           contratoFirmante={contrato?.firmante ?? "novia"}
@@ -163,13 +365,13 @@ export function BodaDetailSections({
       <BodaAccordionSection
         title="Notas del equipo"
         defaultOpen={false}
-        hasContent={notas.length > 0}
+        hasContent={liveNotas.length > 0}
       >
         <NotasInternas
           embedded
           bodaId={bodaId}
           bodaNombre={boda.nombre_pareja}
-          initialNotas={notas}
+          initialNotas={liveNotas}
           equipo={equipo}
           currentUserId={currentUserId}
           currentUserNombre={plannerName}
@@ -281,13 +483,14 @@ export function BodaDetailSections({
         sectionKey={BODA_SECTION_PROVEEDORES}
         openSection={openSection}
         defaultOpen
-        hasContent={providers.length > 0}
+        hasContent={liveProviders.length > 0}
       >
         <div className="space-y-5">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <p className="text-sm text-bloom-muted">
-              {providers.length}{" "}
-              {providers.length === 1 ? "proveedor" : "proveedores"} registrados
+              {liveProviders.length}{" "}
+              {liveProviders.length === 1 ? "proveedor" : "proveedores"}{" "}
+              registrados
             </p>
             {hasPermission(role, "providers.manage") && (
               <AddProviderModalButton
@@ -301,7 +504,7 @@ export function BodaDetailSections({
             )}
           </div>
           <ProviderList
-            providers={providers}
+            providers={liveProviders}
             bodaId={bodaId}
             boda={{
               nombrePareja: boda.nombre_pareja,
@@ -312,7 +515,7 @@ export function BodaDetailSections({
             }}
             plannerName={plannerName}
             currentUserId={currentUserId}
-            pagosByProveedor={pagosByProveedor}
+            pagosByProveedor={livePagosByProveedor}
             notasReunionByProveedor={notasReunionByProveedor}
             role={role}
             whatsappGrupoLink={boda.whatsapp_grupo_link}
@@ -325,7 +528,7 @@ export function BodaDetailSections({
       <BodaAccordionSection
         title="Cronograma de contratación"
         defaultOpen={false}
-        hasContent={hasCronograma}
+        hasContent={liveHasCronograma}
       >
         <CronogramaContratacion
           embedded

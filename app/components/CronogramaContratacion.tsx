@@ -13,6 +13,11 @@ import {
 import { CRONOGRAMA_AUTO_SYNCED_EVENT } from "@/app/components/bodas/AutoSyncCronograma";
 import { insertarCronograma, actualizarCronograma, regenerarCronograma } from "@/lib/cronograma";
 import { formatShortDate } from "@/lib/format";
+import {
+  removeById,
+  subscribeRealtimeTables,
+  upsertById,
+} from "@/lib/supabase-realtime";
 import { supabase } from "@/lib/supabase";
 
 type CronogramaContratacionProps = {
@@ -94,6 +99,31 @@ export function CronogramaContratacion({
       window.removeEventListener(CRONOGRAMA_AUTO_SYNCED_EVENT, handleAutoSynced);
     };
   }, [bodaId, loadItems]);
+
+  useEffect(() => {
+    return subscribeRealtimeTables(`cronograma:${bodaId}`, [
+      {
+        table: "cronograma_items",
+        filter: `boda_id=eq.${bodaId}`,
+        onPayload: (payload) => {
+          if (payload.eventType === "DELETE") {
+            const oldRow = payload.old as Partial<CronogramaItemRow>;
+            if (!oldRow.id) return;
+            setItems((prev) => removeById(prev, oldRow.id!));
+            return;
+          }
+
+          const row = payload.new as CronogramaItemRow;
+          if (!row?.id || row.boda_id !== bodaId) return;
+          setItems((prev) =>
+            [...upsertById(prev, row)].sort((a, b) =>
+              a.fecha_limite.localeCompare(b.fecha_limite),
+            ),
+          );
+        },
+      },
+    ]);
+  }, [bodaId]);
 
   async function handleToggle(item: CronogramaItemRow) {
     if (!canManage) return;

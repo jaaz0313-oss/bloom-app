@@ -7,9 +7,8 @@ import { CitasHoySection } from "./components/citas/CitasHoySection";
 import { PaymentAlertsSection } from "./components/PaymentAlertsSection";
 import { TastingPaymentAlertsSection } from "./components/TastingPaymentAlertsSection";
 import { DashboardHeader } from "./components/DashboardHeader";
-import { FinishedWeddingsSection } from "./components/FinishedWeddingsSection";
 import { ExportarDatosButton } from "./components/ExportarDatosButton";
-import { ActiveWeddingsSection } from "./components/ActiveWeddingsSection";
+import { DashboardWeddingsRealtime } from "./components/DashboardWeddingsRealtime";
 import { NewWeddingModalButton } from "./components/NewWeddingModalButton";
 import { buildBodaInactivityAlerts } from "./data/boda-alerts";
 import { buildCronogramaAlerts } from "./data/cronograma-alerts";
@@ -457,20 +456,15 @@ export default async function Home({ searchParams }: HomeProps) {
         </div>
 
         {tab === "bodas" ? (
-          <>
-            <ActiveWeddingsSection
-              weddings={activeWeddings}
-              newWeddingButton={
-                hasPermission(user.rol, "weddings.create") ? (
-                  <NewWeddingModalButton />
-                ) : undefined
-              }
-            />
-
-            <div className="mt-10">
-              <FinishedWeddingsSection weddings={finishedWeddings} />
-            </div>
-          </>
+          <DashboardWeddingsRealtime
+            initialActive={activeWeddings}
+            initialFinished={finishedWeddings}
+            newWeddingButton={
+              hasPermission(user.rol, "weddings.create") ? (
+                <NewWeddingModalButton />
+              ) : undefined
+            }
+          />
         ) : (
           <LeadsBoard
             activeLeads={activeLeads}

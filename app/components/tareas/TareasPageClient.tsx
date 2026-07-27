@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -13,6 +13,8 @@ import { ResponsiveModal } from "@/app/components/ui/ResponsiveModal";
 import {
   compareTareasByFechaLimite,
   getTareaUrgency,
+  isTareaVisibleForUser,
+  normalizeTareaRow,
   TAREA_PRIORIDAD_LABELS,
   TAREA_PRIORIDAD_STYLES,
   TAREA_URGENCY_LABELS,
@@ -20,6 +22,11 @@ import {
   type TareaRow,
 } from "@/app/data/tareas";
 import { formatShortDateStable } from "@/lib/format";
+import {
+  removeById,
+  subscribeRealtimeTables,
+  upsertById,
+} from "@/lib/supabase-realtime";
 import { supabase } from "@/lib/supabase";
 import { ChevronDown, ChevronUp, MessageSquare } from "lucide-react";
 
@@ -52,6 +59,36 @@ export function TareasPageClient({
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setTareas(initialTareas);
+  }, [initialTareas]);
+
+  useEffect(() => {
+    return subscribeRealtimeTables(`tareas:${currentUsername}`, [
+      {
+        table: "tareas",
+        onPayload: (payload) => {
+          if (payload.eventType === "DELETE") {
+            const oldRow = payload.old as Partial<TareaRow>;
+            if (!oldRow.id) return;
+            setTareas((prev) => removeById(prev, oldRow.id!));
+            return;
+          }
+
+          const row = normalizeTareaRow(payload.new as TareaRow);
+          if (!row?.id) return;
+
+          if (!isTareaVisibleForUser(row, currentUsername)) {
+            setTareas((prev) => removeById(prev, row.id));
+            return;
+          }
+
+          setTareas((prev) => upsertById(prev, row));
+        },
+      },
+    ]);
+  }, [currentUsername]);
 
   const nombreByUsername = useMemo(() => {
     const map = new Map<string, string>();
