@@ -10,6 +10,7 @@ import {
   normalizeTastingRow,
   sortTastingsBySchedule,
   type TastingRow,
+  type TastingTipoCita,
 } from "@/app/data/tastings";
 import type { UserRole } from "@/lib/auth/roles";
 import type { EquipoUsuarioMencion } from "@/lib/notas-menciones";
@@ -34,6 +35,10 @@ import {
   canManageTastings,
   canViewTastings,
   getTastingDisplayTitle,
+  getTastingTipoBadgeClass,
+  getTastingTipoLabel,
+  normalizeTastingTipoCita,
+  TASTING_TIPO_CITA_OPTIONS,
   type TastingScheduleWarning,
   validateTastingSchedule,
 } from "@/lib/tastings";
@@ -49,6 +54,7 @@ type TastingsSectionProps = {
 };
 
 type FormState = {
+  tipoCita: TastingTipoCita;
   proveedor: TastingProveedorSelection | null;
   nombreManual: string;
   emailInvitado: string;
@@ -70,6 +76,7 @@ const textareaClass = `${inputClass} resize-y min-h-[72px]`;
 
 function emptyForm(): FormState {
   return {
+    tipoCita: "tasting",
     proveedor: null,
     nombreManual: "",
     emailInvitado: "",
@@ -89,6 +96,7 @@ function formToState(tasting: TastingRow): FormState {
   const hasProveedor = Boolean(tasting.proveedor_id);
   const emailInvitado = tasting.email_invitado?.trim() ?? "";
   return {
+    tipoCita: normalizeTastingTipoCita(tasting.tipo_cita),
     proveedor: hasProveedor
       ? {
           proveedor_id: tasting.proveedor_id as string,
@@ -293,6 +301,7 @@ export function TastingsSection({
     }
 
     const payload = {
+      tipo_cita: form.tipoCita,
       proveedor_id: form.proveedor?.proveedor_id ?? null,
       nombre_proveedor: form.proveedor?.nombre ?? form.nombreManual.trim(),
       categoria: form.proveedor?.categoria ?? null,
@@ -452,9 +461,9 @@ export function TastingsSection({
     <Shell className={shellClass}>
       {!embedded && (
         <>
-          <h2 className="font-display text-xl text-bloom-ink">Semana de Tastings</h2>
+          <h2 className="font-display text-xl text-bloom-ink">Agenda de Citas</h2>
           <p className="mt-1 text-sm text-bloom-muted">
-            Agenda de degustaciones con proveedores para esta boda.
+            Agenda de tastings, visitas y reuniones con proveedores para esta boda.
           </p>
         </>
       )}
@@ -466,7 +475,7 @@ export function TastingsSection({
             onClick={openForm}
             className="inline-flex items-center justify-center rounded-full bg-bloom-accent px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-bloom-accent-hover"
           >
-            Agregar tasting
+            Agregar cita
           </button>
         </div>
       )}
@@ -477,8 +486,29 @@ export function TastingsSection({
           onSubmit={handleSubmit}
         >
           <p className="text-sm font-medium text-bloom-ink">
-            {editingId ? "Editar tasting" : "Nuevo tasting"}
+            {editingId ? "Editar cita" : "Nueva cita"}
           </p>
+
+          <Field label="Tipo de cita">
+            <select
+              className={inputClass}
+              value={form.tipoCita}
+              onChange={(e) =>
+                setForm((current) => ({
+                  ...current,
+                  tipoCita: normalizeTastingTipoCita(e.target.value),
+                }))
+              }
+              disabled={submitting}
+              required
+            >
+              {TASTING_TIPO_CITA_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </Field>
 
           <Field label="Proveedor (opcional)">
             <TastingProveedorPicker
@@ -750,7 +780,7 @@ export function TastingsSection({
 
       {tastings.length === 0 ? (
         <p className="mt-6 rounded-xl border border-dashed border-bloom-border bg-bloom-canvas/60 px-4 py-8 text-center text-sm text-bloom-muted">
-          Aún no hay tastings programados para esta boda.
+          Aún no hay citas programadas para esta boda.
         </p>
       ) : (
         <ul className="mt-6 space-y-3">
@@ -765,6 +795,11 @@ export function TastingsSection({
                     <h3 className="font-medium text-bloom-ink">
                       {getTastingDisplayTitle(tasting)}
                     </h3>
+                    <span
+                      className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${getTastingTipoBadgeClass(tasting.tipo_cita)}`}
+                    >
+                      {getTastingTipoLabel(tasting.tipo_cita)}
+                    </span>
                     {tasting.confirmado && (
                       <span className="inline-flex rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
                         Confirmado

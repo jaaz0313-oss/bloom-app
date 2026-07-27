@@ -1,9 +1,12 @@
+export type TastingTipoCita = "tasting" | "visita" | "reunion";
+
 export type TastingRow = {
   id: string;
   boda_id: string;
   proveedor_id: string | null;
   nombre_proveedor: string;
   categoria: string | null;
+  tipo_cita: TastingTipoCita | string | null;
   fecha: string;
   hora_inicio: string;
   hora_fin: string | null;
@@ -23,6 +26,7 @@ export type TastingRow = {
 export function normalizeTastingRow(row: TastingRow): TastingRow {
   return {
     ...row,
+    tipo_cita: row.tipo_cita?.trim() || "tasting",
     costo: Number(row.costo ?? 0),
     costo_pagado: Boolean(row.costo_pagado),
     prueba_pagada: Boolean(row.prueba_pagada ?? row.costo_pagado),

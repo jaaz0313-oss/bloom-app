@@ -3,7 +3,7 @@
 import { CITA_TIPO_STYLES, type CitaRow } from "@/app/data/citas";
 import {
   getCalendarioEventoTitulo,
-  TASTING_CALENDARIO_STYLE,
+  getTastingCalendarioStyle,
   type CalendarioEvento,
 } from "@/lib/calendario-eventos";
 
@@ -18,7 +18,7 @@ export function CalendarioEventoPill({ evento, onClick }: CalendarioEventoPillPr
   const style =
     evento.kind === "cita"
       ? CITA_TIPO_STYLES[evento.cita.tipo]
-      : TASTING_CALENDARIO_STYLE;
+      : getTastingCalendarioStyle(evento.tasting.tipo_cita);
 
   return (
     <button

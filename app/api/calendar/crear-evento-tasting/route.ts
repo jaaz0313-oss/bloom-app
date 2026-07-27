@@ -57,6 +57,7 @@ export async function POST(request: Request) {
       {
         nombre_proveedor: tasting.nombre_proveedor,
         categoria: tasting.categoria,
+        tipo_cita: tasting.tipo_cita,
         fecha: tasting.fecha,
         hora_inicio: tasting.hora_inicio,
         hora_fin: tasting.hora_fin,

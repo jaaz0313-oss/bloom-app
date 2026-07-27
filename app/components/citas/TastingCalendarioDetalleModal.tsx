@@ -4,7 +4,11 @@ import Link from "next/link";
 import { ResponsiveModal } from "@/app/components/ui/ResponsiveModal";
 import type { TastingCalendarioRow } from "@/lib/calendario-eventos";
 import { formatShortDateStable } from "@/lib/format";
-import { formatTastingHorarioRange, getTastingDisplayTitle } from "@/lib/tastings";
+import {
+  formatTastingHorarioRange,
+  getTastingDisplayTitle,
+  getTastingTipoLabel,
+} from "@/lib/tastings";
 
 type TastingCalendarioDetalleModalProps = {
   tasting: TastingCalendarioRow | null;
@@ -22,10 +26,16 @@ export function TastingCalendarioDetalleModal({
       open
       onClose={onClose}
       title={getTastingDisplayTitle(tasting)}
-      subtitle={`Tasting · ${tasting.boda_nombre}`}
+      subtitle={`${getTastingTipoLabel(tasting.tipo_cita)} · ${tasting.boda_nombre}`}
       size="md"
     >
       <dl className="space-y-3 text-sm">
+        <div>
+          <dt className="text-bloom-muted">Tipo</dt>
+          <dd className="font-medium text-bloom-ink">
+            {getTastingTipoLabel(tasting.tipo_cita)}
+          </dd>
+        </div>
         <div>
           <dt className="text-bloom-muted">Boda</dt>
           <dd className="font-medium text-bloom-ink">{tasting.boda_nombre}</dd>

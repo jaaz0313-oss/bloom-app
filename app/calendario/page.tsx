@@ -75,7 +75,7 @@ export default async function CalendarioPage() {
 
         <h1 className="mt-6 font-display text-3xl text-bloom-ink">Calendario</h1>
         <p className="mt-1 text-sm text-bloom-muted">
-          Citas, tastings y reuniones del equipo.
+          Citas del equipo y agenda con proveedores.
         </p>
 
         <CalendarioClient

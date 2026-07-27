@@ -5,7 +5,7 @@ import { ResponsiveModal } from "@/app/components/ui/ResponsiveModal";
 import {
   getCalendarioEventoId,
   getCalendarioEventoTitulo,
-  TASTING_CALENDARIO_STYLE,
+  getTastingCalendarioStyle,
   type CalendarioEvento,
 } from "@/lib/calendario-eventos";
 import { formatCitaHorario } from "@/lib/citas";
@@ -42,7 +42,7 @@ export function CalendarioDiaOverflowModal({
           const style =
             evento.kind === "cita"
               ? CITA_TIPO_STYLES[evento.cita.tipo]
-              : TASTING_CALENDARIO_STYLE;
+              : getTastingCalendarioStyle(evento.tasting.tipo_cita);
           const horario =
             evento.kind === "cita"
               ? formatCitaHorario(evento.cita)

@@ -36,10 +36,14 @@ import { TastingCalendarioItem } from "./TastingCalendarioItem";
 import {
   buildCalendarioEventosByDate,
   getCalendarioEventoId,
-  TASTING_CALENDARIO_DOT,
   type CalendarioEvento,
   type TastingCalendarioRow,
 } from "@/lib/calendario-eventos";
+import {
+  TASTING_TIPO_CITA_DOT,
+  TASTING_TIPO_CITA_LABELS,
+  TASTING_TIPO_CITA_OPTIONS,
+} from "@/lib/tastings";
 
 type CalendarioClientProps = {
   citas: CitaRow[];
@@ -275,12 +279,15 @@ export function CalendarioClient({
             {label}
           </span>
         ))}
-        {tastings.length > 0 && (
-          <span className="inline-flex items-center gap-1.5">
-            <span className={`h-2 w-2 rounded-full ${TASTING_CALENDARIO_DOT}`} />
-            Tasting
-          </span>
-        )}
+        {tastings.length > 0 &&
+          TASTING_TIPO_CITA_OPTIONS.map((option) => (
+            <span key={option.value} className="inline-flex items-center gap-1.5">
+              <span
+                className={`h-2 w-2 rounded-full ${TASTING_TIPO_CITA_DOT[option.value]}`}
+              />
+              {TASTING_TIPO_CITA_LABELS[option.value]}
+            </span>
+          ))}
       </div>
 
       <CitaFormModal

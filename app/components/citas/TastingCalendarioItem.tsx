@@ -2,26 +2,32 @@
 
 import Link from "next/link";
 import {
-  TASTING_CALENDARIO_STYLE,
+  getTastingCalendarioStyle,
   type TastingCalendarioRow,
 } from "@/lib/calendario-eventos";
 import { formatShortDateStable } from "@/lib/format";
-import { formatTastingHorarioRange, getTastingDisplayTitle } from "@/lib/tastings";
+import {
+  formatTastingHorarioRange,
+  getTastingDisplayTitle,
+  getTastingTipoLabel,
+} from "@/lib/tastings";
 
 type TastingCalendarioItemProps = {
   tasting: TastingCalendarioRow;
 };
 
 export function TastingCalendarioItem({ tasting }: TastingCalendarioItemProps) {
+  const style = getTastingCalendarioStyle(tasting.tipo_cita);
+
   return (
-    <article className={`rounded-xl border px-4 py-3 ${TASTING_CALENDARIO_STYLE}`}>
+    <article className={`rounded-xl border px-4 py-3 ${style}`}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <p className="text-sm font-medium">
             {getTastingDisplayTitle(tasting)}
           </p>
           <p className="mt-0.5 text-xs opacity-80">
-            Tasting · {tasting.boda_nombre}
+            {getTastingTipoLabel(tasting.tipo_cita)} · {tasting.boda_nombre}
           </p>
           {tasting.categoria && (
             <p className="mt-1 text-xs opacity-80">{tasting.categoria}</p>
@@ -35,7 +41,7 @@ export function TastingCalendarioItem({ tasting }: TastingCalendarioItemProps) {
       <div className="mt-3">
         <Link
           href={`/bodas/${tasting.boda_id}`}
-          className="text-xs font-medium text-fuchsia-900 underline-offset-2 hover:underline"
+          className="text-xs font-medium underline-offset-2 hover:underline"
         >
           Ver boda
         </Link>

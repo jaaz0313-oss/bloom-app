@@ -269,6 +269,11 @@ export type ClienteUiCopy = {
   tastingsNotes: string;
   tastingsNoProvider: string;
   tastingsPaymentReminder: string;
+  tastingsTipoLabels: {
+    tasting: string;
+    visita: string;
+    reunion: string;
+  };
   detallesCelebracionTitle: string;
   detallesCelebracionSubtitle: (filled: number, total: number) => string;
   detallesCelebracionIntro: string;
@@ -372,16 +377,21 @@ const UI_ES: ClienteUiCopy = {
   cronogramaGroupInProgress: "En proceso",
   cronogramaGroupPending: "Pendientes",
   cronogramaWithProvider: "con",
-  tastingsTitle: "Semana de tastings",
+  tastingsTitle: "Agenda de citas",
   tastingsSubtitle: (count, days) =>
     count === 1
-      ? `1 tasting · ${days === 1 ? "1 día" : `${days} días`}`
-      : `${count} tastings · ${days === 1 ? "1 día" : `${days} días`}`,
-  tastingsNextItem: "Siguiente tasting",
+      ? `1 cita · ${days === 1 ? "1 día" : `${days} días`}`
+      : `${count} citas · ${days === 1 ? "1 día" : `${days} días`}`,
+  tastingsNextItem: "Siguiente cita",
   tastingsCost: "Valor de la prueba",
   tastingsNotes: "Notas",
   tastingsNoProvider: "Sin proveedor",
   tastingsPaymentReminder: "💰 Recuerda realizar el pago de tu prueba",
+  tastingsTipoLabels: {
+    tasting: "Tasting",
+    visita: "Visita",
+    reunion: "Reunión",
+  },
   detallesCelebracionTitle: "Detalles de la boda",
   detallesCelebracionSubtitle: (filled, total) =>
     filled === 0
@@ -503,8 +513,8 @@ const UI_ES: ClienteUiCopy = {
     },
     {
       icon: "🍽️",
-      title: "Semana de tastings",
-      description: "Tus citas de prueba agendadas",
+      title: "Agenda de citas",
+      description: "Tus tastings, visitas y reuniones agendadas",
     },
     {
       icon: "✏️",
@@ -533,16 +543,21 @@ const UI_EN: ClienteUiCopy = {
   cronogramaGroupInProgress: "In progress",
   cronogramaGroupPending: "Pending",
   cronogramaWithProvider: "with",
-  tastingsTitle: "Tasting week",
+  tastingsTitle: "Appointment schedule",
   tastingsSubtitle: (count, days) =>
     count === 1
-      ? `1 tasting · ${days === 1 ? "1 day" : `${days} days`}`
-      : `${count} tastings · ${days === 1 ? "1 day" : `${days} days`}`,
-  tastingsNextItem: "Next tasting",
+      ? `1 appointment · ${days === 1 ? "1 day" : `${days} days`}`
+      : `${count} appointments · ${days === 1 ? "1 day" : `${days} days`}`,
+  tastingsNextItem: "Next appointment",
   tastingsCost: "Tasting fee",
   tastingsNotes: "Notes",
   tastingsNoProvider: "No vendor",
   tastingsPaymentReminder: "💰 Remember to complete your tasting payment",
+  tastingsTipoLabels: {
+    tasting: "Tasting",
+    visita: "Visit",
+    reunion: "Meeting",
+  },
   detallesCelebracionTitle: "Wedding Details",
   detallesCelebracionSubtitle: (filled, total) =>
     filled === 0
@@ -664,8 +679,8 @@ const UI_EN: ClienteUiCopy = {
     },
     {
       icon: "🍽️",
-      title: "Tasting week",
-      description: "Your scheduled tasting appointments",
+      title: "Appointment schedule",
+      description: "Your scheduled tastings, visits, and meetings",
     },
     {
       icon: "✏️",

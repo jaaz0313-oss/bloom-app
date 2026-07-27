@@ -1,7 +1,12 @@
 import type { CitaRow } from "@/app/data/citas";
 import type { TastingRow } from "@/app/data/tastings";
 import { normalizeCitaFecha, sortCitasBySchedule } from "@/lib/citas";
-import { getTastingDisplayTitle } from "@/lib/tastings";
+import {
+  getTastingEventTitle,
+  normalizeTastingTipoCita,
+  TASTING_TIPO_CITA_CALENDARIO_STYLE,
+  TASTING_TIPO_CITA_DOT,
+} from "@/lib/tastings";
 
 export type TastingCalendarioRow = TastingRow & {
   boda_nombre: string;
@@ -19,10 +24,24 @@ export type CalendarioTastingEvento = {
 
 export type CalendarioEvento = CalendarioCitaEvento | CalendarioTastingEvento;
 
+/** Prefer getTastingCalendarioStyle(tipo) */
 export const TASTING_CALENDARIO_STYLE =
-  "bg-fuchsia-100 text-fuchsia-900 border-fuchsia-200";
+  TASTING_TIPO_CITA_CALENDARIO_STYLE.tasting;
 
-export const TASTING_CALENDARIO_DOT = "bg-fuchsia-500";
+/** Prefer getTastingCalendarioDot(tipo) */
+export const TASTING_CALENDARIO_DOT = TASTING_TIPO_CITA_DOT.tasting;
+
+export function getTastingCalendarioStyle(
+  tipoCita: string | null | undefined,
+): string {
+  return TASTING_TIPO_CITA_CALENDARIO_STYLE[normalizeTastingTipoCita(tipoCita)];
+}
+
+export function getTastingCalendarioDot(
+  tipoCita: string | null | undefined,
+): string {
+  return TASTING_TIPO_CITA_DOT[normalizeTastingTipoCita(tipoCita)];
+}
 
 export function getCalendarioEventoId(evento: CalendarioEvento): string {
   return evento.kind === "cita" ? evento.cita.id : `tasting-${evento.tasting.id}`;
@@ -30,7 +49,7 @@ export function getCalendarioEventoId(evento: CalendarioEvento): string {
 
 export function getCalendarioEventoTitulo(evento: CalendarioEvento): string {
   if (evento.kind === "cita") return evento.cita.titulo;
-  return `Tasting · ${getTastingDisplayTitle(evento.tasting)}`;
+  return getTastingEventTitle(evento.tasting);
 }
 
 export function getCalendarioEventoFecha(evento: CalendarioEvento): string {

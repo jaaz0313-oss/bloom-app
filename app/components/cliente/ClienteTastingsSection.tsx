@@ -11,7 +11,12 @@ import {
   formatClienteTastingTimeRange,
   groupClienteTastingsByDay,
 } from "@/lib/cliente-tastings";
-import { buildGoogleMapsUrl, getTastingDisplayTitle } from "@/lib/tastings";
+import {
+  buildGoogleMapsUrl,
+  getTastingDisplayTitle,
+  getTastingTipoBadgeClass,
+  normalizeTastingTipoCita,
+} from "@/lib/tastings";
 
 type ClienteTastingsSectionProps = {
   tastings: TastingRow[];
@@ -83,11 +88,22 @@ export function ClienteTastingsSection({ tastings }: ClienteTastingsSectionProps
                       <div className="rounded-xl border border-bloom-border/80 bg-bloom-canvas/40 px-4 py-4 sm:px-5">
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                           <div>
-                            <p className="font-display text-lg text-bloom-ink">
-                              {getTastingDisplayTitle(tasting, {
-                                noProviderLabel: t.tastingsNoProvider,
-                              })}
-                            </p>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="font-display text-lg text-bloom-ink">
+                                {getTastingDisplayTitle(tasting, {
+                                  noProviderLabel: t.tastingsNoProvider,
+                                })}
+                              </p>
+                              <span
+                                className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${getTastingTipoBadgeClass(tasting.tipo_cita)}`}
+                              >
+                                {
+                                  t.tastingsTipoLabels[
+                                    normalizeTastingTipoCita(tasting.tipo_cita)
+                                  ]
+                                }
+                              </span>
+                            </div>
                             {tasting.categoria && (
                               <p className="mt-0.5 text-sm text-bloom-muted">
                                 {tasting.categoria}

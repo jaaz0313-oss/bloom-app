@@ -1,9 +1,65 @@
 import type { UserRole } from "@/lib/auth/roles";
 import { compareCitaTimeSlots, citaTimeFromDb } from "@/lib/cita-time-slots";
+import type { TastingTipoCita } from "@/app/data/tastings";
 
 const DEFAULT_DURATION_MINUTES = 60;
 
 export const TASTING_MIN_GAP_MINUTES = 30;
+
+export const TASTING_TIPO_CITA_OPTIONS: {
+  value: TastingTipoCita;
+  label: string;
+}[] = [
+  { value: "tasting", label: "Tasting" },
+  { value: "visita", label: "Visita" },
+  { value: "reunion", label: "Reunión" },
+];
+
+export const TASTING_TIPO_CITA_LABELS: Record<TastingTipoCita, string> = {
+  tasting: "Tasting",
+  visita: "Visita",
+  reunion: "Reunión",
+};
+
+export const TASTING_TIPO_CITA_BADGE_CLASS: Record<TastingTipoCita, string> = {
+  tasting: "bg-fuchsia-100 text-fuchsia-800",
+  visita: "bg-blue-100 text-blue-800",
+  reunion: "bg-green-100 text-green-800",
+};
+
+export const TASTING_TIPO_CITA_CALENDARIO_STYLE: Record<TastingTipoCita, string> =
+  {
+    tasting: "bg-fuchsia-100 text-fuchsia-900 border-fuchsia-200",
+    visita: "bg-blue-100 text-blue-900 border-blue-200",
+    reunion: "bg-green-100 text-green-900 border-green-200",
+  };
+
+export const TASTING_TIPO_CITA_DOT: Record<TastingTipoCita, string> = {
+  tasting: "bg-fuchsia-500",
+  visita: "bg-blue-500",
+  reunion: "bg-green-500",
+};
+
+export function normalizeTastingTipoCita(
+  value: string | null | undefined,
+): TastingTipoCita {
+  const normalized = value?.trim().toLowerCase();
+  if (normalized === "visita") return "visita";
+  if (normalized === "reunion" || normalized === "reunión") return "reunion";
+  return "tasting";
+}
+
+export function getTastingTipoLabel(
+  value: string | null | undefined,
+): string {
+  return TASTING_TIPO_CITA_LABELS[normalizeTastingTipoCita(value)];
+}
+
+export function getTastingTipoBadgeClass(
+  value: string | null | undefined,
+): string {
+  return TASTING_TIPO_CITA_BADGE_CLASS[normalizeTastingTipoCita(value)];
+}
 
 function normalizeTastingRole(role: UserRole | string): string {
   return role?.trim().toLowerCase() ?? "";
@@ -71,6 +127,7 @@ export function buildGoogleMapsUrl(direccion: string): string {
 type TastingDisplaySource = {
   proveedor_id?: string | null;
   nombre_proveedor?: string | null;
+  tipo_cita?: string | null;
 };
 
 export function getTastingDisplayTitle(
@@ -81,6 +138,14 @@ export function getTastingDisplayTitle(
     return tasting.nombre_proveedor.trim();
   }
   return options?.noProviderLabel ?? "Sin proveedor";
+}
+
+/** Título con tipo: "Tasting - Proveedor", "Visita - …", "Reunión - …" */
+export function getTastingEventTitle(
+  tasting: TastingDisplaySource,
+  options?: { noProviderLabel?: string },
+): string {
+  return `${getTastingTipoLabel(tasting.tipo_cita)} - ${getTastingDisplayTitle(tasting, options)}`;
 }
 
 export function formatTastingTimeLabel(value: string): string {

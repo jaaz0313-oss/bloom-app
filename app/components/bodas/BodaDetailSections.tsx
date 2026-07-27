@@ -179,7 +179,7 @@ export function BodaDetailSections({
 
       {canViewTastings(role) && (
         <BodaAccordionSection
-          title="Semana de Tastings"
+          title="Agenda de Citas"
           sectionKey={BODA_SECTION_TASTINGS}
           openSection={openSection}
           defaultOpen={false}

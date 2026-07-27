@@ -3,7 +3,7 @@ import type { calendar_v3 } from "googleapis";
 import type { CitaRow } from "@/app/data/citas";
 import { CITA_TIPO_LABELS } from "@/app/data/citas";
 import { citaTimeFromDb } from "@/lib/cita-time-slots";
-import { getTastingDisplayTitle } from "@/lib/tastings";
+import { getTastingEventTitle, getTastingTipoLabel } from "@/lib/tastings";
 import { normalizeCitaFecha } from "@/lib/citas";
 import { getGoogleServiceAccountCredentials } from "@/lib/google-service-account";
 
@@ -200,6 +200,7 @@ export type TastingForCalendar = {
   proveedor_id?: string | null;
   nombre_proveedor: string;
   categoria: string | null;
+  tipo_cita?: string | null;
   fecha: string;
   hora_inicio: string;
   hora_fin: string | null;
@@ -246,7 +247,7 @@ function buildTastingEventDescription(
   tasting: TastingForCalendar,
   bodaNombre: string | null,
 ): string {
-  const lines: string[] = ["Tipo: Tasting"];
+  const lines: string[] = [`Tipo: ${getTastingTipoLabel(tasting.tipo_cita)}`];
 
   if (bodaNombre?.trim()) {
     lines.push(`Boda: ${bodaNombre.trim()}`);
@@ -277,7 +278,7 @@ function buildTastingEventResource(
 ): calendar_v3.Schema$Event {
   const timeZone = getCalendarTimezone();
   const { startDateTime, endDateTime } = buildTastingEventTimes(tasting);
-  const summary = `Tasting · ${getTastingDisplayTitle(tasting)}`;
+  const summary = getTastingEventTitle(tasting);
   const attendees = buildCalendarAttendees([tasting.email_invitado]);
 
   return {
