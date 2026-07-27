@@ -1,3 +1,5 @@
+import type { CitaNotaReunionEntry } from "@/lib/cita-notas-reunion";
+
 export type CitaTipo =
   | "primera_reunion"
   | "reunion_seguimiento"
@@ -20,6 +22,7 @@ export type CitaRow = {
   lugar: string | null;
   link_meet: string | null;
   notas: string | null;
+  notas_reunion: CitaNotaReunionEntry[] | null;
   boda_id: string | null;
   lead_id: string | null;
   asignado_a: string | null;

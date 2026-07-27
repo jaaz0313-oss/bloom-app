@@ -8,6 +8,7 @@ import {
 import type { BodaRow } from "@/app/data/weddings";
 import type { LeadRow } from "@/app/data/leads";
 import { parseProveedorFromCitaTitulo } from "@/lib/cita-titulo";
+import { parseCitaNotasReunion } from "@/lib/cita-notas-reunion";
 import { formatLongDateStable, formatLongDateEnglishStable, formatTimeEnglishStable } from "@/lib/format";
 import { buildWhatsAppUrl, normalizeWhatsAppGroupLink } from "@/lib/whatsapp";
 import type { UserRole } from "@/lib/auth/roles";
@@ -275,6 +276,7 @@ export function normalizeCitaRow<T extends CitaRow>(cita: T): T {
     ...cita,
     fecha: normalizeCitaFecha(cita.fecha),
     estado: normalizeCitaEstado(cita.estado),
+    notas_reunion: parseCitaNotasReunion(cita.notas_reunion),
   };
 }
 
