@@ -13,6 +13,7 @@ import {
 import { CONCEPTO_ANTICIPO, MEDIOS_PAGO } from "@/app/data/pagos";
 import { marcarHitoCronogramaPorProveedorContratado } from "@/lib/cronograma";
 import { syncBodaProveedoresContratados } from "@/lib/sync-boda";
+import { syncTastingNotasReunionToProveedor } from "@/lib/tasting-notas-reunion";
 import { ProviderComisionFields } from "./ProviderComisionFields";
 import { AbrirCarpetaDriveButton } from "./AbrirCarpetaDriveButton";
 import { formatInputCurrency, parseInputCurrency } from "@/lib/format";
@@ -69,6 +70,8 @@ type AddProviderModalButtonProps = {
   bodaId: string;
   bodaNombre: string;
   role: UserRole;
+  currentUserId?: string;
+  currentUserNombre?: string;
   driveFolderUrl?: string | null;
 };
 
@@ -128,6 +131,8 @@ export function AddProviderModalButton({
   bodaId,
   bodaNombre,
   role,
+  currentUserId,
+  currentUserNombre,
   driveFolderUrl = null,
 }: AddProviderModalButtonProps) {
   const router = useRouter();
@@ -566,6 +571,13 @@ export function AddProviderModalButton({
             bodaId,
             categoria,
           );
+          await syncTastingNotasReunionToProveedor(supabase, {
+            bodaId,
+            proveedorId: nuevoProveedor.id,
+            proveedorNombre: nombre,
+            currentUserId,
+            currentUserNombre,
+          });
         }
       }
 

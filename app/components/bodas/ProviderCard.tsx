@@ -22,6 +22,7 @@ import { formatCurrency, formatInputCurrency, formatInputCurrencyFromNumber, for
 import { supabase } from "@/lib/supabase";
 import { syncBodaProveedoresContratados } from "@/lib/sync-boda";
 import { marcarHitoCronogramaPorProveedorContratado } from "@/lib/cronograma";
+import { syncTastingNotasReunionToProveedor } from "@/lib/tasting-notas-reunion";
 import type { PagoRow } from "@/app/data/pagos";
 import type { NotaReunionRow } from "@/app/data/notas-reunion";
 import { hasPermission, type UserRole } from "@/lib/auth/roles";
@@ -845,6 +846,13 @@ export function ProviderCard({
             bodaId,
             provider.categoria,
           );
+          await syncTastingNotasReunionToProveedor(supabase, {
+            bodaId,
+            proveedorId: provider.id,
+            proveedorNombre: provider.nombre,
+            currentUserId,
+            currentUserNombre: plannerName,
+          });
         }
       }
 

@@ -179,7 +179,7 @@ export function BodaDetailSections({
 
       {canViewTastings(role) && (
         <BodaAccordionSection
-          title="Agenda de Citas"
+          title="Semana de Tastings"
           sectionKey={BODA_SECTION_TASTINGS}
           openSection={openSection}
           defaultOpen={false}
@@ -192,6 +192,8 @@ export function BodaDetailSections({
             initialTastings={tastings}
             equipo={equipo}
             role={role}
+            currentUserId={currentUserId}
+            currentUserNombre={plannerName}
           />
         </BodaAccordionSection>
       )}
@@ -292,6 +294,8 @@ export function BodaDetailSections({
                 bodaId={bodaId}
                 bodaNombre={boda.nombre_pareja}
                 role={role}
+                currentUserId={currentUserId}
+                currentUserNombre={plannerName}
                 driveFolderUrl={driveFolderUrl}
               />
             )}

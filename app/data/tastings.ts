@@ -1,3 +1,6 @@
+import type { TastingNotaReunionEntry } from "@/lib/tasting-notas-reunion";
+import { parseTastingNotasReunion } from "@/lib/tasting-notas-reunion";
+
 export type TastingTipoCita = "tasting" | "visita" | "reunion";
 
 export type TastingRow = {
@@ -18,6 +21,7 @@ export type TastingRow = {
   asignado_nombre: string | null;
   confirmado: boolean;
   notas: string | null;
+  notas_reunion: TastingNotaReunionEntry[] | null;
   email_invitado: string | null;
   google_event_id: string | null;
   created_at: string;
@@ -32,6 +36,7 @@ export function normalizeTastingRow(row: TastingRow): TastingRow {
     prueba_pagada: Boolean(row.prueba_pagada ?? row.costo_pagado),
     confirmado: Boolean(row.confirmado),
     email_invitado: row.email_invitado?.trim() || null,
+    notas_reunion: parseTastingNotasReunion(row.notas_reunion),
   };
 }
 

@@ -20,13 +20,18 @@ import {
   citaTimeToDb,
   getCitaEndTimeSlotOptions,
 } from "@/lib/cita-time-slots";
-import { formatCurrency, formatInputCurrency, formatInputCurrencyFromNumber, formatShortDateStable, parseInputCurrency } from "@/lib/format";
+import { formatCurrency, formatDateTimeStable, formatInputCurrency, formatInputCurrencyFromNumber, formatShortDateStable, parseInputCurrency } from "@/lib/format";
 import { supabase } from "@/lib/supabase";
 import {
   actualizarEventoCalendarTasting,
   crearEventoCalendarTasting,
   eliminarEventoCalendarTastingSiVinculado,
 } from "@/lib/tasting-google-calendar";
+import {
+  appendTastingNotaReunion,
+  parseTastingNotasReunion,
+  serializeTastingNotasReunion,
+} from "@/lib/tasting-notas-reunion";
 import {
   checkTastingScheduleConflict,
   checkTastingScheduleWarnings,
@@ -50,6 +55,8 @@ type TastingsSectionProps = {
   initialTastings: TastingRow[];
   equipo: EquipoUsuarioMencion[];
   role: UserRole;
+  currentUserId: string;
+  currentUserNombre: string;
   embedded?: boolean;
 };
 
@@ -143,6 +150,8 @@ export function TastingsSection({
   initialTastings,
   equipo,
   role,
+  currentUserId,
+  currentUserNombre,
   embedded = false,
 }: TastingsSectionProps) {
   const router = useRouter();
@@ -164,6 +173,14 @@ export function TastingsSection({
     string | null
   >(null);
   const [calendarWarning, setCalendarWarning] = useState<string | null>(null);
+  const [notaOpenId, setNotaOpenId] = useState<string | null>(null);
+  const [notaDraft, setNotaDraft] = useState("");
+  const [notaSavingId, setNotaSavingId] = useState<string | null>(null);
+  const [notaError, setNotaError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setTastings(sortTastingsBySchedule(initialTastings.map(normalizeTastingRow)));
+  }, [initialTastings]);
 
   const endTimeOptions = useMemo(
     () => getCitaEndTimeSlotOptions(form.horaInicio),
@@ -454,6 +471,106 @@ export function TastingsSection({
     }
   }
 
+  function openNotaForm(tastingId: string) {
+    if (!canManage) return;
+    setNotaError(null);
+    setNotaDraft("");
+    setNotaOpenId(tastingId);
+  }
+
+  function closeNotaForm() {
+    setNotaOpenId(null);
+    setNotaDraft("");
+    setNotaError(null);
+  }
+
+  async function handleSaveNota(tasting: TastingRow) {
+    if (!canManage || !supabase) return;
+
+    const texto = notaDraft.trim();
+    if (!texto) {
+      setNotaError("Escribe la nota antes de guardar.");
+      return;
+    }
+
+    setNotaSavingId(tasting.id);
+    setNotaError(null);
+
+    const fecha = new Date().toISOString();
+    const autor = currentUserNombre.trim() || "Sin autor";
+    let notaReunionId: string | null = null;
+
+    try {
+      if (tasting.proveedor_id) {
+        const { data, error: insertError } = await supabase
+          .from("notas_reunion")
+          .insert({
+            boda_id: bodaId,
+            proveedor_id: tasting.proveedor_id,
+            fecha,
+            con_quien: getTastingDisplayTitle(tasting),
+            resumen: texto,
+            creado_por: currentUserId,
+            creado_por_nombre: autor,
+          })
+          .select("id")
+          .single();
+
+        if (insertError) {
+          setNotaError(insertError.message);
+          return;
+        }
+
+        notaReunionId = (data as { id: string }).id;
+
+        await logAuditoria({
+          accion: AUDITORIA_ACCIONES.NOTA_REUNION_AGREGADA,
+          entidad: "nota_reunion",
+          entidadId: notaReunionId,
+          bodaNombre,
+          detalle: `${getTastingDisplayTitle(tasting)} · ${texto.slice(0, 120)}${texto.length > 120 ? "…" : ""}`,
+        });
+      }
+
+      const nextEntries = appendTastingNotaReunion(tasting.notas_reunion, {
+        texto,
+        fecha,
+        autor,
+        autorId: currentUserId,
+        notaReunionId,
+      });
+
+      const { data: updatedData, error: updateError } = await supabase
+        .from("tastings")
+        .update({
+          notas_reunion: serializeTastingNotasReunion(nextEntries),
+        })
+        .eq("id", tasting.id)
+        .select("*")
+        .single();
+
+      if (updateError) {
+        setNotaError(updateError.message);
+        return;
+      }
+
+      const updated = normalizeTastingRow(updatedData as TastingRow);
+      setTastings((current) =>
+        sortTastingsBySchedule(
+          current.map((item) => (item.id === updated.id ? updated : item)),
+        ),
+      );
+      closeNotaForm();
+      router.refresh();
+    } catch (err) {
+      setNotaError(
+        err instanceof Error ? err.message : "No se pudo guardar la nota.",
+      );
+    } finally {
+      setNotaSavingId(null);
+    }
+  }
+
   const shellClass = embedded
     ? ""
     : "rounded-2xl border border-bloom-border bg-bloom-surface p-5 shadow-sm";
@@ -463,9 +580,9 @@ export function TastingsSection({
     <Shell className={shellClass}>
       {!embedded && (
         <>
-          <h2 className="font-display text-xl text-bloom-ink">Agenda de Citas</h2>
+          <h2 className="font-display text-xl text-bloom-ink">Semana de Tastings</h2>
           <p className="mt-1 text-sm text-bloom-muted">
-            Agenda de tastings, visitas y reuniones con proveedores para esta boda.
+            Agenda de degustaciones, visitas y reuniones con proveedores para esta boda.
           </p>
         </>
       )}
@@ -841,6 +958,21 @@ export function TastingsSection({
                     <div className="flex shrink-0 items-center gap-1">
                       <button
                         type="button"
+                        onClick={() =>
+                          notaOpenId === tasting.id
+                            ? closeNotaForm()
+                            : openNotaForm(tasting.id)
+                        }
+                        aria-label="Tomar nota"
+                        title="Tomar nota"
+                        disabled={deletingId === tasting.id}
+                        className="inline-flex h-8 items-center gap-1 rounded-full px-2 text-xs font-medium text-bloom-muted transition-colors hover:bg-bloom-border hover:text-bloom-ink disabled:opacity-50"
+                      >
+                        <NoteIcon />
+                        <span className="hidden sm:inline">Tomar nota</span>
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => openEditForm(tasting)}
                         aria-label="Editar tasting"
                         title="Editar"
@@ -902,11 +1034,96 @@ export function TastingsSection({
                   {tasting.notas}
                 </p>
               )}
+
+              {(() => {
+                const notasReunion = parseTastingNotasReunion(
+                  tasting.notas_reunion,
+                );
+                if (notasReunion.length === 0) return null;
+                return (
+                  <ul className="mt-4 space-y-2 border-t border-bloom-border/70 pt-3">
+                    {notasReunion.map((nota) => (
+                      <li
+                        key={nota.id}
+                        className="rounded-xl border border-bloom-border/70 bg-bloom-surface/70 px-3 py-2.5"
+                      >
+                        <p className="text-xs text-bloom-muted">
+                          {formatDateTimeStable(nota.fecha)} · {nota.autor}
+                        </p>
+                        <p className="mt-1 whitespace-pre-wrap text-sm text-bloom-ink">
+                          {nota.texto}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                );
+              })()}
+
+              {canManage && notaOpenId === tasting.id && (
+                <div className="mt-4 space-y-3 rounded-xl border border-bloom-border bg-bloom-surface/80 p-3">
+                  <label className="block text-sm font-medium text-bloom-ink">
+                    Nueva nota
+                  </label>
+                  <textarea
+                    className={`${textareaClass} min-h-[96px]`}
+                    value={notaDraft}
+                    onChange={(e) => setNotaDraft(e.target.value)}
+                    placeholder="Escribe lo que conversaron en esta cita…"
+                    disabled={notaSavingId === tasting.id}
+                    autoFocus
+                  />
+                  {notaError && notaOpenId === tasting.id && (
+                    <p className="text-sm text-red-700" role="alert">
+                      {notaError}
+                    </p>
+                  )}
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={closeNotaForm}
+                      disabled={notaSavingId === tasting.id}
+                      className="rounded-full border border-bloom-border px-4 py-2 text-sm font-medium text-bloom-ink hover:bg-bloom-canvas disabled:opacity-60"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleSaveNota(tasting)}
+                      disabled={notaSavingId === tasting.id}
+                      className="rounded-full bg-bloom-accent px-4 py-2 text-sm font-medium text-white hover:bg-bloom-accent-hover disabled:opacity-60"
+                    >
+                      {notaSavingId === tasting.id
+                        ? "Guardando…"
+                        : "Guardar nota"}
+                    </button>
+                  </div>
+                </div>
+              )}
             </li>
           ))}
         </ul>
       )}
     </Shell>
+  );
+}
+
+function NoteIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-4 w-4"
+      aria-hidden
+    >
+      <path d="M5 3.5h7.5L15.5 6.5V16.5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-12a1 1 0 0 1 1-1Z" />
+      <path d="M12.5 3.5V6.5H15.5" />
+      <path d="M7 9.5h6M7 12.5h6M7 15.5h3.5" />
+    </svg>
   );
 }
 

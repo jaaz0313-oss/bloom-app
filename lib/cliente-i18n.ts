@@ -377,7 +377,7 @@ const UI_ES: ClienteUiCopy = {
   cronogramaGroupInProgress: "En proceso",
   cronogramaGroupPending: "Pendientes",
   cronogramaWithProvider: "con",
-  tastingsTitle: "Agenda de citas",
+  tastingsTitle: "Semana de tastings",
   tastingsSubtitle: (count, days) =>
     count === 1
       ? `1 cita · ${days === 1 ? "1 día" : `${days} días`}`
@@ -513,8 +513,8 @@ const UI_ES: ClienteUiCopy = {
     },
     {
       icon: "🍽️",
-      title: "Agenda de citas",
-      description: "Tus tastings, visitas y reuniones agendadas",
+      title: "Semana de tastings",
+      description: "Tus citas de prueba agendadas",
     },
     {
       icon: "✏️",
@@ -543,7 +543,7 @@ const UI_EN: ClienteUiCopy = {
   cronogramaGroupInProgress: "In progress",
   cronogramaGroupPending: "Pending",
   cronogramaWithProvider: "with",
-  tastingsTitle: "Appointment schedule",
+  tastingsTitle: "Tasting week",
   tastingsSubtitle: (count, days) =>
     count === 1
       ? `1 appointment · ${days === 1 ? "1 day" : `${days} days`}`
@@ -679,8 +679,8 @@ const UI_EN: ClienteUiCopy = {
     },
     {
       icon: "🍽️",
-      title: "Appointment schedule",
-      description: "Your scheduled tastings, visits, and meetings",
+      title: "Tasting week",
+      description: "Your scheduled tasting appointments",
     },
     {
       icon: "✏️",
