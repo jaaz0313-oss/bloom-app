@@ -24,6 +24,7 @@ import { supabase } from "@/lib/supabase";
 import {
   actualizarEventoCalendarTasting,
   crearEventoCalendarTasting,
+  eliminarEventoCalendarTastingSiVinculado,
 } from "@/lib/tasting-google-calendar";
 import {
   checkTastingScheduleConflict,
@@ -144,6 +145,7 @@ export function TastingsSection({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [submitting, setSubmitting] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [scheduleWarnings, setScheduleWarnings] = useState<TastingScheduleWarning[]>(
     [],
@@ -391,6 +393,53 @@ export function TastingsSection({
       router.refresh();
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleDelete(tasting: TastingRow) {
+    if (!canManage || !supabase) return;
+
+    const confirmed = window.confirm(
+      "¿Eliminar este tasting? Esta acción no se puede deshacer.",
+    );
+    if (!confirmed) return;
+
+    setDeletingId(tasting.id);
+    setError(null);
+    setCalendarWarning(null);
+
+    try {
+      await eliminarEventoCalendarTastingSiVinculado(tasting);
+
+      const { error: deleteError } = await supabase
+        .from("tastings")
+        .delete()
+        .eq("id", tasting.id);
+
+      if (deleteError) {
+        setError(deleteError.message);
+        return;
+      }
+
+      setTastings((current) => current.filter((item) => item.id !== tasting.id));
+
+      if (editingId === tasting.id) {
+        closeForm();
+      }
+
+      await logAuditoria({
+        accion: AUDITORIA_ACCIONES.TASTING_ELIMINADO,
+        entidad: "tasting",
+        entidadId: tasting.id,
+        bodaNombre,
+        detalle: `${getTastingDisplayTitle(tasting)} · ${formatShortDateStable(tasting.fecha)} ${formatTastingSchedule(tasting)}`,
+      });
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "No se pudo eliminar el tasting.",
+      );
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -748,15 +797,28 @@ export function TastingsSection({
                     </p>
                   </div>
                   {canManage && (
-                    <button
-                      type="button"
-                      onClick={() => openEditForm(tasting)}
-                      aria-label="Editar tasting"
-                      title="Editar"
-                      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-bloom-muted transition-colors hover:bg-bloom-border hover:text-bloom-ink"
-                    >
-                      <PencilIcon />
-                    </button>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => openEditForm(tasting)}
+                        aria-label="Editar tasting"
+                        title="Editar"
+                        disabled={deletingId === tasting.id}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-full text-bloom-muted transition-colors hover:bg-bloom-border hover:text-bloom-ink disabled:opacity-50"
+                      >
+                        <PencilIcon />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleDelete(tasting)}
+                        aria-label="Eliminar tasting"
+                        title="Eliminar"
+                        disabled={deletingId === tasting.id}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-full text-bloom-muted transition-colors hover:bg-red-50 hover:text-red-700 disabled:opacity-50"
+                      >
+                        <TrashIcon />
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -821,6 +883,27 @@ function PencilIcon() {
       aria-hidden
     >
       <path d="M13.5 3.5a1.414 1.414 0 0 1 2 2L6.5 14.5l-3 1 1-3 9-9Z" />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-4 w-4"
+      aria-hidden
+    >
+      <path d="M3.5 5.5h13" />
+      <path d="M8 5.5V4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1.5" />
+      <path d="M6.5 5.5V16a1.5 1.5 0 0 0 1.5 1.5h4a1.5 1.5 0 0 0 1.5-1.5V5.5" />
+      <path d="M8.5 9v5M11.5 9v5" />
     </svg>
   );
 }
