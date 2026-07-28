@@ -3,8 +3,6 @@ import { google } from "googleapis";
 export type GoogleServiceAccountCredentials = {
   email: string;
   key: string;
-  /** Email de Workspace para Domain-Wide Delegation (opcional). */
-  subject: string | undefined;
 };
 
 function readServiceAccountEmailAndKey(): { email: string; key: string } {
@@ -28,10 +26,7 @@ function readServiceAccountEmailAndKey(): { email: string; key: string } {
  * La private key normaliza `\n` literales a saltos de línea reales.
  */
 export function getGoogleServiceAccountCredentials(): GoogleServiceAccountCredentials {
-  const { email, key } = readServiceAccountEmailAndKey();
-  const subject =
-    process.env.GOOGLE_WORKSPACE_ADMIN_EMAIL?.trim() || undefined;
-  return { email, key, subject };
+  return readServiceAccountEmailAndKey();
 }
 
 /**
@@ -45,33 +40,6 @@ export function createGoogleJwtAuth(scopes: string[]) {
     key,
     scopes,
   });
-}
-
-/**
- * JWT con Domain-Wide Delegation (`subject`).
- * Usar SOLO para operaciones que requieren actuar como usuario Workspace
- * (p. ej. agregar attendees a Calendar).
- */
-export function createGoogleJwtAuthWithDelegation(scopes: string[]) {
-  const { email, key } = readServiceAccountEmailAndKey();
-  const subject = process.env.GOOGLE_WORKSPACE_ADMIN_EMAIL?.trim();
-
-  if (!subject) {
-    throw new Error(
-      "Falta GOOGLE_WORKSPACE_ADMIN_EMAIL para Domain-Wide Delegation.",
-    );
-  }
-
-  return new google.auth.JWT({
-    email,
-    key,
-    scopes,
-    subject,
-  });
-}
-
-export function hasGoogleWorkspaceDelegation(): boolean {
-  return Boolean(process.env.GOOGLE_WORKSPACE_ADMIN_EMAIL?.trim());
 }
 
 /** Log detallado de errores de Google APIs / Auth para diagnóstico en servidor. */
@@ -100,6 +68,5 @@ export function logGoogleApiError(context: string, error: unknown): void {
     statusText: err?.response?.statusText,
     responseData: err?.response?.data,
     stack: error instanceof Error ? error.stack : undefined,
-    hasWorkspaceSubject: hasGoogleWorkspaceDelegation(),
   });
 }

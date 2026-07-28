@@ -7,8 +7,6 @@ import { getTastingEventTitle, getTastingTipoLabel } from "@/lib/tastings";
 import { normalizeCitaFecha } from "@/lib/citas";
 import {
   createGoogleJwtAuth,
-  createGoogleJwtAuthWithDelegation,
-  hasGoogleWorkspaceDelegation,
   logGoogleApiError,
 } from "@/lib/google-service-account";
 
@@ -16,8 +14,6 @@ export type CalendarEventResult = {
   eventId: string;
   htmlLink: string | null;
   meetLink: null;
-  /** Aviso si el evento se creó/actualizó pero falló agregar invitados. */
-  attendeesWarning?: string;
 };
 
 export type CitaForCalendar = Pick<
@@ -39,15 +35,9 @@ const DEFAULT_TIMEZONE = "America/Bogota";
 const DEFAULT_DURATION_MINUTES = 60;
 const CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar";
 
-/** Cliente sin subject — eventos existentes y CRUD normal. */
+/** Cliente del Service Account — CRUD de eventos e invitados. */
 export function getCalendarClient() {
   const auth = createGoogleJwtAuth([CALENDAR_SCOPE]);
-  return google.calendar({ version: "v3", auth });
-}
-
-/** Cliente con Domain-Wide Delegation — solo attendees. */
-export function getCalendarClientWithDelegation() {
-  const auth = createGoogleJwtAuthWithDelegation([CALENDAR_SCOPE]);
   return google.calendar({ version: "v3", auth });
 }
 
@@ -132,39 +122,6 @@ function buildEventDescription(
   return lines.join("\n");
 }
 
-function buildEventResource(
-  cita: CitaForCalendar,
-  bodaNombre: string | null,
-): calendar_v3.Schema$Event {
-  const timeZone = getCalendarTimezone();
-  const { startDateTime, endDateTime } = buildEventTimes(cita);
-
-  return {
-    summary: cita.titulo.trim() || "Cita Celestia",
-    description: buildEventDescription(cita, bodaNombre),
-    location: cita.lugar?.trim() || undefined,
-    start: { dateTime: startDateTime, timeZone },
-    end: { dateTime: endDateTime, timeZone },
-  };
-}
-
-function mapEventResult(
-  event: calendar_v3.Schema$Event,
-  attendeesWarning?: string,
-): CalendarEventResult {
-  const eventId = event.id;
-  if (!eventId) {
-    throw new Error("Google Calendar no devolvió el ID del evento.");
-  }
-
-  return {
-    eventId,
-    htmlLink: event.htmlLink ?? null,
-    meetLink: null,
-    ...(attendeesWarning ? { attendeesWarning } : {}),
-  };
-}
-
 function collectUniqueEmails(
   emails: Array<string | null | undefined>,
 ): string[] {
@@ -195,43 +152,41 @@ function getTastingAttendeeEmails(tasting: TastingForCalendar): string[] {
   ]);
 }
 
-/**
- * Agrega invitados con el cliente DWD (subject).
- * No falla el flujo principal si no hay subject o el PATCH falla.
- */
-async function patchEventAttendees(
-  eventId: string,
+function toAttendees(
   emails: string[],
-): Promise<string | undefined> {
+): calendar_v3.Schema$EventAttendee[] | undefined {
   if (emails.length === 0) return undefined;
+  return emails.map((email) => ({ email }));
+}
 
-  if (!hasGoogleWorkspaceDelegation()) {
-    console.warn(
-      "[google:calendar] hay emails para invitar pero falta GOOGLE_WORKSPACE_ADMIN_EMAIL; se omite attendees.",
-    );
-    return "Evento guardado sin invitados (falta GOOGLE_WORKSPACE_ADMIN_EMAIL).";
+function buildEventResource(
+  cita: CitaForCalendar,
+  bodaNombre: string | null,
+): calendar_v3.Schema$Event {
+  const timeZone = getCalendarTimezone();
+  const { startDateTime, endDateTime } = buildEventTimes(cita);
+
+  return {
+    summary: cita.titulo.trim() || "Cita Celestia",
+    description: buildEventDescription(cita, bodaNombre),
+    location: cita.lugar?.trim() || undefined,
+    start: { dateTime: startDateTime, timeZone },
+    end: { dateTime: endDateTime, timeZone },
+    attendees: toAttendees(getCitaAttendeeEmails(cita)),
+  };
+}
+
+function mapEventResult(event: calendar_v3.Schema$Event): CalendarEventResult {
+  const eventId = event.id;
+  if (!eventId) {
+    throw new Error("Google Calendar no devolvió el ID del evento.");
   }
 
-  try {
-    const calendar = getCalendarClientWithDelegation();
-    const calendarId = getCalendarId();
-
-    await calendar.events.patch({
-      calendarId,
-      eventId,
-      sendUpdates: "all",
-      requestBody: {
-        attendees: emails.map((email) => ({ email })),
-      },
-    });
-
-    return undefined;
-  } catch (error) {
-    logGoogleApiError("calendar.patchEventAttendees", error);
-    return error instanceof Error
-      ? `Evento guardado, pero no se pudieron agregar invitados: ${error.message}`
-      : "Evento guardado, pero no se pudieron agregar invitados.";
-  }
+  return {
+    eventId,
+    htmlLink: event.htmlLink ?? null,
+    meetLink: null,
+  };
 }
 
 export async function createCalendarEvent(
@@ -245,17 +200,11 @@ export async function createCalendarEvent(
 
     const response = await calendar.events.insert({
       calendarId,
-      sendUpdates: "none",
+      sendUpdates: "all",
       requestBody: eventResource,
     });
 
-    const result = mapEventResult(response.data);
-    const attendeesWarning = await patchEventAttendees(
-      result.eventId,
-      getCitaAttendeeEmails(cita),
-    );
-
-    return attendeesWarning ? { ...result, attendeesWarning } : result;
+    return mapEventResult(response.data);
   } catch (error) {
     logGoogleApiError("calendar.createCalendarEvent", error);
     throw error;
@@ -274,17 +223,11 @@ export async function updateCalendarEvent(
     const response = await calendar.events.patch({
       calendarId,
       eventId: googleEventId,
-      sendUpdates: "none",
+      sendUpdates: "all",
       requestBody: buildEventResource(cita, bodaNombre),
     });
 
-    const result = mapEventResult(response.data);
-    const attendeesWarning = await patchEventAttendees(
-      result.eventId,
-      getCitaAttendeeEmails(cita),
-    );
-
-    return attendeesWarning ? { ...result, attendeesWarning } : result;
+    return mapEventResult(response.data);
   } catch (error) {
     logGoogleApiError("calendar.updateCalendarEvent", error);
     throw error;
@@ -381,6 +324,7 @@ function buildTastingEventResource(
     location: tasting.direccion?.trim() || undefined,
     start: { dateTime: startDateTime, timeZone },
     end: { dateTime: endDateTime, timeZone },
+    attendees: toAttendees(getTastingAttendeeEmails(tasting)),
   };
 }
 
@@ -394,17 +338,11 @@ export async function createTastingCalendarEvent(
 
     const response = await calendar.events.insert({
       calendarId,
-      sendUpdates: "none",
+      sendUpdates: "all",
       requestBody: buildTastingEventResource(tasting, bodaNombre),
     });
 
-    const result = mapEventResult(response.data);
-    const attendeesWarning = await patchEventAttendees(
-      result.eventId,
-      getTastingAttendeeEmails(tasting),
-    );
-
-    return attendeesWarning ? { ...result, attendeesWarning } : result;
+    return mapEventResult(response.data);
   } catch (error) {
     logGoogleApiError("calendar.createTastingCalendarEvent", error);
     throw error;
@@ -423,17 +361,11 @@ export async function updateTastingCalendarEvent(
     const response = await calendar.events.patch({
       calendarId,
       eventId: googleEventId,
-      sendUpdates: "none",
+      sendUpdates: "all",
       requestBody: buildTastingEventResource(tasting, bodaNombre),
     });
 
-    const result = mapEventResult(response.data);
-    const attendeesWarning = await patchEventAttendees(
-      result.eventId,
-      getTastingAttendeeEmails(tasting),
-    );
-
-    return attendeesWarning ? { ...result, attendeesWarning } : result;
+    return mapEventResult(response.data);
   } catch (error) {
     logGoogleApiError("calendar.updateTastingCalendarEvent", error);
     throw error;

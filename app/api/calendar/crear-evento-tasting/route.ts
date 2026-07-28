@@ -85,9 +85,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       eventId: event.eventId,
-      ...(event.attendeesWarning
-        ? { attendeesWarning: event.attendeesWarning }
-        : {}),
     });
   } catch (error) {
     console.error("[api/calendar/crear-evento-tasting] error exacto:", error);

@@ -55,9 +55,6 @@ export async function POST(request: Request) {
     return NextResponse.json({
       eventId: event.eventId,
       meetLink: null,
-      ...(event.attendeesWarning
-        ? { attendeesWarning: event.attendeesWarning }
-        : {}),
     });
   } catch (error) {
     console.error("[api/calendar/crear-evento] error exacto:", error);
