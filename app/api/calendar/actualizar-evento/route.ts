@@ -37,7 +37,11 @@ export async function POST(request: Request) {
       );
     }
 
-    await updateCalendarEvent(cita.google_event_id, cita, bodaNombre);
+    const updated = await updateCalendarEvent(
+      cita.google_event_id,
+      cita,
+      bodaNombre,
+    );
 
     const supabase = await createServerSupabaseClient();
     const { error: updateError } = await supabase
@@ -54,9 +58,16 @@ export async function POST(request: Request) {
     return NextResponse.json({
       eventId: cita.google_event_id,
       meetLink: null,
+      ...(updated.attendeesWarning
+        ? { attendeesWarning: updated.attendeesWarning }
+        : {}),
     });
   } catch (error) {
-    console.error(error);
+    console.error("[api/calendar/actualizar-evento] error exacto:", error);
+    if (error instanceof Error) {
+      console.error("[api/calendar/actualizar-evento] message:", error.message);
+      console.error("[api/calendar/actualizar-evento] stack:", error.stack);
+    }
     return NextResponse.json(
       {
         error:

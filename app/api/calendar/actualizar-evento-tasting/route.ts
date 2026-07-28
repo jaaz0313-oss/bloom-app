@@ -59,7 +59,7 @@ export async function POST(request: Request) {
       email_novio: string | null;
     } | null;
 
-    await updateTastingCalendarEvent(
+    const updated = await updateTastingCalendarEvent(
       tasting.google_event_id,
       {
         nombre_proveedor: tasting.nombre_proveedor,
@@ -78,9 +78,24 @@ export async function POST(request: Request) {
       boda?.nombre_pareja ?? null,
     );
 
-    return NextResponse.json({ eventId: tasting.google_event_id });
+    return NextResponse.json({
+      eventId: tasting.google_event_id,
+      ...(updated.attendeesWarning
+        ? { attendeesWarning: updated.attendeesWarning }
+        : {}),
+    });
   } catch (error) {
-    console.error(error);
+    console.error("[api/calendar/actualizar-evento-tasting] error exacto:", error);
+    if (error instanceof Error) {
+      console.error(
+        "[api/calendar/actualizar-evento-tasting] message:",
+        error.message,
+      );
+      console.error(
+        "[api/calendar/actualizar-evento-tasting] stack:",
+        error.stack,
+      );
+    }
     return NextResponse.json(
       {
         error:
