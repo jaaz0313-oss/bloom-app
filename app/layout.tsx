@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   description:
     "Bloom by Celestia: plataforma para wedding planners. Organiza bodas, proveedores y más.",
   icons: {
-    icon: ["/favicon.ico", "/icon-32x32.png"],
+    icon: [{ url: "/icon.png", type: "image/png" }],
     apple: "/icon-192x192.png",
   },
 };
