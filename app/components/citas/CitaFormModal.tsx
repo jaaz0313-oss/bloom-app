@@ -166,7 +166,7 @@ export function CitaFormModal({
     setHoraInicio(citaTimeFromDb(cita.hora_inicio));
     setHoraFin(cita.hora_fin ? citaTimeFromDb(cita.hora_fin) : "");
     setLugar(cita.lugar ?? "");
-    setLinkMeet(cita.link_meet ?? "");
+    setLinkMeet(cita.google_meet_link?.trim() || cita.link_meet?.trim() || "");
     setNotas(cita.notas ?? "");
     if (cita.boda_id) {
       setRelacionTipo("boda");
@@ -374,6 +374,7 @@ export function CitaFormModal({
       hora_fin: horaFin ? citaTimeToDb(horaFin) : null,
       lugar: lugar.trim() || null,
       link_meet: linkMeet.trim() || null,
+      google_meet_link: linkMeet.trim() || null,
       notas: notas.trim() || null,
       boda_id: effectiveRelacionTipo === "boda" ? effectiveBodaId : null,
       lead_id: effectiveRelacionTipo === "lead" ? effectiveLeadId : null,
@@ -724,7 +725,7 @@ export function CitaFormModal({
             </div>
 
             {/* 6. Meet */}
-            <Field label="Link de Meet (opcional)">
+            <Field label="Link de Meet">
               <input
                 type="url"
                 className={inputClass}
@@ -732,6 +733,9 @@ export function CitaFormModal({
                 onChange={(e) => setLinkMeet(e.target.value)}
                 placeholder="https://meet.google.com/..."
               />
+              <p className="text-xs text-bloom-muted">
+                Pégalo aquí si lo agregaste manualmente en Google Calendar.
+              </p>
             </Field>
 
             {/* 7. Lugar */}

@@ -78,9 +78,22 @@ export async function POST(request: Request) {
       boda?.nombre_pareja ?? null,
     );
 
+    const meetLink = updated.meetLink ?? tasting.google_meet_link ?? null;
+
+    if (updated.meetLink && updated.meetLink !== tasting.google_meet_link) {
+      const { error: updateError } = await supabase
+        .from("tastings")
+        .update({ google_meet_link: updated.meetLink })
+        .eq("id", tastingId);
+
+      if (updateError) {
+        throw new Error(updateError.message);
+      }
+    }
+
     return NextResponse.json({
       eventId: tasting.google_event_id,
-      meetLink: tasting.google_meet_link,
+      meetLink,
     });
   } catch (error) {
     console.error("[api/calendar/actualizar-evento-tasting] error exacto:", error);

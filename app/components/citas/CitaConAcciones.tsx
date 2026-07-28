@@ -341,7 +341,7 @@ export function CitaConAcciones({
               rel="noopener noreferrer"
               className="rounded-full border border-bloom-accent bg-bloom-accent/10 px-3 py-1 text-xs font-medium text-bloom-accent hover:bg-bloom-accent/20"
             >
-              Unirse a Meet
+              Unirse a Meet 📹
             </a>
           )}
           <button

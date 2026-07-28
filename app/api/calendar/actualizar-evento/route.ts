@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentAuthUser } from "@/lib/auth/user-profiles";
 import { loadCitaForCalendar } from "@/lib/calendar-cita-loader";
 import { updateCalendarEvent } from "@/lib/google-calendar";
+import { createServerSupabaseClient } from "@/lib/supabase-server";
 
 export async function POST(request: Request) {
   const user = await getCurrentAuthUser();
@@ -42,9 +43,23 @@ export async function POST(request: Request) {
       bodaNombre,
     );
 
+    const meetLink = updated.meetLink ?? cita.google_meet_link ?? null;
+
+    if (updated.meetLink && updated.meetLink !== cita.google_meet_link) {
+      const supabase = await createServerSupabaseClient();
+      const { error: updateError } = await supabase
+        .from("citas")
+        .update({ google_meet_link: updated.meetLink })
+        .eq("id", citaId);
+
+      if (updateError) {
+        throw new Error(updateError.message);
+      }
+    }
+
     return NextResponse.json({
       eventId: updated.eventId,
-      meetLink: cita.google_meet_link ?? updated.meetLink,
+      meetLink,
     });
   } catch (error) {
     console.error("[api/calendar/actualizar-evento] error exacto:", error);

@@ -70,6 +70,7 @@ type FormState = {
   horaInicio: string;
   horaFin: string;
   direccion: string;
+  googleMeetLink: string;
   costo: string;
   pruebaPagada: boolean;
   asignadoId: string;
@@ -92,6 +93,7 @@ function emptyForm(): FormState {
     horaInicio: "",
     horaFin: "",
     direccion: "",
+    googleMeetLink: "",
     costo: "",
     pruebaPagada: false,
     asignadoId: "",
@@ -119,6 +121,7 @@ function formToState(tasting: TastingRow): FormState {
     horaInicio: citaTimeFromDb(tasting.hora_inicio),
     horaFin: tasting.hora_fin ? citaTimeFromDb(tasting.hora_fin) : "",
     direccion: tasting.direccion ?? "",
+    googleMeetLink: tasting.google_meet_link?.trim() ?? "",
     costo: formatInputCurrencyFromNumber(
       tasting.costo > 0 ? tasting.costo : null,
     ),
@@ -325,6 +328,7 @@ export function TastingsSection({
       hora_inicio: citaTimeToDb(form.horaInicio),
       hora_fin: form.horaFin ? citaTimeToDb(form.horaFin) : null,
       direccion: form.direccion.trim() || null,
+      google_meet_link: form.googleMeetLink.trim() || null,
       costo: costoNum,
       costo_pagado: form.pruebaPagada,
       prueba_pagada: form.pruebaPagada,
@@ -366,7 +370,23 @@ export function TastingsSection({
         });
 
         if (tasting.google_event_id) {
-          await actualizarEventoCalendarTasting(tasting.id);
+          const calendarResult = await actualizarEventoCalendarTasting(
+            tasting.id,
+          );
+          if (calendarResult.meetLink) {
+            setTastings((current) =>
+              sortTastingsBySchedule(
+                current.map((item) =>
+                  item.id === tasting.id
+                    ? {
+                        ...item,
+                        google_meet_link: calendarResult.meetLink ?? null,
+                      }
+                    : item,
+                ),
+              ),
+            );
+          }
         }
 
         closeForm();
@@ -771,6 +791,25 @@ export function TastingsSection({
             />
           </Field>
 
+          <Field label="Link de Meet">
+            <input
+              type="url"
+              className={inputClass}
+              value={form.googleMeetLink}
+              onChange={(e) =>
+                setForm((current) => ({
+                  ...current,
+                  googleMeetLink: e.target.value,
+                }))
+              }
+              disabled={submitting}
+              placeholder="https://meet.google.com/..."
+            />
+            <p className="text-xs text-bloom-muted">
+              Pégalo aquí si lo agregaste manualmente en Google Calendar.
+            </p>
+          </Field>
+
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Costo">
               <input
@@ -1023,7 +1062,7 @@ export function TastingsSection({
                     rel="noopener noreferrer"
                     className="inline-flex rounded-full border border-bloom-accent bg-bloom-accent/10 px-4 py-2 text-sm font-medium text-bloom-accent hover:bg-bloom-accent/20"
                   >
-                    Unirse a Meet
+                    Unirse a Meet 📹
                   </a>
                 </div>
               )}

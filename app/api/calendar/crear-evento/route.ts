@@ -38,13 +38,14 @@ export async function POST(request: Request) {
     }
 
     const event = await createCalendarEvent(cita, bodaNombre);
+    const meetLink = event.meetLink ?? cita.google_meet_link ?? null;
 
     const supabase = await createServerSupabaseClient();
     const { error: updateError } = await supabase
       .from("citas")
       .update({
         google_event_id: event.eventId,
-        google_meet_link: event.meetLink,
+        google_meet_link: meetLink,
       })
       .eq("id", citaId);
 
@@ -54,7 +55,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       eventId: event.eventId,
-      meetLink: event.meetLink,
+      meetLink,
     });
   } catch (error) {
     console.error("[api/calendar/crear-evento] error exacto:", error);

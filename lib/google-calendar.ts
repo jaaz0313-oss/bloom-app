@@ -166,7 +166,12 @@ function extractMeetLink(event: calendar_v3.Schema$Event): string | null {
 
   const entryPoints = event.conferenceData?.entryPoints ?? [];
   const video = entryPoints.find((ep) => ep.entryPointType === "video");
-  return video?.uri?.trim() || null;
+  if (video?.uri?.trim()) return video.uri.trim();
+
+  const meetEntry = entryPoints.find((ep) =>
+    ep.uri?.toLowerCase().includes("meet.google.com"),
+  );
+  return meetEntry?.uri?.trim() || null;
 }
 
 function buildEventResource(

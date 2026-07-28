@@ -56,6 +56,7 @@ export function LeadAgendarReunionModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [successMeetLink, setSuccessMeetLink] = useState<string | null>(null);
 
   const endOptions = useMemo(
     () => getCitaEndTimeSlotOptions(horaInicio),
@@ -71,6 +72,7 @@ export function LeadAgendarReunionModal({
     setNotas("");
     setError(null);
     setSuccess(false);
+    setSuccessMeetLink(null);
     setSubmitting(false);
   }, [open, lead.id]);
 
@@ -137,7 +139,11 @@ export function LeadAgendarReunionModal({
 
       const cita = normalizeCitaRow(data as CitaRow);
 
-      await crearEventoCalendar(cita.id);
+      const calendarResult = await crearEventoCalendar(cita.id);
+      const meetLink = calendarResult.meetLink?.trim() || null;
+      if (meetLink) {
+        setSuccessMeetLink(meetLink);
+      }
 
       await logAuditoria({
         accion: AUDITORIA_ACCIONES.CITA_CREADA,
@@ -209,6 +215,16 @@ export function LeadAgendarReunionModal({
           <p className="text-sm text-bloom-ink">
             Reunión agendada correctamente
           </p>
+          {successMeetLink && (
+            <a
+              href={successMeetLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex rounded-full border border-bloom-accent bg-bloom-accent/10 px-4 py-2 text-sm font-medium text-bloom-accent hover:bg-bloom-accent/20"
+            >
+              Unirse a Meet 📹
+            </a>
+          )}
         </div>
       ) : (
         <form
