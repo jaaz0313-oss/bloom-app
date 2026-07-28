@@ -117,13 +117,6 @@ function buildEventDescription(
 
   lines.push(`Tipo de cita: ${CITA_TIPO_LABELS[cita.tipo]}`);
 
-  const emails = (cita.emails_involucrados ?? [])
-    .map((email) => email.trim())
-    .filter(Boolean);
-  if (emails.length > 0) {
-    lines.push(`Email: ${emails.join(", ")}`);
-  }
-
   if (cita.lugar?.trim()) {
     lines.push(`Lugar: ${cita.lugar.trim()}`);
   }
@@ -345,17 +338,6 @@ function buildTastingEventTimes(tasting: TastingForCalendar) {
   return { startDateTime, endDateTime };
 }
 
-function buildTastingClientesLine(
-  emailNovia: string | null | undefined,
-  emailNovio: string | null | undefined,
-): string | null {
-  const novia = emailNovia?.trim() || "";
-  const novio = emailNovio?.trim() || "";
-  if (!novia && !novio) return null;
-  if (novia && novio) return `Clientes: ${novia} / ${novio}`;
-  return `Clientes: ${novia || novio}`;
-}
-
 function buildTastingEventDescription(
   tasting: TastingForCalendar,
   bodaNombre: string | null,
@@ -376,19 +358,6 @@ function buildTastingEventDescription(
 
   if (tasting.direccion?.trim()) {
     lines.push(`Dirección: ${tasting.direccion.trim()}`);
-  }
-
-  const emailInvitado = tasting.email_invitado?.trim();
-  if (emailInvitado) {
-    lines.push(`Proveedor: ${emailInvitado}`);
-  }
-
-  const clientesLine = buildTastingClientesLine(
-    tasting.email_novia,
-    tasting.email_novio,
-  );
-  if (clientesLine) {
-    lines.push(clientesLine);
   }
 
   if (tasting.notas?.trim()) {
