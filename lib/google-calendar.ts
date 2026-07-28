@@ -160,15 +160,6 @@ function getTastingAttendeeEmails(tasting: TastingForCalendar): string[] {
   ]);
 }
 
-function buildMeetConferenceData(): calendar_v3.Schema$ConferenceData {
-  return {
-    createRequest: {
-      requestId: crypto.randomUUID(),
-      conferenceSolutionKey: { type: "hangoutsMeet" },
-    },
-  };
-}
-
 function extractMeetLink(event: calendar_v3.Schema$Event): string | null {
   const hangout = event.hangoutLink?.trim();
   if (hangout) return hangout;
@@ -181,7 +172,6 @@ function extractMeetLink(event: calendar_v3.Schema$Event): string | null {
 function buildEventResource(
   cita: CitaForCalendar,
   bodaNombre: string | null,
-  options?: { createMeet?: boolean },
 ): calendar_v3.Schema$Event {
   const timeZone = getCalendarTimezone();
   const { startDateTime, endDateTime } = buildEventTimes(cita);
@@ -192,9 +182,6 @@ function buildEventResource(
     location: cita.lugar?.trim() || undefined,
     start: { dateTime: startDateTime, timeZone },
     end: { dateTime: endDateTime, timeZone },
-    ...(options?.createMeet
-      ? { conferenceData: buildMeetConferenceData() }
-      : {}),
   };
 }
 
@@ -246,13 +233,10 @@ export async function createCalendarEvent(
   try {
     const calendar = getCalendarClient();
     const calendarId = getCalendarId();
-    const eventResource = buildEventResource(cita, bodaNombre, {
-      createMeet: true,
-    });
+    const eventResource = buildEventResource(cita, bodaNombre);
 
     const response = await calendar.events.insert({
       calendarId,
-      conferenceDataVersion: 1,
       sendUpdates: "none",
       requestBody: eventResource,
     });
@@ -372,7 +356,6 @@ function buildTastingEventDescription(
 function buildTastingEventResource(
   tasting: TastingForCalendar,
   bodaNombre: string | null,
-  options?: { createMeet?: boolean },
 ): calendar_v3.Schema$Event {
   const timeZone = getCalendarTimezone();
   const { startDateTime, endDateTime } = buildTastingEventTimes(tasting);
@@ -384,9 +367,6 @@ function buildTastingEventResource(
     location: tasting.direccion?.trim() || undefined,
     start: { dateTime: startDateTime, timeZone },
     end: { dateTime: endDateTime, timeZone },
-    ...(options?.createMeet
-      ? { conferenceData: buildMeetConferenceData() }
-      : {}),
   };
 }
 
@@ -400,11 +380,8 @@ export async function createTastingCalendarEvent(
 
     const response = await calendar.events.insert({
       calendarId,
-      conferenceDataVersion: 1,
       sendUpdates: "none",
-      requestBody: buildTastingEventResource(tasting, bodaNombre, {
-        createMeet: true,
-      }),
+      requestBody: buildTastingEventResource(tasting, bodaNombre),
     });
 
     const result = mapEventResult(response.data);

@@ -173,7 +173,6 @@ export function TastingsSection({
   const [assigneeConflictWarning, setAssigneeConflictWarning] = useState<
     string | null
   >(null);
-  const [calendarWarning, setCalendarWarning] = useState<string | null>(null);
   const [notaOpenId, setNotaOpenId] = useState<string | null>(null);
   const [notaDraft, setNotaDraft] = useState("");
   const [notaSavingId, setNotaSavingId] = useState<string | null>(null);
@@ -269,7 +268,6 @@ export function TastingsSection({
     setError(null);
     setScheduleWarnings([]);
     setAssigneeConflictWarning(null);
-    setCalendarWarning(null);
     setEditingId(null);
     setForm(emptyForm());
     setFormOpen(true);
@@ -280,7 +278,6 @@ export function TastingsSection({
     setError(null);
     setScheduleWarnings([]);
     setAssigneeConflictWarning(null);
-    setCalendarWarning(null);
     setEditingId(tasting.id);
     setForm(formToState(tasting));
     setFormOpen(true);
@@ -296,7 +293,6 @@ export function TastingsSection({
     e.preventDefault();
     if (!canManage) return;
     setError(null);
-    setCalendarWarning(null);
 
     if (!form.fecha.trim()) {
       setError("Indica la fecha del tasting.");
@@ -370,10 +366,7 @@ export function TastingsSection({
         });
 
         if (tasting.google_event_id) {
-          const calendarResult = await actualizarEventoCalendarTasting(tasting.id);
-          if (calendarResult.warning) {
-            setCalendarWarning(calendarResult.warning);
-          }
+          await actualizarEventoCalendarTasting(tasting.id);
         }
 
         closeForm();
@@ -404,9 +397,7 @@ export function TastingsSection({
       });
 
       const calendarResult = await crearEventoCalendarTasting(tasting.id);
-      if (calendarResult.warning) {
-        setCalendarWarning(calendarResult.warning);
-      } else if (calendarResult.eventId) {
+      if (calendarResult.eventId) {
         setTastings((current) =>
           sortTastingsBySchedule(
             current.map((item) =>
@@ -439,7 +430,6 @@ export function TastingsSection({
 
     setDeletingId(tasting.id);
     setError(null);
-    setCalendarWarning(null);
 
     try {
       await eliminarEventoCalendarTastingSiVinculado(tasting);
@@ -889,15 +879,6 @@ export function TastingsSection({
             </button>
           </div>
         </form>
-      )}
-
-      {calendarWarning && (
-        <p
-          className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900"
-          role="status"
-        >
-          {calendarWarning}
-        </p>
       )}
 
       {error && (
