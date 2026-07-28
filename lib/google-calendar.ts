@@ -15,7 +15,7 @@ import {
 export type CalendarEventResult = {
   eventId: string;
   htmlLink: string | null;
-  meetLink: null;
+  meetLink: string | null;
   /** Aviso si el evento se creó/actualizó pero falló agregar invitados. */
   attendeesWarning?: string;
 };
@@ -162,9 +162,28 @@ function getTastingAttendeeEmails(tasting: TastingForCalendar): string[] {
   ]);
 }
 
+function buildMeetConferenceData(): calendar_v3.Schema$ConferenceData {
+  return {
+    createRequest: {
+      requestId: crypto.randomUUID(),
+      conferenceSolutionKey: { type: "hangoutsMeet" },
+    },
+  };
+}
+
+function extractMeetLink(event: calendar_v3.Schema$Event): string | null {
+  const hangout = event.hangoutLink?.trim();
+  if (hangout) return hangout;
+
+  const entryPoints = event.conferenceData?.entryPoints ?? [];
+  const video = entryPoints.find((ep) => ep.entryPointType === "video");
+  return video?.uri?.trim() || null;
+}
+
 function buildEventResource(
   cita: CitaForCalendar,
   bodaNombre: string | null,
+  options?: { createMeet?: boolean },
 ): calendar_v3.Schema$Event {
   const timeZone = getCalendarTimezone();
   const { startDateTime, endDateTime } = buildEventTimes(cita);
@@ -175,6 +194,9 @@ function buildEventResource(
     location: cita.lugar?.trim() || undefined,
     start: { dateTime: startDateTime, timeZone },
     end: { dateTime: endDateTime, timeZone },
+    ...(options?.createMeet
+      ? { conferenceData: buildMeetConferenceData() }
+      : {}),
   };
 }
 
@@ -190,7 +212,7 @@ function mapEventResult(
   return {
     eventId,
     htmlLink: event.htmlLink ?? null,
-    meetLink: null,
+    meetLink: extractMeetLink(event),
     ...(attendeesWarning ? { attendeesWarning } : {}),
   };
 }
@@ -241,10 +263,13 @@ export async function createCalendarEvent(
   try {
     const calendar = getCalendarClient();
     const calendarId = getCalendarId();
-    const eventResource = buildEventResource(cita, bodaNombre);
+    const eventResource = buildEventResource(cita, bodaNombre, {
+      createMeet: true,
+    });
 
     const response = await calendar.events.insert({
       calendarId,
+      conferenceDataVersion: 1,
       sendUpdates: "none",
       requestBody: eventResource,
     });
@@ -370,6 +395,7 @@ function buildTastingEventDescription(
 function buildTastingEventResource(
   tasting: TastingForCalendar,
   bodaNombre: string | null,
+  options?: { createMeet?: boolean },
 ): calendar_v3.Schema$Event {
   const timeZone = getCalendarTimezone();
   const { startDateTime, endDateTime } = buildTastingEventTimes(tasting);
@@ -381,6 +407,9 @@ function buildTastingEventResource(
     location: tasting.direccion?.trim() || undefined,
     start: { dateTime: startDateTime, timeZone },
     end: { dateTime: endDateTime, timeZone },
+    ...(options?.createMeet
+      ? { conferenceData: buildMeetConferenceData() }
+      : {}),
   };
 }
 
@@ -394,8 +423,11 @@ export async function createTastingCalendarEvent(
 
     const response = await calendar.events.insert({
       calendarId,
+      conferenceDataVersion: 1,
       sendUpdates: "none",
-      requestBody: buildTastingEventResource(tasting, bodaNombre),
+      requestBody: buildTastingEventResource(tasting, bodaNombre, {
+        createMeet: true,
+      }),
     });
 
     const result = mapEventResult(response.data);

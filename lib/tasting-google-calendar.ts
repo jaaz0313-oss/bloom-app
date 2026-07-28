@@ -1,5 +1,6 @@
 export type TastingCalendarSyncResult = {
   eventId?: string;
+  meetLink?: string | null;
   warning?: string;
 };
 
@@ -8,6 +9,7 @@ async function parseCalendarApiResponse(
 ): Promise<TastingCalendarSyncResult> {
   const data = (await response.json().catch(() => ({}))) as {
     eventId?: string;
+    meetLink?: string | null;
     error?: string;
   };
 
@@ -19,7 +21,7 @@ async function parseCalendarApiResponse(
     };
   }
 
-  return { eventId: data.eventId };
+  return { eventId: data.eventId, meetLink: data.meetLink };
 }
 
 export async function crearEventoCalendarTasting(

@@ -314,7 +314,7 @@ export function CitaFormModal({
     return {
       ...cita,
       google_event_id: result.eventId,
-      google_meet_link: null,
+      google_meet_link: result.meetLink ?? cita.google_meet_link ?? null,
     };
   }
 

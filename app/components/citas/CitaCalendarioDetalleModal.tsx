@@ -70,6 +70,8 @@ export function CitaCalendarioDetalleModal({
     ? getCitaRelacionLabel(cita, bodasById, leadsById)
     : "";
   const activa = cita ? isCitaActiva(cita.estado) : false;
+  const meetUrl =
+    cita?.google_meet_link?.trim() || cita?.link_meet?.trim() || null;
 
   async function handleCancelConfirm() {
     if (!supabase || !cita) return;
@@ -156,14 +158,14 @@ export function CitaCalendarioDetalleModal({
             </DetailRow>
             <DetailRow label="Lugar">{cita.lugar || "—"}</DetailRow>
             <DetailRow label="Link de Meet">
-              {cita.link_meet ? (
+              {meetUrl ? (
                 <a
-                  href={cita.link_meet}
+                  href={meetUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="break-all text-bloom-accent hover:underline"
+                  className="inline-flex rounded-full border border-bloom-accent bg-bloom-accent/10 px-3 py-1.5 text-sm font-medium text-bloom-accent hover:bg-bloom-accent/20"
                 >
-                  {cita.link_meet}
+                  Unirse a Meet
                 </a>
               ) : (
                 "—"

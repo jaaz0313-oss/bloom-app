@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     if (cita.google_event_id) {
       return NextResponse.json({
         eventId: cita.google_event_id,
-        meetLink: null,
+        meetLink: cita.google_meet_link,
       });
     }
 
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
       .from("citas")
       .update({
         google_event_id: event.eventId,
-        google_meet_link: null,
+        google_meet_link: event.meetLink,
       })
       .eq("id", citaId);
 
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       eventId: event.eventId,
-      meetLink: null,
+      meetLink: event.meetLink,
       ...(event.attendeesWarning
         ? { attendeesWarning: event.attendeesWarning }
         : {}),

@@ -77,6 +77,8 @@ export function CitaConAcciones({
   );
 
   const activa = isCitaActiva(cita.estado);
+  const meetUrl =
+    cita.google_meet_link?.trim() || cita.link_meet?.trim() || null;
   const notasReunion = useMemo(
     () => parseCitaNotasReunion(cita.notas_reunion),
     [cita.notas_reunion],
@@ -332,6 +334,16 @@ export function CitaConAcciones({
           compact={compact}
         />
         <div className="flex flex-wrap gap-2 pl-1">
+          {meetUrl && (
+            <a
+              href={meetUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-full border border-bloom-accent bg-bloom-accent/10 px-3 py-1 text-xs font-medium text-bloom-accent hover:bg-bloom-accent/20"
+            >
+              Unirse a Meet
+            </a>
+          )}
           <button
             type="button"
             onClick={() => setEditOpen(true)}

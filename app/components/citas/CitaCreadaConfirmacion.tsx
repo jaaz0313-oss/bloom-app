@@ -312,7 +312,7 @@ export function CitaCreadaConfirmacion({
             rel="noopener noreferrer"
             className="inline-flex rounded-full border border-bloom-accent bg-bloom-accent/10 px-4 py-2 text-sm font-medium text-bloom-accent hover:bg-bloom-accent/20"
           >
-            Abrir Meet
+            Unirse a Meet
           </a>
         )}
         <button

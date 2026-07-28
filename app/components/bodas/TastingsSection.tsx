@@ -411,7 +411,11 @@ export function TastingsSection({
           sortTastingsBySchedule(
             current.map((item) =>
               item.id === tasting.id
-                ? { ...item, google_event_id: calendarResult.eventId ?? null }
+                ? {
+                    ...item,
+                    google_event_id: calendarResult.eventId ?? null,
+                    google_meet_link: calendarResult.meetLink ?? null,
+                  }
                 : item,
             ),
           ),
@@ -1029,6 +1033,19 @@ export function TastingsSection({
                   </div>
                 )}
               </dl>
+
+              {tasting.google_meet_link?.trim() && (
+                <div className="mt-3">
+                  <a
+                    href={tasting.google_meet_link.trim()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex rounded-full border border-bloom-accent bg-bloom-accent/10 px-4 py-2 text-sm font-medium text-bloom-accent hover:bg-bloom-accent/20"
+                  >
+                    Unirse a Meet
+                  </a>
+                </div>
+              )}
 
               {canView && tasting.notas && (
                 <p className="mt-3 whitespace-pre-wrap text-sm text-bloom-muted">

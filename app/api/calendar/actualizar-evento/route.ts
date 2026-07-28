@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { getCurrentAuthUser } from "@/lib/auth/user-profiles";
 import { loadCitaForCalendar } from "@/lib/calendar-cita-loader";
 import { updateCalendarEvent } from "@/lib/google-calendar";
-import { createServerSupabaseClient } from "@/lib/supabase-server";
 
 export async function POST(request: Request) {
   const user = await getCurrentAuthUser();
@@ -43,21 +42,9 @@ export async function POST(request: Request) {
       bodaNombre,
     );
 
-    const supabase = await createServerSupabaseClient();
-    const { error: updateError } = await supabase
-      .from("citas")
-      .update({
-        google_meet_link: null,
-      })
-      .eq("id", citaId);
-
-    if (updateError) {
-      throw new Error(updateError.message);
-    }
-
     return NextResponse.json({
-      eventId: cita.google_event_id,
-      meetLink: null,
+      eventId: updated.eventId,
+      meetLink: cita.google_meet_link ?? updated.meetLink,
       ...(updated.attendeesWarning
         ? { attendeesWarning: updated.attendeesWarning }
         : {}),
