@@ -85,7 +85,14 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ eventId: event.eventId });
   } catch (error) {
-    console.error(error);
+    console.error("[api/calendar/crear-evento-tasting] error exacto:", error);
+    if (error instanceof Error) {
+      console.error(
+        "[api/calendar/crear-evento-tasting] message:",
+        error.message,
+      );
+      console.error("[api/calendar/crear-evento-tasting] stack:", error.stack);
+    }
     return NextResponse.json(
       {
         error:

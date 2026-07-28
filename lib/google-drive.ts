@@ -1,5 +1,8 @@
 import { google } from "googleapis";
-import { getGoogleServiceAccountCredentials } from "@/lib/google-service-account";
+import {
+  createGoogleJwtAuth,
+  logGoogleApiError,
+} from "@/lib/google-service-account";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
 export type BodaDriveFolderRow = {
@@ -29,16 +32,15 @@ export const COTIZACIONES_SUBFOLDER = "Cotizaciones";
 export const TASTINGS_SUBFOLDER = "Tastings";
 
 function getDriveClient() {
-  const { email, key, subject } = getGoogleServiceAccountCredentials();
-
-  const auth = new google.auth.JWT({
-    email,
-    key,
-    scopes: ["https://www.googleapis.com/auth/drive"],
-    ...(subject ? { subject } : {}),
-  });
-
-  return google.drive({ version: "v3", auth });
+  try {
+    const auth = createGoogleJwtAuth([
+      "https://www.googleapis.com/auth/drive",
+    ]);
+    return google.drive({ version: "v3", auth });
+  } catch (error) {
+    logGoogleApiError("drive.getDriveClient", error);
+    throw error;
+  }
 }
 
 async function shareFolderWithLink(

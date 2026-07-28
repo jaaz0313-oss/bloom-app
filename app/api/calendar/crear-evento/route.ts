@@ -57,7 +57,11 @@ export async function POST(request: Request) {
       meetLink: null,
     });
   } catch (error) {
-    console.error(error);
+    console.error("[api/calendar/crear-evento] error exacto:", error);
+    if (error instanceof Error) {
+      console.error("[api/calendar/crear-evento] message:", error.message);
+      console.error("[api/calendar/crear-evento] stack:", error.stack);
+    }
     return NextResponse.json(
       {
         error:

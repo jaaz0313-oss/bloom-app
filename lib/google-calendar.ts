@@ -5,7 +5,10 @@ import { CITA_TIPO_LABELS } from "@/app/data/citas";
 import { citaTimeFromDb } from "@/lib/cita-time-slots";
 import { getTastingEventTitle, getTastingTipoLabel } from "@/lib/tastings";
 import { normalizeCitaFecha } from "@/lib/citas";
-import { getGoogleServiceAccountCredentials } from "@/lib/google-service-account";
+import {
+  createGoogleJwtAuth,
+  logGoogleApiError,
+} from "@/lib/google-service-account";
 
 export type CalendarEventResult = {
   eventId: string;
@@ -31,20 +34,10 @@ export type CitaForCalendar = Pick<
 const DEFAULT_TIMEZONE = "America/Bogota";
 const DEFAULT_DURATION_MINUTES = 60;
 
-function requireServiceAccountEnv() {
-  return getGoogleServiceAccountCredentials();
-}
-
 export function getCalendarClient() {
-  const { email, key, subject } = requireServiceAccountEnv();
-
-  const auth = new google.auth.JWT({
-    email,
-    key,
-    scopes: ["https://www.googleapis.com/auth/calendar"],
-    ...(subject ? { subject } : {}),
-  });
-
+  const auth = createGoogleJwtAuth([
+    "https://www.googleapis.com/auth/calendar",
+  ]);
   return google.calendar({ version: "v3", auth });
 }
 
@@ -169,17 +162,22 @@ export async function createCalendarEvent(
   cita: CitaForCalendar,
   bodaNombre: string | null,
 ): Promise<CalendarEventResult> {
-  const calendar = getCalendarClient();
-  const calendarId = getCalendarId();
-  const eventResource = buildEventResource(cita, bodaNombre);
+  try {
+    const calendar = getCalendarClient();
+    const calendarId = getCalendarId();
+    const eventResource = buildEventResource(cita, bodaNombre);
 
-  const response = await calendar.events.insert({
-    calendarId,
-    sendUpdates: "none",
-    requestBody: eventResource,
-  });
+    const response = await calendar.events.insert({
+      calendarId,
+      sendUpdates: "none",
+      requestBody: eventResource,
+    });
 
-  return mapEventResult(response.data);
+    return mapEventResult(response.data);
+  } catch (error) {
+    logGoogleApiError("calendar.createCalendarEvent", error);
+    throw error;
+  }
 }
 
 export async function updateCalendarEvent(
@@ -187,28 +185,38 @@ export async function updateCalendarEvent(
   cita: CitaForCalendar,
   bodaNombre: string | null,
 ): Promise<CalendarEventResult> {
-  const calendar = getCalendarClient();
-  const calendarId = getCalendarId();
+  try {
+    const calendar = getCalendarClient();
+    const calendarId = getCalendarId();
 
-  const response = await calendar.events.patch({
-    calendarId,
-    eventId: googleEventId,
-    sendUpdates: "none",
-    requestBody: buildEventResource(cita, bodaNombre),
-  });
+    const response = await calendar.events.patch({
+      calendarId,
+      eventId: googleEventId,
+      sendUpdates: "none",
+      requestBody: buildEventResource(cita, bodaNombre),
+    });
 
-  return mapEventResult(response.data);
+    return mapEventResult(response.data);
+  } catch (error) {
+    logGoogleApiError("calendar.updateCalendarEvent", error);
+    throw error;
+  }
 }
 
 export async function deleteCalendarEvent(googleEventId: string): Promise<void> {
-  const calendar = getCalendarClient();
-  const calendarId = getCalendarId();
+  try {
+    const calendar = getCalendarClient();
+    const calendarId = getCalendarId();
 
-  await calendar.events.delete({
-    calendarId,
-    eventId: googleEventId,
-    sendUpdates: "none",
-  });
+    await calendar.events.delete({
+      calendarId,
+      eventId: googleEventId,
+      sendUpdates: "none",
+    });
+  } catch (error) {
+    logGoogleApiError("calendar.deleteCalendarEvent", error);
+    throw error;
+  }
 }
 
 export type TastingForCalendar = {
@@ -316,16 +324,21 @@ export async function createTastingCalendarEvent(
   tasting: TastingForCalendar,
   bodaNombre: string | null,
 ): Promise<CalendarEventResult> {
-  const calendar = getCalendarClient();
-  const calendarId = getCalendarId();
+  try {
+    const calendar = getCalendarClient();
+    const calendarId = getCalendarId();
 
-  const response = await calendar.events.insert({
-    calendarId,
-    sendUpdates: "none",
-    requestBody: buildTastingEventResource(tasting, bodaNombre),
-  });
+    const response = await calendar.events.insert({
+      calendarId,
+      sendUpdates: "none",
+      requestBody: buildTastingEventResource(tasting, bodaNombre),
+    });
 
-  return mapEventResult(response.data);
+    return mapEventResult(response.data);
+  } catch (error) {
+    logGoogleApiError("calendar.createTastingCalendarEvent", error);
+    throw error;
+  }
 }
 
 export async function updateTastingCalendarEvent(
@@ -333,17 +346,22 @@ export async function updateTastingCalendarEvent(
   tasting: TastingForCalendar,
   bodaNombre: string | null,
 ): Promise<CalendarEventResult> {
-  const calendar = getCalendarClient();
-  const calendarId = getCalendarId();
+  try {
+    const calendar = getCalendarClient();
+    const calendarId = getCalendarId();
 
-  const response = await calendar.events.patch({
-    calendarId,
-    eventId: googleEventId,
-    sendUpdates: "none",
-    requestBody: buildTastingEventResource(tasting, bodaNombre),
-  });
+    const response = await calendar.events.patch({
+      calendarId,
+      eventId: googleEventId,
+      sendUpdates: "none",
+      requestBody: buildTastingEventResource(tasting, bodaNombre),
+    });
 
-  return mapEventResult(response.data);
+    return mapEventResult(response.data);
+  } catch (error) {
+    logGoogleApiError("calendar.updateTastingCalendarEvent", error);
+    throw error;
+  }
 }
 
 function normalizeBodaFecha(fecha: string): string {
@@ -365,23 +383,28 @@ export async function createBodaFechaConfirmadaEvent(
   fechaBoda: string,
   nombrePareja: string,
 ): Promise<CalendarEventResult> {
-  const calendar = getCalendarClient();
-  const calendarId = getCalendarId();
-  const fecha = normalizeBodaFecha(fechaBoda);
-  const nombre = nombrePareja.trim() || "Boda";
+  try {
+    const calendar = getCalendarClient();
+    const calendarId = getCalendarId();
+    const fecha = normalizeBodaFecha(fechaBoda);
+    const nombre = nombrePareja.trim() || "Boda";
 
-  const response = await calendar.events.insert({
-    calendarId,
-    sendUpdates: "none",
-    requestBody: {
-      summary: `🔒 Boda - ${nombre}`,
-      description: `Fecha confirmada - Boda de ${nombre}`,
-      start: { date: fecha },
-      end: { date: addDaysToIsoDate(fecha, 1) },
-    },
-  });
+    const response = await calendar.events.insert({
+      calendarId,
+      sendUpdates: "none",
+      requestBody: {
+        summary: `🔒 Boda - ${nombre}`,
+        description: `Fecha confirmada - Boda de ${nombre}`,
+        start: { date: fecha },
+        end: { date: addDaysToIsoDate(fecha, 1) },
+      },
+    });
 
-  return mapEventResult(response.data);
+    return mapEventResult(response.data);
+  } catch (error) {
+    logGoogleApiError("calendar.createBodaFechaConfirmadaEvent", error);
+    throw error;
+  }
 }
 
 export async function deleteCalendarEventIfExists(
