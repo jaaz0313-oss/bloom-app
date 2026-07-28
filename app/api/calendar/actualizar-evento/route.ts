@@ -37,7 +37,7 @@ export async function POST(request: Request) {
       );
     }
 
-    await updateCalendarEvent(
+    const updated = await updateCalendarEvent(
       cita.google_event_id,
       cita,
       bodaNombre,
@@ -58,6 +58,9 @@ export async function POST(request: Request) {
     return NextResponse.json({
       eventId: cita.google_event_id,
       meetLink: null,
+      ...(updated.attendeesWarning
+        ? { attendeesWarning: updated.attendeesWarning }
+        : {}),
     });
   } catch (error) {
     console.error("[api/calendar/actualizar-evento] error exacto:", error);
