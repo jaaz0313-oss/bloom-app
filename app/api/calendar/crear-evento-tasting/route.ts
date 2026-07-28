@@ -17,8 +17,18 @@ export async function POST(request: Request) {
 
   let tastingId: string | undefined;
   try {
-    const body = (await request.json()) as { tastingId?: string };
+    const body = (await request.json()) as {
+      tastingId?: string;
+      email_invitado?: string | null;
+      email_novia?: string | null;
+      email_novio?: string | null;
+    };
     tastingId = body.tastingId?.trim();
+    console.log("[tasting:attendees] emails recibidos:", {
+      email_invitado: body.email_invitado,
+      email_novia: body.email_novia,
+      email_novio: body.email_novio,
+    });
   } catch {
     return NextResponse.json({ error: "Cuerpo inválido" }, { status: 400 });
   }
