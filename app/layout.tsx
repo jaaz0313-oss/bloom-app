@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   description:
     "Bloom by Celestia: plataforma para wedding planners. Organiza bodas, proveedores y más.",
   icons: {
-    icon: [{ url: "/icon.png", type: "image/png" }],
+    icon: "/icon.png",
     apple: "/icon-192x192.png",
   },
 };
@@ -27,6 +27,11 @@ export default function RootLayout({
       lang="es"
       className={`${dmSans.variable} h-full antialiased`}
     >
+      <head>
+        <link rel="icon" href="/icon.png?v=3" type="image/png" />
+        <link rel="shortcut icon" href="/icon.png?v=3" type="image/png" />
+        <link rel="apple-touch-icon" href="/icon-192x192.png" />
+      </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );
