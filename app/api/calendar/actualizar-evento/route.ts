@@ -45,9 +45,6 @@ export async function POST(request: Request) {
     return NextResponse.json({
       eventId: updated.eventId,
       meetLink: cita.google_meet_link ?? updated.meetLink,
-      ...(updated.attendeesWarning
-        ? { attendeesWarning: updated.attendeesWarning }
-        : {}),
     });
   } catch (error) {
     console.error("[api/calendar/actualizar-evento] error exacto:", error);

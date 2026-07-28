@@ -301,7 +301,7 @@ export function CitaFormModal({
         : await actualizarEventoCalendar(cita.id);
 
     if (result.warning) {
-      setCalendarWarning(result.warning);
+      // Calendar falló (p. ej. invitados); la cita en Bloom ya quedó guardada.
       return cita;
     }
 

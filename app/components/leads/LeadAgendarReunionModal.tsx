@@ -56,7 +56,6 @@ export function LeadAgendarReunionModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [calendarWarning, setCalendarWarning] = useState<string | null>(null);
 
   const endOptions = useMemo(
     () => getCitaEndTimeSlotOptions(horaInicio),
@@ -72,7 +71,6 @@ export function LeadAgendarReunionModal({
     setNotas("");
     setError(null);
     setSuccess(false);
-    setCalendarWarning(null);
     setSubmitting(false);
   }, [open, lead.id]);
 
@@ -139,10 +137,7 @@ export function LeadAgendarReunionModal({
 
       const cita = normalizeCitaRow(data as CitaRow);
 
-      const calendarResult = await crearEventoCalendar(cita.id);
-      if (calendarResult.warning) {
-        setCalendarWarning(calendarResult.warning);
-      }
+      await crearEventoCalendar(cita.id);
 
       await logAuditoria({
         accion: AUDITORIA_ACCIONES.CITA_CREADA,
@@ -214,11 +209,6 @@ export function LeadAgendarReunionModal({
           <p className="text-sm text-bloom-ink">
             Reunión agendada correctamente
           </p>
-          {calendarWarning && (
-            <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-              La cita se guardó, pero Calendar avisó: {calendarWarning}
-            </p>
-          )}
         </div>
       ) : (
         <form
