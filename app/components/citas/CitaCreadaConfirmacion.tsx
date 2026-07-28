@@ -29,7 +29,6 @@ type CitaCreadaConfirmacionProps = {
   onClose: () => void;
   variant?: CitaCreadaConfirmacionVariant;
   proveedorTelefono?: string | null;
-  calendarWarning?: string | null;
 };
 
 function readStoredLocale(): CitaWhatsAppLocale {
@@ -68,7 +67,6 @@ export function CitaCreadaConfirmacion({
   onClose,
   variant = "created",
   proveedorTelefono = null,
-  calendarWarning = null,
 }: CitaCreadaConfirmacionProps) {
   const [locale, setLocale] = useState<CitaWhatsAppLocale>("es");
   const [copiedGrupo, setCopiedGrupo] = useState(false);
@@ -162,15 +160,6 @@ export function CitaCreadaConfirmacion({
 
   return (
     <div className="mt-5 space-y-6">
-      {calendarWarning && (
-        <p
-          className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
-          role="status"
-        >
-          {calendarWarning} La cita se guardó correctamente en Bloom.
-        </p>
-      )}
-
       {/* 1. Resumen */}
       <section className="rounded-xl border border-bloom-border bg-bloom-canvas/60 p-4">
         <h4 className="text-sm font-semibold text-bloom-ink">Resumen de la cita</h4>

@@ -134,7 +134,6 @@ export function CitaFormModal({
   const [createdProveedorTelefono, setCreatedProveedorTelefono] = useState<
     string | null
   >(null);
-  const [calendarWarning, setCalendarWarning] = useState<string | null>(null);
 
   const bodasById = useMemo(
     () => Object.fromEntries(bodas.map((b) => [b.id, b])),
@@ -301,11 +300,9 @@ export function CitaFormModal({
         : await actualizarEventoCalendar(cita.id);
 
     if (result.warning) {
-      // Calendar falló (p. ej. invitados); la cita en Bloom ya quedó guardada.
+      // Calendar falló; la cita en Bloom ya quedó guardada.
       return cita;
     }
-
-    setCalendarWarning(null);
 
     if (!result.eventId) {
       return cita;
@@ -388,7 +385,6 @@ export function CitaFormModal({
     };
 
     setSubmitting(true);
-    setCalendarWarning(null);
     try {
       if (isEditing && editingCita) {
         const { data, error: updateError } = await supabase
@@ -486,7 +482,6 @@ export function CitaFormModal({
   function handleConfirmacionClose() {
     setCreatedCita(null);
     setCreatedProveedorTelefono(null);
-    setCalendarWarning(null);
     onClose();
   }
 
@@ -529,7 +524,6 @@ export function CitaFormModal({
             onClose={handleConfirmacionClose}
             variant={confirmacionTipo}
             proveedorTelefono={createdProveedorTelefono}
-            calendarWarning={calendarWarning}
           />
         ) : (
           <form className="mt-5 space-y-4" onSubmit={handleSubmit}>
