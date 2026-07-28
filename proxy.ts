@@ -5,6 +5,16 @@ const LOGIN_PATH = "/login";
 const CLIENTE_PATH_PREFIX = "/cliente/";
 const CLIENTE_API_PREFIX = "/api/cliente/";
 
+/** Assets públicos (favicon / PWA) — sin autenticación. */
+const PUBLIC_ASSET_PATHS = new Set([
+  "/icon.png",
+  "/favicon.ico",
+  "/icon-32x32.png",
+  "/icon-192x192.png",
+  "/icon-512x512.png",
+  "/manifest.json",
+]);
+
 function isLoginPath(pathname: string): boolean {
   return pathname === LOGIN_PATH || pathname.startsWith(`${LOGIN_PATH}/`);
 }
@@ -17,12 +27,17 @@ function isClienteApiPath(pathname: string): boolean {
   return pathname.startsWith(CLIENTE_API_PREFIX);
 }
 
-/** Rutas accesibles sin sesión (link compartido o login). */
+function isPublicAssetPath(pathname: string): boolean {
+  return PUBLIC_ASSET_PATHS.has(pathname);
+}
+
+/** Rutas accesibles sin sesión (link compartido, login o assets). */
 function isPublicPath(pathname: string): boolean {
   return (
     isLoginPath(pathname) ||
     isClientePath(pathname) ||
-    isClienteApiPath(pathname)
+    isClienteApiPath(pathname) ||
+    isPublicAssetPath(pathname)
   );
 }
 
@@ -77,10 +92,11 @@ export const config = {
   matcher: [
     "/api/cliente/:path*",
     /*
-     * Excluye estáticos, /api/* (auth en cada handler), /cliente/* (vista pública)
-     * y deja /login en el proxy solo para redirigir usuarios ya autenticados.
+     * Excluye estáticos, íconos/manifest, /api/* (auth en cada handler),
+     * /cliente/* (vista pública) y deja /login en el proxy solo para
+     * redirigir usuarios ya autenticados.
      * /api/cliente/* se incluye arriba como ruta pública del portal.
      */
-    "/((?!_next/static|_next/image|favicon.ico|api/|cliente/).*)",
+    "/((?!_next/static|_next/image|favicon.ico|icon\\.png|icon-32x32\\.png|icon-192x192\\.png|icon-512x512\\.png|manifest\\.json|api/|cliente/).*)",
   ],
 };
