@@ -12,8 +12,8 @@ export async function createCotizacionForLead(
     .insert({
       lead_id: lead.id,
       numero_invitados: lead.cantidad_invitados,
-      ciudad: lead.ciudad,
-      fecha_estimada: lead.fecha_tentativa,
+      ciudad: lead.ciudad ?? null,
+      fecha_estimada: lead.fecha_tentativa ?? null,
       estado: "borrador",
       created_by: createdBy ?? null,
     })

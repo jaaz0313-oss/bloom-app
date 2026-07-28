@@ -397,7 +397,7 @@ export function LeadsBoard({
         accion: AUDITORIA_ACCIONES.LEAD_DESCARTADO,
         entidad: "lead",
         entidadId: discardTarget.id,
-        detalle: `${discardTarget.nombre_pareja} · ${discardTarget.ciudad}`,
+        detalle: `${discardTarget.nombre_pareja} · ${discardTarget.ciudad ?? ""}`,
       });
 
       setDiscardTarget(null);
@@ -448,7 +448,9 @@ export function LeadsBoard({
       return;
     }
     if (!supabase) return setError("Supabase no está configurado.");
-    if (!lead.fecha_tentativa || !lead.ciudad?.trim()) {
+    const fechaTentativa = lead.fecha_tentativa ?? "";
+    const ciudad = lead.ciudad?.trim() || "";
+    if (!fechaTentativa || !ciudad) {
       return setError(
         "Completa la fecha tentativa y la ciudad del lead antes de convertirlo a boda.",
       );
@@ -461,8 +463,8 @@ export function LeadsBoard({
         .insert({
           lead_id: lead.id,
           nombre_pareja: lead.nombre_pareja,
-          fecha_boda: lead.fecha_tentativa,
-          ciudad: lead.ciudad,
+          fecha_boda: fechaTentativa,
+          ciudad,
           num_invitados: lead.cantidad_invitados,
           telefono_novia: lead.telefono,
           email_novia: lead.email,
@@ -479,7 +481,7 @@ export function LeadsBoard({
       const cronogramaResult = await insertarCronograma(
         supabase,
         nuevaBoda.id,
-        lead.fecha_tentativa,
+        fechaTentativa,
       );
       if (!cronogramaResult.ok) return setError(cronogramaResult.message);
 
@@ -1087,7 +1089,8 @@ function formatLeadMeta(
   lead: Pick<LeadRow, "ciudad" | "fecha_tentativa">,
 ): string {
   const parts: string[] = [];
-  if (lead.ciudad?.trim()) parts.push(lead.ciudad?.trim());
+  const ciudad = lead.ciudad?.trim();
+  if (ciudad) parts.push(ciudad);
   if (lead.fecha_tentativa) {
     parts.push(formatShortDateStable(lead.fecha_tentativa));
   }

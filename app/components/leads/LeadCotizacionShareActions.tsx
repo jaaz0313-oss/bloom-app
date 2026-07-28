@@ -53,8 +53,8 @@ export function LeadCotizacionShareActions({
           nombreLead: lead.nombre_pareja,
           numeroInvitados:
             cotizacion.numero_invitados ?? lead.cantidad_invitados ?? null,
-          fechaEstimada: cotizacion.fecha_estimada ?? lead.fecha_tentativa,
-          ciudad: cotizacion.ciudad?.trim() || lead.ciudad,
+          fechaEstimada: cotizacion.fecha_estimada ?? lead.fecha_tentativa ?? null,
+          ciudad: cotizacion.ciudad?.trim() || lead.ciudad || null,
           items: displayItems,
         },
         whatsappLocale,
@@ -86,8 +86,8 @@ export function LeadCotizacionShareActions({
       nombreLead: lead.nombre_pareja,
       numeroInvitados:
         cotizacion.numero_invitados ?? lead.cantidad_invitados ?? null,
-      fechaEstimada: cotizacion.fecha_estimada ?? lead.fecha_tentativa,
-      ciudad: cotizacion.ciudad?.trim() || lead.ciudad,
+      fechaEstimada: cotizacion.fecha_estimada ?? lead.fecha_tentativa ?? null,
+      ciudad: cotizacion.ciudad?.trim() || lead.ciudad || null,
       items: displayItems,
     });
   }, [lead, cotizacion, displayItems]);

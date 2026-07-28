@@ -90,8 +90,8 @@ export function generateLeadCotizacionPdf(
 
   const numeroInvitados =
     cotizacion.numero_invitados ?? lead.cantidad_invitados ?? null;
-  const fechaEstimada = cotizacion.fecha_estimada ?? lead.fecha_tentativa;
-  const ciudad = cotizacion.ciudad?.trim() || lead.ciudad;
+  const fechaEstimada = cotizacion.fecha_estimada ?? lead.fecha_tentativa ?? "";
+  const ciudad = cotizacion.ciudad?.trim() || lead.ciudad || "";
 
   const logoY = 10;
   const logoBase64 = loadLogoBase64();
@@ -131,7 +131,7 @@ export function generateLeadCotizacionPdf(
 
   const subtitulo = [
     lead.nombre_pareja,
-    formatWeddingDate(fechaEstimada),
+    fechaEstimada ? formatWeddingDate(fechaEstimada) : "",
     ciudad,
   ]
     .filter(Boolean)

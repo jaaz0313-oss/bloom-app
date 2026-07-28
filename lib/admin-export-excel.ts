@@ -169,7 +169,7 @@ export async function buildAdminExportWorkbook(): Promise<Buffer> {
     l.telefono ?? "",
     l.email ?? "",
     l.fecha_tentativa ? formatShortDateStable(l.fecha_tentativa) : "",
-    l.ciudad,
+    l.ciudad ?? "",
     l.cantidad_invitados ?? "",
     l.presupuesto_estimado ?? "",
     LEAD_SEGUIMIENTO_LABELS[l.estado_seguimiento],
