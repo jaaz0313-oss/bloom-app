@@ -29,12 +29,13 @@ export const COTIZACIONES_SUBFOLDER = "Cotizaciones";
 export const TASTINGS_SUBFOLDER = "Tastings";
 
 function getDriveClient() {
-  const { email, key } = getGoogleServiceAccountCredentials();
+  const { email, key, subject } = getGoogleServiceAccountCredentials();
 
   const auth = new google.auth.JWT({
     email,
     key,
     scopes: ["https://www.googleapis.com/auth/drive"],
+    ...(subject ? { subject } : {}),
   });
 
   return google.drive({ version: "v3", auth });

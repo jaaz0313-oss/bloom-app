@@ -36,12 +36,13 @@ function requireServiceAccountEnv() {
 }
 
 export function getCalendarClient() {
-  const { email, key } = requireServiceAccountEnv();
+  const { email, key, subject } = requireServiceAccountEnv();
 
   const auth = new google.auth.JWT({
     email,
     key,
     scopes: ["https://www.googleapis.com/auth/calendar"],
+    ...(subject ? { subject } : {}),
   });
 
   return google.calendar({ version: "v3", auth });
