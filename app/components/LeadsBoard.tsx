@@ -37,6 +37,7 @@ type LeadsBoardProps = {
 
 type LeadFormState = {
   nombrePareja: string;
+  nombreNovio: string;
   fechaTentativa: string;
   ciudad: string;
   presupuestoEstimado: string;
@@ -46,6 +47,7 @@ type LeadFormState = {
   ciudadResidenciaActual: string;
   conceptoBoda: string;
   prioridades: string;
+  comoNosConocieron: string;
   estadoSeguimiento: LeadSeguimientoStatus;
   notas: string;
   honorariosAcordados: string;
@@ -57,6 +59,7 @@ type LeadFormState = {
 
 const emptyLeadForm: LeadFormState = {
   nombrePareja: "",
+  nombreNovio: "",
   fechaTentativa: "",
   ciudad: "",
   presupuestoEstimado: "",
@@ -66,6 +69,7 @@ const emptyLeadForm: LeadFormState = {
   ciudadResidenciaActual: "",
   conceptoBoda: "",
   prioridades: "",
+  comoNosConocieron: "",
   estadoSeguimiento: "nuevo",
   notas: "",
   honorariosAcordados: "",
@@ -141,7 +145,7 @@ export function LeadsBoard({
   }
 
   useEffect(() => {
-    if (!createOpen || !form.fechaTentativa) {
+    if ((!createOpen && !editOpen) || !form.fechaTentativa) {
       setFechaConflicto([]);
       return;
     }
@@ -170,14 +174,15 @@ export function LeadsBoard({
     return () => {
       cancelled = true;
     };
-  }, [createOpen, form.fechaTentativa]);
+  }, [createOpen, editOpen, form.fechaTentativa]);
 
   function openEditModal(lead: LeadRow) {
     setError(null);
     setEditingLead(lead);
     setAnticipoTouched(true);
     setForm({
-      nombrePareja: lead.nombre_pareja,
+      nombrePareja: lead.nombre_novia?.trim() || lead.nombre_pareja,
+      nombreNovio: lead.nombre_novio ?? "",
       fechaTentativa: lead.fecha_tentativa ?? "",
       ciudad: lead.ciudad ?? "",
       presupuestoEstimado: formatInputCurrencyFromNumber(
@@ -190,6 +195,7 @@ export function LeadsBoard({
       ciudadResidenciaActual: lead.ciudad_residencia_actual ?? "",
       conceptoBoda: lead.concepto_boda ?? "",
       prioridades: lead.prioridades ?? "",
+      comoNosConocieron: lead.como_nos_conocieron ?? "",
       estadoSeguimiento: lead.estado_seguimiento,
       notas: lead.notas ?? "",
       honorariosAcordados: formatInputCurrencyFromNumber(
@@ -322,6 +328,35 @@ export function LeadsBoard({
     setError(null);
     if (!supabase || !editingLead) return setError("Supabase no está configurado.");
 
+    const nombreNovia = form.nombrePareja.trim();
+    const nombreNovio = form.nombreNovio.trim();
+    const email = form.email.trim();
+    const telefono = form.telefono.trim();
+    const fechaTentativa = form.fechaTentativa.trim() || null;
+    const ciudad = form.ciudad.trim() || null;
+    const presupuesto = form.presupuestoEstimado.trim()
+      ? parseInputCurrency(form.presupuestoEstimado)
+      : null;
+    const cantidadInvitados = form.cantidadInvitados.trim()
+      ? Number(form.cantidadInvitados)
+      : null;
+    const comoNosConocieron = form.comoNosConocieron.trim() || null;
+    const notas = form.notas.trim() || null;
+
+    if (!nombreNovia) return setError("Ingresa el nombre de la novia.");
+    if (
+      presupuesto !== null &&
+      (!Number.isFinite(presupuesto) || presupuesto < 0)
+    ) {
+      return setError("Ingresa un presupuesto válido (>= 0).");
+    }
+    if (
+      cantidadInvitados !== null &&
+      (!Number.isFinite(cantidadInvitados) || cantidadInvitados < 0)
+    ) {
+      return setError("Ingresa una cantidad de invitados válida (>= 0).");
+    }
+
     const acuerdos = canManageAcuerdos ? parseAcuerdosFields() : null;
     if (acuerdos && "error" in acuerdos) {
       return setError(acuerdos.error);
@@ -334,9 +369,17 @@ export function LeadsBoard({
         editingLead.id,
         form.estadoSeguimiento,
         {
-          notas: form.notas.trim() || null,
-          telefono: form.telefono.trim() || null,
-          email: form.email.trim() || null,
+          nombre_pareja: nombreNovia,
+          nombre_novia: nombreNovia,
+          nombre_novio: nombreNovio || null,
+          fecha_tentativa: fechaTentativa,
+          ciudad,
+          presupuesto_estimado: presupuesto,
+          cantidad_invitados: cantidadInvitados,
+          como_nos_conocieron: comoNosConocieron,
+          notas,
+          telefono: telefono || null,
+          email: email || null,
           ...(canManageAcuerdos && acuerdos && !("error" in acuerdos)
             ? {
                 honorarios_acordados: acuerdos.honorarios,
@@ -945,72 +988,37 @@ export function LeadsBoard({
       {editOpen && (
         <ModalShell
           title="Editar lead"
-          subtitle={
-            canManageAcuerdos
-              ? "Actualiza estado, notas y acuerdos"
-              : "Actualiza estado y notas"
-          }
+          subtitle="Actualiza la información del lead"
           onClose={() => setEditOpen(false)}
         >
           <form className="mt-5 space-y-4" onSubmit={handleEdit}>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-bloom-ink">
-                Estado de seguimiento
-              </label>
-              <select
-                className={inputClass}
-                value={form.estadoSeguimiento}
-                onChange={(e) =>
-                  setForm((s) => ({
-                    ...s,
-                    estadoSeguimiento: e.target.value as LeadSeguimientoStatus,
-                  }))
+            <LeadEditFields
+              form={form}
+              setForm={setForm}
+              submitting={submitting}
+              fechaConflicto={fechaConflicto}
+              canManageAcuerdos={canManageAcuerdos}
+              anticipoTouched={anticipoTouched}
+              onAnticipoTouched={() => setAnticipoTouched(true)}
+              onHonorariosChange={(value) => {
+                if (anticipoTouched) return;
+                if (!value.trim()) {
+                  setForm((s) => ({ ...s, anticipoAcordado: "" }));
+                  return;
                 }
-                disabled={submitting}
-              >
-                <option value="nuevo">Nuevo</option>
-                <option value="en_conversacion">En conversación</option>
-                <option value="perdido">Perdido</option>
-              </select>
-            </div>
-            <LeadContactFields form={form} setForm={setForm} submitting={submitting} />
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-bloom-ink">Notas</label>
-              <textarea
-                rows={4}
-                className={textareaClass}
-                value={form.notas}
-                onChange={(e) => setForm((s) => ({ ...s, notas: e.target.value }))}
-                disabled={submitting}
-              />
-            </div>
-            {canManageAcuerdos && (
-              <LeadAcuerdosFields
-                form={form}
-                setForm={setForm}
-                submitting={submitting}
-                anticipoTouched={anticipoTouched}
-                onAnticipoTouched={() => setAnticipoTouched(true)}
-                onHonorariosChange={(value) => {
-                  if (anticipoTouched) return;
-                  if (!value.trim()) {
-                    setForm((s) => ({ ...s, anticipoAcordado: "" }));
-                    return;
-                  }
-                  const honorarios = parseInputCurrency(value);
-                  if (!Number.isFinite(honorarios) || honorarios < 0) {
-                    setForm((s) => ({ ...s, anticipoAcordado: "" }));
-                    return;
-                  }
-                  setForm((s) => ({
-                    ...s,
-                    anticipoAcordado: formatInputCurrencyFromNumber(
-                      Math.round(honorarios * 0.5),
-                    ),
-                  }));
-                }}
-              />
-            )}
+                const honorarios = parseInputCurrency(value);
+                if (!Number.isFinite(honorarios) || honorarios < 0) {
+                  setForm((s) => ({ ...s, anticipoAcordado: "" }));
+                  return;
+                }
+                setForm((s) => ({
+                  ...s,
+                  anticipoAcordado: formatInputCurrencyFromNumber(
+                    Math.round(honorarios * 0.5),
+                  ),
+                }));
+              }}
+            />
             <ActionRow
               submitting={submitting}
               onCancel={() => setEditOpen(false)}
@@ -1106,6 +1114,222 @@ function formatLeadMeta(
     parts.push(formatShortDateStable(lead.fecha_tentativa));
   }
   return parts.length > 0 ? parts.join(" · ") : "Sin fecha ni ciudad";
+}
+
+function LeadEditFields({
+  form,
+  setForm,
+  submitting,
+  fechaConflicto = [],
+  canManageAcuerdos,
+  anticipoTouched,
+  onAnticipoTouched,
+  onHonorariosChange,
+}: {
+  form: LeadFormState;
+  setForm: React.Dispatch<React.SetStateAction<LeadFormState>>;
+  submitting: boolean;
+  fechaConflicto?: string[];
+  canManageAcuerdos: boolean;
+  anticipoTouched: boolean;
+  onAnticipoTouched: () => void;
+  onHonorariosChange: (value: string) => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <fieldset className="space-y-4 rounded-xl border border-bloom-border bg-bloom-canvas/50 p-4">
+        <legend className="px-1 text-sm font-medium text-bloom-ink">
+          Información básica
+        </legend>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label="Nombre de la novia">
+            <input
+              className={inputClass}
+              value={form.nombrePareja}
+              onChange={(e) =>
+                setForm((s) => ({ ...s, nombrePareja: e.target.value }))
+              }
+              required
+              disabled={submitting}
+              placeholder="Ej. Valentina"
+              autoFocus
+            />
+          </Field>
+          <Field label="Nombre del novio">
+            <input
+              className={inputClass}
+              value={form.nombreNovio}
+              onChange={(e) =>
+                setForm((s) => ({ ...s, nombreNovio: e.target.value }))
+              }
+              disabled={submitting}
+              placeholder="Ej. Andrés"
+            />
+          </Field>
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label="Teléfono">
+            <input
+              type="tel"
+              className={inputClass}
+              value={form.telefono}
+              onChange={(e) =>
+                setForm((s) => ({ ...s, telefono: e.target.value }))
+              }
+              placeholder="Ej. 3001234567"
+              disabled={submitting}
+            />
+          </Field>
+          <Field label="Email">
+            <input
+              type="email"
+              className={inputClass}
+              value={form.email}
+              onChange={(e) =>
+                setForm((s) => ({ ...s, email: e.target.value }))
+              }
+              disabled={submitting}
+              placeholder="correo@ejemplo.com"
+            />
+          </Field>
+        </div>
+      </fieldset>
+
+      <fieldset className="space-y-4 rounded-xl border border-bloom-border bg-bloom-canvas/50 p-4">
+        <legend className="px-1 text-sm font-medium text-bloom-ink">
+          Detalles de la boda
+        </legend>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-bloom-ink">
+              Fecha tentativa de la boda
+            </label>
+            <input
+              type="date"
+              className={inputClass}
+              value={form.fechaTentativa}
+              onChange={(e) =>
+                setForm((s) => ({ ...s, fechaTentativa: e.target.value }))
+              }
+              disabled={submitting}
+            />
+            {fechaConflicto.length > 0 && (
+              <p
+                className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900"
+                role="status"
+              >
+                ⚠️ Ya tienes una boda agendada para esta fecha:{" "}
+                {fechaConflicto.join(", ")}. Verifica disponibilidad antes de
+                confirmar.
+              </p>
+            )}
+          </div>
+          <Field label="Ciudad">
+            <input
+              className={inputClass}
+              value={form.ciudad}
+              onChange={(e) =>
+                setForm((s) => ({ ...s, ciudad: e.target.value }))
+              }
+              disabled={submitting}
+              placeholder="Ej. Medellín"
+            />
+          </Field>
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label="Presupuesto estimado">
+            <input
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              className={inputClass}
+              value={form.presupuestoEstimado}
+              onChange={(e) =>
+                setForm((s) => ({
+                  ...s,
+                  presupuestoEstimado: formatInputCurrency(e.target.value),
+                }))
+              }
+              disabled={submitting}
+            />
+          </Field>
+          <Field label="Número de invitados">
+            <input
+              type="number"
+              min={0}
+              step={1}
+              className={inputClass}
+              value={form.cantidadInvitados}
+              onChange={(e) =>
+                setForm((s) => ({
+                  ...s,
+                  cantidadInvitados: e.target.value,
+                }))
+              }
+              disabled={submitting}
+            />
+          </Field>
+        </div>
+        <Field label="Cómo nos conocieron">
+          <input
+            className={inputClass}
+            value={form.comoNosConocieron}
+            onChange={(e) =>
+              setForm((s) => ({ ...s, comoNosConocieron: e.target.value }))
+            }
+            disabled={submitting}
+            placeholder="Ej. Instagram, referido, Google…"
+          />
+        </Field>
+      </fieldset>
+
+      <fieldset className="space-y-4 rounded-xl border border-bloom-border bg-bloom-canvas/50 p-4">
+        <legend className="px-1 text-sm font-medium text-bloom-ink">
+          Seguimiento
+        </legend>
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-bloom-ink">
+            Estado de seguimiento
+          </label>
+          <select
+            className={inputClass}
+            value={form.estadoSeguimiento}
+            onChange={(e) =>
+              setForm((s) => ({
+                ...s,
+                estadoSeguimiento: e.target.value as LeadSeguimientoStatus,
+              }))
+            }
+            disabled={submitting}
+          >
+            <option value="nuevo">Nuevo</option>
+            <option value="en_conversacion">En conversación</option>
+            <option value="perdido">Perdido</option>
+          </select>
+        </div>
+        <Field label="Notas">
+          <textarea
+            rows={4}
+            className={textareaClass}
+            value={form.notas}
+            onChange={(e) => setForm((s) => ({ ...s, notas: e.target.value }))}
+            disabled={submitting}
+          />
+        </Field>
+      </fieldset>
+
+      {canManageAcuerdos && (
+        <LeadAcuerdosFields
+          form={form}
+          setForm={setForm}
+          submitting={submitting}
+          anticipoTouched={anticipoTouched}
+          onAnticipoTouched={onAnticipoTouched}
+          onHonorariosChange={onHonorariosChange}
+        />
+      )}
+    </div>
+  );
 }
 
 function LeadCreateFields({
@@ -1385,41 +1609,6 @@ function LeadCreateFields({
         )}
       </div>
     </>
-  );
-}
-
-function LeadContactFields({
-  form,
-  setForm,
-  submitting,
-}: {
-  form: LeadFormState;
-  setForm: React.Dispatch<React.SetStateAction<LeadFormState>>;
-  submitting: boolean;
-}) {
-  return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-      <Field label="Teléfono">
-        <input
-          type="tel"
-          className={inputClass}
-          value={form.telefono}
-          onChange={(e) => setForm((s) => ({ ...s, telefono: e.target.value }))}
-          placeholder="Ej. 3001234567"
-          disabled={submitting}
-        />
-      </Field>
-      <Field label="Email">
-        <input
-          type="email"
-          className={inputClass}
-          value={form.email}
-          onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))}
-          placeholder="correo@ejemplo.com"
-          disabled={submitting}
-        />
-      </Field>
-    </div>
   );
 }
 

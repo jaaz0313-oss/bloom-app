@@ -5,6 +5,8 @@ export type LeadListadoEstado = "activo" | "descartado";
 export type LeadRow = {
   id: string;
   nombre_pareja: string;
+  nombre_novia: string | null;
+  nombre_novio: string | null;
   fecha_tentativa: string | null;
   ciudad: string | null;
   presupuesto_estimado: number | null;
@@ -14,6 +16,7 @@ export type LeadRow = {
   ciudad_residencia_actual: string | null;
   concepto_boda: string | null;
   prioridades: string | null;
+  como_nos_conocieron: string | null;
   /** Seguimiento comercial: nuevo, en conversación, perdido. */
   estado_seguimiento: LeadSeguimientoStatus;
   /** Visibilidad en el dashboard: activo o descartado. */
