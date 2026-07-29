@@ -178,13 +178,23 @@ export function ProviderCard({
     : (pagosByProveedor[primaryProvider.id] ?? []);
   const showPayments =
     esPrimarioGrupo &&
-    (provider.estado === "contratado" || provider.estado === "en_negociacion") &&
+    provider.estado === "contratado" &&
     !isProveedorSinCosto(provider);
   const saldoPendiente = getProviderSaldoPendienteConPagos(
     primaryProvider,
     pagosParaSaldo,
   );
   const sinCosto = isProveedorSinCosto(provider);
+  /** Cotización recibida: solo valor de referencia, sin saldo ni pagos. */
+  const showValorCotizado =
+    !sinCosto && provider.estado === "en_negociacion";
+  /** Contratado: valor total, pagos y saldo pendiente. */
+  const showFinanzasCompletas =
+    !sinCosto && provider.estado === "contratado";
+  const valorCotizadoMostrar =
+    provider.monto_cotizado != null && provider.monto_cotizado > 0
+      ? provider.monto_cotizado
+      : provider.valor_total;
   const hasWhatsAppTarget =
     Boolean(boda.whatsappGrupoLink?.trim()) ||
     Boolean(boda.telefonoNovia?.trim());
@@ -923,7 +933,7 @@ export function ProviderCard({
                 </span>
               ) : null}
             </span>
-            {sinCosto ? null : (
+            {sinCosto ? null : showFinanzasCompletas ? (
               <dl className="grid shrink-0 grid-cols-2 gap-x-5 gap-y-1 text-sm sm:text-right">
                 <div>
                   <dt className="text-bloom-muted">Valor total</dt>
@@ -950,7 +960,16 @@ export function ProviderCard({
                   </dd>
                 </div>
               </dl>
-            )}
+            ) : showValorCotizado ? (
+              <dl className="grid shrink-0 gap-y-1 text-sm sm:text-right">
+                <div>
+                  <dt className="text-bloom-muted">Valor cotizado</dt>
+                  <dd className="font-medium text-bloom-ink">
+                    {formatProveedorValorTotal(valorCotizadoMostrar)}
+                  </dd>
+                </div>
+              </dl>
+            ) : null}
           </span>
           <AccordionChevron open={expanded} />
         </button>
@@ -1263,7 +1282,7 @@ export function ProviderCard({
             </p>
           )}
 
-          {provider.fecha_saldo && (
+          {showFinanzasCompletas && provider.fecha_saldo && (
             <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 rounded-lg border border-bloom-border bg-bloom-canvas/60 px-3 py-2 text-sm sm:max-w-md">
               <div>
                 <dt className="text-bloom-muted">Fecha de saldo</dt>
