@@ -933,7 +933,7 @@ export function ProviderCard({
                 </span>
               ) : null}
             </span>
-            {sinCosto ? null : showFinanzasCompletas ? (
+            {!sinCosto && showFinanzasCompletas && (
               <dl className="grid shrink-0 grid-cols-2 gap-x-5 gap-y-1 text-sm sm:text-right">
                 <div>
                   <dt className="text-bloom-muted">Valor total</dt>
@@ -960,7 +960,8 @@ export function ProviderCard({
                   </dd>
                 </div>
               </dl>
-            ) : showValorCotizado ? (
+            )}
+            {!sinCosto && showValorCotizado && (
               <dl className="grid shrink-0 gap-y-1 text-sm sm:text-right">
                 <div>
                   <dt className="text-bloom-muted">Valor cotizado</dt>
@@ -969,7 +970,7 @@ export function ProviderCard({
                   </dd>
                 </div>
               </dl>
-            ) : null}
+            )}
           </span>
           <AccordionChevron open={expanded} />
         </button>
