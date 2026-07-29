@@ -34,8 +34,6 @@ export function normalizeLeadRow(raw: Record<string, unknown>): LeadRow {
 
   return {
     ...(raw as LeadRow),
-    nombre_novia: (raw.nombre_novia as string | null | undefined) ?? null,
-    nombre_novio: (raw.nombre_novio as string | null | undefined) ?? null,
     como_nos_conocieron:
       (raw.como_nos_conocieron as string | null | undefined) ?? null,
     estado,

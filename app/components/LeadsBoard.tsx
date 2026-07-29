@@ -37,7 +37,6 @@ type LeadsBoardProps = {
 
 type LeadFormState = {
   nombrePareja: string;
-  nombreNovio: string;
   fechaTentativa: string;
   ciudad: string;
   presupuestoEstimado: string;
@@ -59,7 +58,6 @@ type LeadFormState = {
 
 const emptyLeadForm: LeadFormState = {
   nombrePareja: "",
-  nombreNovio: "",
   fechaTentativa: "",
   ciudad: "",
   presupuestoEstimado: "",
@@ -181,8 +179,7 @@ export function LeadsBoard({
     setEditingLead(lead);
     setAnticipoTouched(true);
     setForm({
-      nombrePareja: lead.nombre_novia?.trim() || lead.nombre_pareja,
-      nombreNovio: lead.nombre_novio ?? "",
+      nombrePareja: lead.nombre_pareja,
       fechaTentativa: lead.fecha_tentativa ?? "",
       ciudad: lead.ciudad ?? "",
       presupuestoEstimado: formatInputCurrencyFromNumber(
@@ -328,8 +325,7 @@ export function LeadsBoard({
     setError(null);
     if (!supabase || !editingLead) return setError("Supabase no está configurado.");
 
-    const nombreNovia = form.nombrePareja.trim();
-    const nombreNovio = form.nombreNovio.trim();
+    const nombrePareja = form.nombrePareja.trim();
     const email = form.email.trim();
     const telefono = form.telefono.trim();
     const fechaTentativa = form.fechaTentativa.trim() || null;
@@ -343,7 +339,7 @@ export function LeadsBoard({
     const comoNosConocieron = form.comoNosConocieron.trim() || null;
     const notas = form.notas.trim() || null;
 
-    if (!nombreNovia) return setError("Ingresa el nombre de la novia.");
+    if (!nombrePareja) return setError("Ingresa el nombre de la pareja.");
     if (
       presupuesto !== null &&
       (!Number.isFinite(presupuesto) || presupuesto < 0)
@@ -369,9 +365,7 @@ export function LeadsBoard({
         editingLead.id,
         form.estadoSeguimiento,
         {
-          nombre_pareja: nombreNovia,
-          nombre_novia: nombreNovia,
-          nombre_novio: nombreNovio || null,
+          nombre_pareja: nombrePareja,
           fecha_tentativa: fechaTentativa,
           ciudad,
           presupuesto_estimado: presupuesto,
@@ -1141,32 +1135,19 @@ function LeadEditFields({
         <legend className="px-1 text-sm font-medium text-bloom-ink">
           Información básica
         </legend>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Nombre de la novia">
-            <input
-              className={inputClass}
-              value={form.nombrePareja}
-              onChange={(e) =>
-                setForm((s) => ({ ...s, nombrePareja: e.target.value }))
-              }
-              required
-              disabled={submitting}
-              placeholder="Ej. Valentina"
-              autoFocus
-            />
-          </Field>
-          <Field label="Nombre del novio">
-            <input
-              className={inputClass}
-              value={form.nombreNovio}
-              onChange={(e) =>
-                setForm((s) => ({ ...s, nombreNovio: e.target.value }))
-              }
-              disabled={submitting}
-              placeholder="Ej. Andrés"
-            />
-          </Field>
-        </div>
+        <Field label="Nombre de la pareja">
+          <input
+            className={inputClass}
+            value={form.nombrePareja}
+            onChange={(e) =>
+              setForm((s) => ({ ...s, nombrePareja: e.target.value }))
+            }
+            required
+            disabled={submitting}
+            placeholder="Ej. Valentina y Andrés"
+            autoFocus
+          />
+        </Field>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Teléfono">
             <input
