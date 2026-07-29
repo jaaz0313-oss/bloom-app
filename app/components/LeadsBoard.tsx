@@ -478,6 +478,17 @@ export function LeadsBoard({
         .single();
       if (insertError) return setError(insertError.message);
 
+      const leadNotas = lead.notas?.trim();
+      if (leadNotas) {
+        const { error: notaError } = await supabase.from("notas_boda").insert({
+          boda_id: nuevaBoda.id,
+          contenido: `📋 Notas del lead:\n${leadNotas}`,
+          created_by: currentUserId,
+          created_by_nombre: currentUserNombre.trim() || null,
+        });
+        if (notaError) return setError(notaError.message);
+      }
+
       const cronogramaResult = await insertarCronograma(
         supabase,
         nuevaBoda.id,
