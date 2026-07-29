@@ -10,7 +10,7 @@ import { DashboardHeader } from "./components/DashboardHeader";
 import { ExportarDatosButton } from "./components/ExportarDatosButton";
 import { DashboardWeddingsRealtime } from "./components/DashboardWeddingsRealtime";
 import { NewWeddingModalButton } from "./components/NewWeddingModalButton";
-import { buildBodaInactivityAlerts } from "./data/boda-alerts";
+import { buildBodaInactivityAlerts, fetchBodaLastActivityMap } from "./data/boda-alerts";
 import { buildCronogramaAlerts } from "./data/cronograma-alerts";
 import { buildLeadInactivityAlerts } from "./data/lead-alerts";
 import { buildPaymentAlerts } from "./data/payment-alerts";
@@ -137,7 +137,15 @@ export default async function Home({ searchParams }: HomeProps) {
           : undefined,
       ),
     );
-    bodaInactivityAlerts = buildBodaInactivityAlerts(bodaRows);
+
+    const lastActivityByBodaId = await fetchBodaLastActivityMap(
+      supabase,
+      activeBodaRows.map((boda) => boda.id),
+    );
+    bodaInactivityAlerts = buildBodaInactivityAlerts(
+      bodaRows,
+      lastActivityByBodaId,
+    );
   }
 
   const activeBodaIds = new Set(
