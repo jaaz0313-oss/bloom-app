@@ -257,7 +257,7 @@ export function LeadsBoard({
     const prioridades = form.prioridades.trim();
     const notas = form.notas.trim();
 
-    if (!nombrePareja) return setError("Ingresa el nombre de la novia.");
+    if (!nombrePareja) return setError("Ingresa el nombre de la pareja.");
     if (!email) return setError("Ingresa el email.");
     if (presupuesto !== null && (!Number.isFinite(presupuesto) || presupuesto < 0)) {
       return setError("Ingresa un presupuesto válido (>= 0).");
@@ -1336,7 +1336,7 @@ function LeadCreateFields({
 
   return (
     <>
-      <Field label="Nombre de la novia">
+      <Field label="Nombre de la pareja">
         <input
           className={inputClass}
           value={form.nombrePareja}
@@ -1345,7 +1345,7 @@ function LeadCreateFields({
           }
           required
           disabled={submitting}
-          placeholder="Ej. Valentina"
+          placeholder="Ej. Valentina y Andrés"
           autoFocus
         />
       </Field>
