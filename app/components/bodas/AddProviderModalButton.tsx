@@ -92,7 +92,7 @@ type DirectorioProveedorLookup = {
 
 type EntryMode = "directorio" | "manual";
 
-type EstadoInicial = "por_cotizar" | "contratado";
+type EstadoInicial = "por_cotizar" | "cotizacion_recibida" | "contratado";
 
 function getFechaHoyLocal(): string {
   const now = new Date();
@@ -439,6 +439,7 @@ export function AddProviderModalButton({
     const notas = form.notas.trim();
 
     const esContratado = estadoInicial === "contratado";
+    const esCotizacionRecibida = estadoInicial === "cotizacion_recibida";
     const esSinCosto = form.sinCosto;
 
     if (!nombre) return setError("Ingresa el nombre del proveedor.");
@@ -448,11 +449,11 @@ export function AddProviderModalButton({
     if (new Set(categorias).size !== categorias.length) {
       return setError("No repitas la misma categoría.");
     }
-    if (!esSinCosto) {
+    if (!esSinCosto && esContratado) {
       if (!Number.isFinite(valorTotal) || valorTotal < 0) {
         return setError("Ingresa un valor total válido (>= 0).");
       }
-      if (esContratado && valorTotal <= 0) {
+      if (valorTotal <= 0) {
         return setError("Ingresa el valor contratado.");
       }
       if (!Number.isFinite(anticipo) || anticipo < 0) {
@@ -463,7 +464,16 @@ export function AddProviderModalButton({
       }
     }
 
-    if (!Number.isFinite(depositoReembolsable) || depositoReembolsable < 0) {
+    if (!esSinCosto && esCotizacionRecibida) {
+      if (!Number.isFinite(valorTotal) || valorTotal <= 0) {
+        return setError("Ingresa el valor cotizado.");
+      }
+    }
+
+    if (
+      esContratado &&
+      (!Number.isFinite(depositoReembolsable) || depositoReembolsable < 0)
+    ) {
       return setError("Ingresa un depósito reembolsable válido (>= 0).");
     }
 
@@ -491,23 +501,25 @@ export function AddProviderModalButton({
             boda_id: bodaId,
             nombre,
             categoria,
-            valor_total: esSinCosto ? 0 : valorTotal,
+            valor_total:
+              esSinCosto || (!esContratado && !esCotizacionRecibida)
+                ? 0
+                : Math.round(valorTotal),
             // En el flujo "Ya contratado" el anticipo se registra como un pago real,
             // por lo que la columna anticipo se deja en 0 para no contarlo doble.
             // Con varias categorías, anticipo/depósito solo en el primario del grupo.
-            anticipo: esSinCosto
-              ? 0
-              : esContratado
-                ? 0
-                : esPrimarioGrupo
-                  ? anticipo
-                  : 0,
-            fecha_saldo: esSinCosto ? null : form.fechaSaldo || null,
-            banco: banco || null,
-            tipo_cuenta: tipoCuenta || null,
-            numero_cuenta: numeroCuenta || null,
-            titular_cuenta: titular || null,
-            documento_nit: documentoNit || null,
+            anticipo: 0,
+            monto_cotizado:
+              esCotizacionRecibida && !esSinCosto
+                ? Math.round(valorTotal)
+                : null,
+            fecha_saldo:
+              esSinCosto || !esContratado ? null : form.fechaSaldo || null,
+            banco: esContratado ? banco || null : null,
+            tipo_cuenta: esContratado ? tipoCuenta || null : null,
+            numero_cuenta: esContratado ? numeroCuenta || null : null,
+            titular_cuenta: esContratado ? titular || null : null,
+            documento_nit: esContratado ? documentoNit || null : null,
             telefono: telefono || null,
             email: email || null,
             direccion: direccion || null,
@@ -515,11 +527,16 @@ export function AddProviderModalButton({
             notas: notas || null,
             da_comision: daComision,
             porcentaje_comision: daComision ? porcentajeComision : 10,
-            estado: esSinCosto || esContratado ? "contratado" : "pendiente",
+            estado: esSinCosto || esContratado
+              ? "contratado"
+              : esCotizacionRecibida
+                ? "en_negociacion"
+                : "pendiente",
             sin_costo: esSinCosto,
-            deposito_reembolsable: esPrimarioGrupo
-              ? Math.round(depositoReembolsable > 0 ? depositoReembolsable : 0)
-              : 0,
+            deposito_reembolsable:
+              esContratado && esPrimarioGrupo
+                ? Math.round(depositoReembolsable > 0 ? depositoReembolsable : 0)
+                : 0,
             grupo_id: grupoId,
           })
           .select("id")
@@ -535,7 +552,15 @@ export function AddProviderModalButton({
           entidad: "proveedor",
           entidadId: nuevoProveedor.id,
           bodaNombre,
-          detalle: `${nombre} · ${categoria}${esSinCosto ? " · Sin costo" : esContratado ? " · Contratado" : ""}`,
+          detalle: `${nombre} · ${categoria}${
+            esSinCosto
+              ? " · Sin costo"
+              : esContratado
+                ? " · Contratado"
+                : esCotizacionRecibida
+                  ? " · Cotización recibida"
+                  : ""
+          }`,
         });
 
         if (esContratado && anticipo > 0 && esPrimarioGrupo && !esSinCosto) {
@@ -709,14 +734,14 @@ export function AddProviderModalButton({
                     ¿En qué estado está este proveedor?
                   </p>
                   <div
-                    className="inline-flex w-full rounded-full border border-bloom-border bg-bloom-canvas p-1"
+                    className="flex w-full flex-col gap-1 rounded-2xl border border-bloom-border bg-bloom-canvas p-1 sm:flex-row sm:rounded-full"
                     role="group"
                     aria-label="Estado del proveedor"
                   >
                     <button
                       type="button"
                       onClick={() => selectEstadoInicial("por_cotizar")}
-                      className={`flex-1 rounded-full px-4 py-2.5 text-sm font-medium transition-colors ${
+                      className={`flex-1 rounded-full px-3 py-2.5 text-sm font-medium transition-colors ${
                         estadoInicial === "por_cotizar"
                           ? "bg-bloom-accent text-white shadow-sm"
                           : "text-bloom-ink hover:bg-bloom-border"
@@ -726,8 +751,19 @@ export function AddProviderModalButton({
                     </button>
                     <button
                       type="button"
+                      onClick={() => selectEstadoInicial("cotizacion_recibida")}
+                      className={`flex-1 rounded-full px-3 py-2.5 text-sm font-medium transition-colors ${
+                        estadoInicial === "cotizacion_recibida"
+                          ? "bg-bloom-accent text-white shadow-sm"
+                          : "text-bloom-ink hover:bg-bloom-border"
+                      }`}
+                    >
+                      Cotización recibida
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => selectEstadoInicial("contratado")}
-                      className={`flex-1 rounded-full px-4 py-2.5 text-sm font-medium transition-colors ${
+                      className={`flex-1 rounded-full px-3 py-2.5 text-sm font-medium transition-colors ${
                         estadoInicial === "contratado"
                           ? "bg-bloom-accent text-white shadow-sm"
                           : "text-bloom-ink hover:bg-bloom-border"
@@ -983,6 +1019,74 @@ export function AddProviderModalButton({
                     />
                   </Field>
 
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <Field label="Banco">
+                      <input
+                        className={inputClass}
+                        value={form.banco}
+                        onChange={(e) =>
+                          setForm((s) => ({ ...s, banco: e.target.value }))
+                        }
+                        placeholder="Ej: Bancolombia"
+                      />
+                    </Field>
+
+                    <Field label="Tipo de cuenta">
+                      <select
+                        className={inputClass}
+                        value={form.tipoCuenta}
+                        onChange={(e) =>
+                          setForm((s) => ({ ...s, tipoCuenta: e.target.value }))
+                        }
+                      >
+                        <option value="">Seleccionar</option>
+                        <option value="Ahorros">Ahorros</option>
+                        <option value="Corriente">Corriente</option>
+                      </select>
+                    </Field>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <Field label="Número de cuenta">
+                      <input
+                        className={inputClass}
+                        value={form.numeroCuenta}
+                        onChange={(e) =>
+                          setForm((s) => ({
+                            ...s,
+                            numeroCuenta: e.target.value,
+                          }))
+                        }
+                        placeholder="Ej: 12345678901"
+                      />
+                    </Field>
+
+                    <Field label="Titular">
+                      <input
+                        className={inputClass}
+                        value={form.titular}
+                        onChange={(e) =>
+                          setForm((s) => ({ ...s, titular: e.target.value }))
+                        }
+                        placeholder="Ej: Juan Pérez"
+                      />
+                    </Field>
+                  </div>
+
+                  <Field label="Documento / NIT">
+                    <input
+                      className={inputClass}
+                      value={form.documentoNit}
+                      onChange={(e) =>
+                        setForm((s) => ({
+                          ...s,
+                          documentoNit: e.target.value,
+                        }))
+                      }
+                      placeholder="Ej: 900123456-7"
+                    />
+                  </Field>
+
                   <Field label="Descripción del servicio / plan elegido">
                     <textarea
                       className={textareaClass}
@@ -1013,7 +1117,9 @@ export function AddProviderModalButton({
                 </>
               )}
 
-              {entryMode && estadoInicial === "por_cotizar" && (
+              {entryMode &&
+                (estadoInicial === "por_cotizar" ||
+                  estadoInicial === "cotizacion_recibida") && (
                 <>
               <Field label="Nombre">
                 <input
@@ -1032,6 +1138,26 @@ export function AddProviderModalButton({
                 onChange={toggleSinCosto}
                 disabled={submitting}
               />
+
+              {estadoInicial === "cotizacion_recibida" && !form.sinCosto ? (
+                <Field label="Valor cotizado">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    className={inputClass}
+                    value={form.valorTotal}
+                    onChange={(e) =>
+                      setForm((s) => ({
+                        ...s,
+                        valorTotal: formatInputCurrency(e.target.value),
+                      }))
+                    }
+                    placeholder="Ej: 3.500.000"
+                    required
+                  />
+                </Field>
+              ) : null}
 
               <Field label="Descripción del servicio">
                 <textarea
@@ -1070,137 +1196,6 @@ export function AddProviderModalButton({
                   }
                   placeholder="Ej: Cotización ajustada por hora extra de cobertura"
                   rows={3}
-                />
-              </Field>
-
-              {!form.sinCosto ? (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="Valor total">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    autoComplete="off"
-                    className={inputClass}
-                    value={form.valorTotal}
-                    onChange={(e) =>
-                      setForm((s) => ({
-                        ...s,
-                        valorTotal: formatInputCurrency(e.target.value),
-                      }))
-                    }
-                    placeholder="Ej: 3.500.000"
-                  />
-                </Field>
-
-                <Field label="Anticipo">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    autoComplete="off"
-                    className={inputClass}
-                    value={form.anticipo}
-                    onChange={(e) =>
-                      setForm((s) => ({
-                        ...s,
-                        anticipo: formatInputCurrency(e.target.value),
-                      }))
-                    }
-                    placeholder="Ej: 1.000.000"
-                  />
-                </Field>
-              </div>
-              ) : null}
-
-              {!form.sinCosto ? (
-              <Field label="Fecha de saldo">
-                <input
-                  type="date"
-                  className={inputClass}
-                  value={form.fechaSaldo}
-                  onChange={(e) =>
-                    setForm((s) => ({ ...s, fechaSaldo: e.target.value }))
-                  }
-                />
-              </Field>
-              ) : null}
-
-              <Field label="Depósito reembolsable">
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="off"
-                  className={inputClass}
-                  value={form.depositoReembolsable}
-                  onChange={(e) =>
-                    setForm((s) => ({
-                      ...s,
-                      depositoReembolsable: formatInputCurrency(e.target.value),
-                    }))
-                  }
-                  placeholder="Opcional"
-                  disabled={submitting}
-                />
-              </Field>
-
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="Banco">
-                  <input
-                    className={inputClass}
-                    value={form.banco}
-                    onChange={(e) =>
-                      setForm((s) => ({ ...s, banco: e.target.value }))
-                    }
-                    placeholder="Ej: Bancolombia"
-                  />
-                </Field>
-
-                <Field label="Tipo de cuenta">
-                  <select
-                    className={inputClass}
-                    value={form.tipoCuenta}
-                    onChange={(e) =>
-                      setForm((s) => ({ ...s, tipoCuenta: e.target.value }))
-                    }
-                  >
-                    <option value="">Seleccionar</option>
-                    <option value="Ahorros">Ahorros</option>
-                    <option value="Corriente">Corriente</option>
-                  </select>
-                </Field>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="Número de cuenta">
-                  <input
-                    className={inputClass}
-                    value={form.numeroCuenta}
-                    onChange={(e) =>
-                      setForm((s) => ({ ...s, numeroCuenta: e.target.value }))
-                    }
-                    placeholder="Ej: 12345678901"
-                  />
-                </Field>
-
-                <Field label="Titular">
-                  <input
-                    className={inputClass}
-                    value={form.titular}
-                    onChange={(e) =>
-                      setForm((s) => ({ ...s, titular: e.target.value }))
-                    }
-                    placeholder="Ej: Juan Pérez"
-                  />
-                </Field>
-              </div>
-
-              <Field label="Documento / NIT">
-                <input
-                  className={inputClass}
-                  value={form.documentoNit}
-                  onChange={(e) =>
-                    setForm((s) => ({ ...s, documentoNit: e.target.value }))
-                  }
-                  placeholder="Ej: 900123456-7"
                 />
               </Field>
 
@@ -1272,7 +1267,9 @@ export function AddProviderModalButton({
                         ? "Guardar sin costo"
                         : estadoInicial === "contratado"
                           ? "Guardar como contratado"
-                          : "Guardar"}
+                          : estadoInicial === "cotizacion_recibida"
+                            ? "Guardar cotización"
+                            : "Guardar"}
                   </button>
                 </div>
               )}
