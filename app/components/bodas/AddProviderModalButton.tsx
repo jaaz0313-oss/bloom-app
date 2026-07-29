@@ -502,24 +502,32 @@ export function AddProviderModalButton({
             nombre,
             categoria,
             valor_total:
-              esSinCosto || (!esContratado && !esCotizacionRecibida)
+              esSinCosto ||
+              !esPrimarioGrupo ||
+              (!esContratado && !esCotizacionRecibida)
                 ? 0
                 : Math.round(valorTotal),
             // En el flujo "Ya contratado" el anticipo se registra como un pago real,
             // por lo que la columna anticipo se deja en 0 para no contarlo doble.
-            // Con varias categorías, anticipo/depósito solo en el primario del grupo.
+            // Con varias categorías, valor/anticipo/depósito solo en el primario del grupo.
             anticipo: 0,
             monto_cotizado:
-              esCotizacionRecibida && !esSinCosto
+              esCotizacionRecibida && !esSinCosto && esPrimarioGrupo
                 ? Math.round(valorTotal)
                 : null,
             fecha_saldo:
-              esSinCosto || !esContratado ? null : form.fechaSaldo || null,
-            banco: esContratado ? banco || null : null,
-            tipo_cuenta: esContratado ? tipoCuenta || null : null,
-            numero_cuenta: esContratado ? numeroCuenta || null : null,
-            titular_cuenta: esContratado ? titular || null : null,
-            documento_nit: esContratado ? documentoNit || null : null,
+              esSinCosto || !esContratado || !esPrimarioGrupo
+                ? null
+                : form.fechaSaldo || null,
+            banco: esContratado && esPrimarioGrupo ? banco || null : null,
+            tipo_cuenta:
+              esContratado && esPrimarioGrupo ? tipoCuenta || null : null,
+            numero_cuenta:
+              esContratado && esPrimarioGrupo ? numeroCuenta || null : null,
+            titular_cuenta:
+              esContratado && esPrimarioGrupo ? titular || null : null,
+            documento_nit:
+              esContratado && esPrimarioGrupo ? documentoNit || null : null,
             telefono: telefono || null,
             email: email || null,
             direccion: direccion || null,

@@ -577,7 +577,7 @@ export function ProviderCard({
           nombre,
           categoria,
           descripcion_servicio: descripcionServicio || null,
-          valor_total: Math.round(valorTotal),
+          valor_total: esPrimarioGrupo ? Math.round(valorTotal) : 0,
           anticipo: anticipoGuardar,
           fecha_saldo: fechaSaldo,
           banco,
@@ -795,11 +795,11 @@ export function ProviderCard({
         .from("proveedores")
         .update({
           estado: "en_negociacion",
-          monto_cotizado: Math.round(monto),
+          monto_cotizado: esPrimarioGrupo ? Math.round(monto) : null,
           descripcion_servicio: descripcionCotizacion.trim() || null,
           notas_cotizacion: notasCotizacion.trim() || null,
           cotizacion_recibida_at: new Date().toISOString(),
-          valor_total: Math.round(monto),
+          valor_total: esPrimarioGrupo ? Math.round(monto) : 0,
         })
         .eq("id", provider.id);
 
@@ -938,7 +938,17 @@ export function ProviderCard({
                 <div>
                   <dt className="text-bloom-muted">Valor total</dt>
                   <dd className="font-medium text-bloom-ink">
-                    {formatProveedorValorTotal(provider.valor_total)}
+                    {!esPrimarioGrupo && categoriasCompaneras.length > 0 ? (
+                      <span className="text-bloom-muted">
+                        Incluido en {primaryProvider.nombre}
+                        {primaryProvider.nombre.trim().toLowerCase() ===
+                        provider.nombre.trim().toLowerCase()
+                          ? ` (${primaryProvider.categoria})`
+                          : ""}
+                      </span>
+                    ) : (
+                      formatProveedorValorTotal(provider.valor_total)
+                    )}
                   </dd>
                 </div>
                 <div>
@@ -966,7 +976,17 @@ export function ProviderCard({
                 <div>
                   <dt className="text-bloom-muted">Valor cotizado</dt>
                   <dd className="font-medium text-bloom-ink">
-                    {formatProveedorValorTotal(valorCotizadoMostrar)}
+                    {!esPrimarioGrupo && categoriasCompaneras.length > 0 ? (
+                      <span className="text-bloom-muted">
+                        Incluido en {primaryProvider.nombre}
+                        {primaryProvider.nombre.trim().toLowerCase() ===
+                        provider.nombre.trim().toLowerCase()
+                          ? ` (${primaryProvider.categoria})`
+                          : ""}
+                      </span>
+                    ) : (
+                      formatProveedorValorTotal(valorCotizadoMostrar)
+                    )}
                   </dd>
                 </div>
               </dl>
