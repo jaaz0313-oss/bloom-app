@@ -17,7 +17,7 @@ export { isBodaActiva } from "@/lib/boda-estado";
 
 export type BodaLastActivityRow = {
   boda_id: string;
-  ultima_actividad_at: string;
+  ultima_actividad: string;
 };
 
 /** Mapa boda_id → ISO timestamp de la actividad más reciente. */
@@ -60,8 +60,8 @@ export async function fetchBodaLastActivityMap(
 
   if (!rpcError && Array.isArray(rpcData)) {
     for (const row of rpcData as BodaLastActivityRow[]) {
-      if (!bodaIdSet.has(row.boda_id) || !row.ultima_actividad_at) continue;
-      map.set(row.boda_id, row.ultima_actividad_at);
+      if (!bodaIdSet.has(row.boda_id) || !row.ultima_actividad) continue;
+      map.set(row.boda_id, row.ultima_actividad);
     }
     return map;
   }

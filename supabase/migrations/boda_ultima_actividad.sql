@@ -82,12 +82,12 @@ create trigger tastings_set_updated_at
 
 -- Una sola query: MAX de actividad por boda (boda + tablas relacionadas)
 create or replace function public.get_bodas_ultima_actividad()
-returns table (boda_id uuid, ultima_actividad_at timestamptz)
+returns table (boda_id uuid, ultima_actividad timestamptz)
 language sql
 stable
 security invoker
 as $$
-  select a.boda_id, max(a.actividad_at) as ultima_actividad_at
+  select a.boda_id, max(a.actividad_at) as ultima_actividad
   from (
     select b.id as boda_id, coalesce(b.updated_at, b.created_at) as actividad_at
     from public.bodas b
