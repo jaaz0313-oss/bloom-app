@@ -180,6 +180,16 @@ export function ProviderCard({
     esPrimarioGrupo &&
     provider.estado === "contratado" &&
     !isProveedorSinCosto(provider);
+  const esSecundarioGrupo =
+    !esPrimarioGrupo && Boolean(provider.grupo_id);
+  const incluidoEnLabel = esSecundarioGrupo
+    ? `Incluido en ${primaryProvider.nombre}${
+        primaryProvider.nombre.trim().toLowerCase() ===
+        provider.nombre.trim().toLowerCase()
+          ? ` (${primaryProvider.categoria})`
+          : ""
+      }`
+    : null;
   const saldoPendiente = getProviderSaldoPendienteConPagos(
     primaryProvider,
     pagosParaSaldo,
@@ -914,55 +924,49 @@ export function ProviderCard({
           className="flex w-full items-start gap-3 px-5 py-4 text-left transition-colors hover:bg-bloom-canvas/60 sm:px-6"
         >
           <span className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
-            <span className="min-w-0 flex-1">
-              <span className="flex flex-wrap items-center gap-2">
-                <span className="font-medium text-bloom-ink">{provider.nombre}</span>
-                <ProviderEstadoBadge provider={provider} />
-                {sinCosto ? (
-                  <span className="inline-flex rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-medium text-sky-800">
-                    Sin costo
-                  </span>
-                ) : null}
+            <span className="min-w-0 flex-1 overflow-hidden">
+              <span className="flex min-w-0 items-center gap-2">
+                <span className="min-w-0 truncate font-medium text-bloom-ink">
+                  {provider.nombre}
+                </span>
+                <span className="flex shrink-0 items-center gap-2">
+                  <ProviderEstadoBadge provider={provider} />
+                  {sinCosto ? (
+                    <span className="inline-flex rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-medium text-sky-800">
+                      Sin costo
+                    </span>
+                  ) : null}
+                </span>
               </span>
-              <span className="mt-1 block text-sm text-bloom-muted">
+              <span className="mt-1 block truncate text-sm text-bloom-muted">
                 {provider.categoria}
               </span>
-              {categoriasCompaneras.length > 0 ? (
+              {incluidoEnLabel ? (
+                <span
+                  className="mt-1 block truncate text-xs text-bloom-muted"
+                  title={incluidoEnLabel}
+                >
+                  {incluidoEnLabel}
+                </span>
+              ) : null}
+              {!esSecundarioGrupo && categoriasCompaneras.length > 0 ? (
                 <span className="mt-1 block text-xs text-bloom-muted/90">
                   Precio compartido con {categoriasCompaneras.join(", ")}
                 </span>
               ) : null}
             </span>
-            {!sinCosto && showFinanzasCompletas && (
+            {!esSecundarioGrupo && !sinCosto && showFinanzasCompletas && (
               <dl className="grid shrink-0 grid-cols-2 gap-x-5 gap-y-1 text-sm sm:text-right">
                 <div>
                   <dt className="text-bloom-muted">Valor total</dt>
                   <dd className="font-medium text-bloom-ink">
-                    {!esPrimarioGrupo && categoriasCompaneras.length > 0 ? (
-                      <span className="text-bloom-muted">
-                        Incluido en {primaryProvider.nombre}
-                        {primaryProvider.nombre.trim().toLowerCase() ===
-                        provider.nombre.trim().toLowerCase()
-                          ? ` (${primaryProvider.categoria})`
-                          : ""}
-                      </span>
-                    ) : (
-                      formatProveedorValorTotal(provider.valor_total)
-                    )}
+                    {formatProveedorValorTotal(provider.valor_total)}
                   </dd>
                 </div>
                 <div>
                   <dt className="text-bloom-muted">Saldo pendiente</dt>
                   <dd className="font-medium text-bloom-ink">
-                    {!esPrimarioGrupo && categoriasCompaneras.length > 0 ? (
-                      <span className="text-bloom-muted">
-                        Incluido en {primaryProvider.nombre}
-                        {primaryProvider.nombre.trim().toLowerCase() ===
-                        provider.nombre.trim().toLowerCase()
-                          ? ` (${primaryProvider.categoria})`
-                          : ""}
-                      </span>
-                    ) : hasProveedorValorDefinido(provider.valor_total) ? (
+                    {hasProveedorValorDefinido(provider.valor_total) ? (
                       formatCurrency(saldoPendiente)
                     ) : (
                       formatProveedorValorTotal(0)
@@ -971,22 +975,12 @@ export function ProviderCard({
                 </div>
               </dl>
             )}
-            {!sinCosto && showValorCotizado && (
+            {!esSecundarioGrupo && !sinCosto && showValorCotizado && (
               <dl className="grid shrink-0 gap-y-1 text-sm sm:text-right">
                 <div>
                   <dt className="text-bloom-muted">Valor cotizado</dt>
                   <dd className="font-medium text-bloom-ink">
-                    {!esPrimarioGrupo && categoriasCompaneras.length > 0 ? (
-                      <span className="text-bloom-muted">
-                        Incluido en {primaryProvider.nombre}
-                        {primaryProvider.nombre.trim().toLowerCase() ===
-                        provider.nombre.trim().toLowerCase()
-                          ? ` (${primaryProvider.categoria})`
-                          : ""}
-                      </span>
-                    ) : (
-                      formatProveedorValorTotal(valorCotizadoMostrar)
-                    )}
+                    {formatProveedorValorTotal(valorCotizadoMostrar)}
                   </dd>
                 </div>
               </dl>
