@@ -26,6 +26,8 @@ type CronogramaContratacionProps = {
   canManage: boolean;
   canActualizarPlantilla?: boolean;
   embedded?: boolean;
+  /** Proveedores de la boda para resolver estado "En negociación". */
+  providers?: Array<{ categoria: string; estado: string }>;
 };
 
 function CronogramaShell({
@@ -49,6 +51,7 @@ export function CronogramaContratacion({
   canManage,
   canActualizarPlantilla = false,
   embedded = false,
+  providers = [],
 }: CronogramaContratacionProps) {
   const router = useRouter();
   const [items, setItems] = useState<CronogramaItemRow[]>([]);
@@ -391,7 +394,7 @@ export function CronogramaContratacion({
 
       <ul className="mt-5 space-y-2">
         {itemsOrdenados.map((item) => {
-          const status = getCronogramaItemStatus(item);
+          const status = getCronogramaItemStatus(item, new Date(), providers);
           const isToggling = togglingId === item.id;
           const isDeleting = deletingId === item.id;
 

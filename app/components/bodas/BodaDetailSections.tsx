@@ -536,6 +536,7 @@ export function BodaDetailSections({
           fechaBoda={boda.fecha_boda}
           canManage={hasPermission(role, "cronograma.manage")}
           canActualizarPlantilla={canManageBodaEstado(role)}
+          providers={liveProviders}
         />
       </BodaAccordionSection>
     </div>
