@@ -86,6 +86,7 @@ function ClienteProveedorAccordionItem({
   const { locale, t } = useClienteLocale();
 
   const esPrimarioGrupo = isProveedorGrupoPrimario(allProviders, provider);
+  const esSecundarioGrupo = !esPrimarioGrupo && Boolean(provider.grupo_id);
   const categoriasCompaneras = getProveedorGrupoCategoriasCompaneras(
     allProviders,
     provider,
@@ -125,6 +126,14 @@ function ClienteProveedorAccordionItem({
   const companerasLabel = categoriasCompaneras
     .map((cat) => getClienteCronogramaCategoriaLabel(cat, locale))
     .join(", ");
+  const incluidoEnLabel = esSecundarioGrupo
+    ? t.includedInProvider(
+        primaryProvider.nombre.trim().toLowerCase() ===
+          provider.nombre.trim().toLowerCase()
+          ? `${primaryProvider.nombre} (${getClienteCronogramaCategoriaLabel(primaryProvider.categoria, locale)})`
+          : primaryProvider.nombre,
+      )
+    : null;
 
   return (
     <li className="overflow-hidden rounded-xl border border-bloom-border/80 bg-bloom-canvas/30">
@@ -137,8 +146,8 @@ function ClienteProveedorAccordionItem({
         className="flex w-full touch-manipulation flex-col gap-3 px-5 py-4 text-left transition-colors hover:bg-bloom-surface/60 active:bg-bloom-surface/80 sm:px-6"
       >
         <span className="flex w-full items-start justify-between gap-3">
-          <span className="min-w-0 flex-1">
-            <span className="font-display text-xl text-bloom-ink">
+          <span className="min-w-0 flex-1 overflow-hidden">
+            <span className="block min-w-0 truncate font-display text-xl text-bloom-ink">
               {provider.nombre}
             </span>
             <span className="mt-0.5 flex flex-wrap items-center gap-2 text-sm text-bloom-muted">
@@ -149,7 +158,14 @@ function ClienteProveedorAccordionItem({
                 </span>
               ) : null}
             </span>
-            {categoriasCompaneras.length > 0 ? (
+            {incluidoEnLabel ? (
+              <span
+                className="mt-1 block truncate text-xs text-bloom-muted"
+                title={incluidoEnLabel}
+              >
+                {incluidoEnLabel}
+              </span>
+            ) : categoriasCompaneras.length > 0 ? (
               <span className="mt-1 block text-xs text-bloom-muted/90">
                 {t.sharedPriceWith(companerasLabel)}
               </span>
@@ -158,7 +174,7 @@ function ClienteProveedorAccordionItem({
           <ClienteAccordionChevron open={open} />
         </span>
 
-        {sinCosto ? null : (
+        {sinCosto || esSecundarioGrupo ? null : (
           <div className="space-y-3">
             <div className="grid gap-3 text-sm sm:grid-cols-3">
               <SummaryItem
@@ -167,22 +183,13 @@ function ClienteProveedorAccordionItem({
               />
               <SummaryItem
                 label={t.pendingBalance}
-                value={
-                  !esPrimarioGrupo && categoriasCompaneras.length > 0
-                    ? t.includedInProvider(
-                        primaryProvider.nombre.trim().toLowerCase() ===
-                          provider.nombre.trim().toLowerCase()
-                          ? `${primaryProvider.nombre} (${getClienteCronogramaCategoriaLabel(primaryProvider.categoria, locale)})`
-                          : primaryProvider.nombre,
-                      )
-                    : formatClienteProveedorValue(
-                        hasProveedorValorDefinido(provider.valor_total)
-                          ? saldo
-                          : null,
-                        locale,
-                      )
-                }
-                emphasized={esPrimarioGrupo}
+                value={formatClienteProveedorValue(
+                  hasProveedorValorDefinido(provider.valor_total)
+                    ? saldo
+                    : null,
+                  locale,
+                )}
+                emphasized
               />
               <SummaryItem
                 label={t.balanceDueDate}
