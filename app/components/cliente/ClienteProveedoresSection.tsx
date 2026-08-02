@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import {
   ClienteAccordionChevron,
   ClienteAccordionSection,
@@ -17,6 +17,7 @@ import {
   hasProveedorValorDefinido,
   isProveedorGrupoPrimario,
   isProveedorSinCosto,
+  sortProveedoresContiguosPorGrupo,
   type ProveedorRow,
 } from "@/app/data/providers";
 import {
@@ -36,23 +37,27 @@ export function ClienteProveedoresSection({
   pagosByProveedor,
 }: ClienteProveedoresSectionProps) {
   const { t } = useClienteLocale();
+  const proveedoresOrdenados = useMemo(
+    () => sortProveedoresContiguosPorGrupo(contratados),
+    [contratados],
+  );
 
   return (
     <ClienteAccordionSection
       title={t.providersTitle}
       summary={t.providersSubtitle(contratados.length)}
     >
-      {contratados.length === 0 ? (
+      {proveedoresOrdenados.length === 0 ? (
         <p className="rounded-xl border border-dashed border-bloom-border bg-bloom-canvas/50 px-5 py-12 text-center text-sm text-bloom-muted">
           {t.providersEmpty}
         </p>
       ) : (
         <ul className="space-y-4">
-          {contratados.map((provider) => (
+          {proveedoresOrdenados.map((provider) => (
             <ClienteProveedorAccordionItem
               key={provider.id}
               provider={provider}
-              allProviders={contratados}
+              allProviders={proveedoresOrdenados}
               pagos={pagosByProveedor[provider.id] ?? []}
               pagosByProveedor={pagosByProveedor}
             />

@@ -136,6 +136,48 @@ export function getProveedorGrupoCategorias(
 }
 
 /**
+ * Agrupa proveedores del mismo `grupo_id` de forma contigua:
+ * al encontrar el primer miembro de un grupo, emite primario y luego secundarios.
+ * Los proveedores sin grupo mantienen su posición relativa en la lista original.
+ */
+export function sortProveedoresContiguosPorGrupo(
+  providers: ProveedorRow[],
+): ProveedorRow[] {
+  const membersByGrupo = new Map<string, ProveedorRow[]>();
+  for (const provider of providers) {
+    if (!provider.grupo_id) continue;
+    const list = membersByGrupo.get(provider.grupo_id) ?? [];
+    list.push(provider);
+    membersByGrupo.set(provider.grupo_id, list);
+  }
+  for (const [grupoId, members] of membersByGrupo) {
+    membersByGrupo.set(grupoId, [...members].sort(compareProveedoresPorCreacion));
+  }
+
+  const emitted = new Set<string>();
+  const result: ProveedorRow[] = [];
+
+  for (const provider of providers) {
+    if (emitted.has(provider.id)) continue;
+
+    if (!provider.grupo_id) {
+      result.push(provider);
+      emitted.add(provider.id);
+      continue;
+    }
+
+    const members = membersByGrupo.get(provider.grupo_id) ?? [provider];
+    for (const member of members) {
+      if (emitted.has(member.id)) continue;
+      result.push(member);
+      emitted.add(member.id);
+    }
+  }
+
+  return result;
+}
+
+/**
  * Una fila por proveedor individual o por grupo (el primario).
  * Evita sumar `valor_total` varias veces en proyecciones / presupuesto.
  */
