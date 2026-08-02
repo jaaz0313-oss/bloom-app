@@ -62,14 +62,15 @@ const TABLE_THEME = {
     fillColor: COLORS.canvas,
     textColor: COLORS.ink,
     fontStyle: "bold" as const,
-    fontSize: 9,
+    fontSize: 8,
+    overflow: "ellipsize" as const,
   },
   columnStyles: {
-    0: { cellWidth: 28 },
-    1: { cellWidth: 38 },
-    2: { cellWidth: 34 },
-    3: { halign: "right" as const, cellWidth: 28 },
-    4: { halign: "right" as const, cellWidth: 24 },
+    0: { cellWidth: 26 },
+    1: { cellWidth: 36 },
+    2: { cellWidth: 32 },
+    3: { halign: "right" as const, cellWidth: 40 },
+    4: { halign: "right" as const, cellWidth: 22 },
   },
   margin: { left: 16, right: 16, bottom: 22 },
 };
@@ -318,10 +319,32 @@ export function generateClienteProyeccionPdf(
       ],
       body: tableRows.map((row) => row.cells),
       foot: [
-        ["Total contratado", "", "", formatCurrency(totalContratado), ""],
-        ["Total pagado", "", "", formatCurrency(totalPagado), ""],
-        ["Saldo total", "", "", formatCurrency(saldoPendiente), ""],
+        [
+          { content: "Total contratado", colSpan: 3 },
+          {
+            content: formatCurrency(totalContratado),
+            colSpan: 2,
+            styles: { halign: "right", fontSize: 8, overflow: "ellipsize" },
+          },
+        ],
+        [
+          { content: "Total pagado", colSpan: 3 },
+          {
+            content: formatCurrency(totalPagado),
+            colSpan: 2,
+            styles: { halign: "right", fontSize: 8, overflow: "ellipsize" },
+          },
+        ],
+        [
+          { content: "Saldo total", colSpan: 3 },
+          {
+            content: formatCurrency(saldoPendiente),
+            colSpan: 2,
+            styles: { halign: "right", fontSize: 8, overflow: "ellipsize" },
+          },
+        ],
       ],
+      showFoot: "lastPage",
       ...TABLE_THEME,
       didParseCell: (data) => styleProjectionTableRow(data, tableRows),
       didDrawPage: () => {
