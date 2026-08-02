@@ -178,7 +178,7 @@ function ClienteProveedorAccordionItem({
                     : formatClienteProveedorValue(
                         hasProveedorValorDefinido(provider.valor_total)
                           ? saldo
-                          : 0,
+                          : null,
                         locale,
                       )
                 }

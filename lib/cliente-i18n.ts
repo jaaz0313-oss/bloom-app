@@ -44,10 +44,15 @@ export function formatClienteProveedorValue(
   amount: number | null | undefined,
   locale: ClienteLocale,
 ): string {
-  const value = Number(amount ?? 0);
-  if (!Number.isFinite(value) || value <= 0) {
+  if (amount == null) {
     return locale === "en" ? "To be defined" : "Por definir";
   }
+
+  const value = Number(amount);
+  if (!Number.isFinite(value)) {
+    return locale === "en" ? "To be defined" : "Por definir";
+  }
+
   return formatCurrency(value);
 }
 
