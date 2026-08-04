@@ -1076,8 +1076,75 @@ export function ProviderCard({
         >
           <div className="min-h-0 overflow-hidden">
             <div className="border-t border-bloom-border/70 px-5 pb-5 pt-4 sm:px-6 sm:pb-6">
+          {canManage ? (
+            <div className="space-y-3">
+              <ProviderInlineTextField
+                label="Descripción del servicio"
+                icon={FileText}
+                emptyLabel="Agregar descripción..."
+                value={descripcionServicioLocal}
+                editing={editingInlineField === "descripcion_servicio"}
+                draft={inlineDraft}
+                saving={inlineSaving}
+                error={
+                  editingInlineField === "descripcion_servicio"
+                    ? inlineError
+                    : null
+                }
+                disabled={
+                  updating || editSubmitting || deleting || inlineSaving
+                }
+                onStartEdit={() => startInlineEdit("descripcion_servicio")}
+                onDraftChange={setInlineDraft}
+                onCancel={cancelInlineEdit}
+                onSave={() => handleSaveInlineField("descripcion_servicio")}
+              />
+              <ProviderInlineTextField
+                label="Notas internas"
+                icon={StickyNote}
+                emptyLabel="Agregar nota..."
+                value={notasLocal}
+                editing={editingInlineField === "notas"}
+                draft={inlineDraft}
+                saving={inlineSaving}
+                error={editingInlineField === "notas" ? inlineError : null}
+                disabled={
+                  updating || editSubmitting || deleting || inlineSaving
+                }
+                onStartEdit={() => startInlineEdit("notas")}
+                onDraftChange={setInlineDraft}
+                onCancel={cancelInlineEdit}
+                onSave={() => handleSaveInlineField("notas")}
+              />
+            </div>
+          ) : null}
+
+          {canManage && (
+            <div className="mt-3 max-w-sm">
+              <p className="mb-2 text-xs font-medium uppercase tracking-wider text-bloom-muted">
+                Cotización en Drive
+              </p>
+              <div className="flex items-start gap-2">
+                <div className="min-w-0 flex-1">
+                  <SubirCotizacionDriveButton
+                    bodaId={bodaId}
+                    proveedorId={provider.id}
+                    cotizacionDriveUrl={provider.cotizacion_drive_url}
+                    disabled={
+                      updating ||
+                      editSubmitting ||
+                      deleting ||
+                      cotizacionSubmitting
+                    }
+                  />
+                </div>
+                <AbrirCarpetaDriveButton driveFolderUrl={driveFolderUrl} />
+              </div>
+            </div>
+          )}
+
           {hasDepositoReembolsable(provider) && (
-            <div className="mb-3 flex flex-wrap items-center gap-2">
+            <div className="mt-3 flex flex-wrap items-center gap-2">
               <span className="inline-flex rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-medium text-sky-800">
                 Depósito reembolsable:{" "}
                 {formatCurrency(getDepositoReembolsableMonto(provider))}
@@ -1086,7 +1153,7 @@ export function ProviderCard({
           )}
 
           {isAdmin && provider.da_comision && (
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="mt-3 flex flex-wrap items-center gap-2">
               <span className="inline-flex rounded-full bg-violet-100 px-2.5 py-0.5 text-xs font-medium text-violet-800">
                 Comisión {getPorcentajeComisionProveedor(provider)}%
               </span>
@@ -1162,27 +1229,6 @@ export function ProviderCard({
               >
                 Registrar cotización
               </button>
-            </div>
-          )}
-
-          {canManage && (
-            <div className="mt-3 max-w-sm">
-              <p className="mb-2 text-xs font-medium uppercase tracking-wider text-bloom-muted">
-                Cotización en Drive
-              </p>
-              <div className="flex items-start gap-2">
-                <div className="min-w-0 flex-1">
-                  <SubirCotizacionDriveButton
-                    bodaId={bodaId}
-                    proveedorId={provider.id}
-                    cotizacionDriveUrl={provider.cotizacion_drive_url}
-                    disabled={
-                      updating || editSubmitting || deleting || cotizacionSubmitting
-                    }
-                  />
-                </div>
-                <AbrirCarpetaDriveButton driveFolderUrl={driveFolderUrl} />
-              </div>
             </div>
           )}
 
@@ -1402,45 +1448,6 @@ export function ProviderCard({
           driveFolderUrl={driveFolderUrl}
         />
       )}
-
-      {canManage ? (
-        <div className="mt-4 space-y-3 border-t border-bloom-border/60 pt-4">
-          <ProviderInlineTextField
-            label="Descripción del servicio"
-            icon={FileText}
-            emptyLabel="Agregar descripción..."
-            value={descripcionServicioLocal}
-            editing={editingInlineField === "descripcion_servicio"}
-            draft={inlineDraft}
-            saving={inlineSaving}
-            error={
-              editingInlineField === "descripcion_servicio"
-                ? inlineError
-                : null
-            }
-            disabled={updating || editSubmitting || deleting || inlineSaving}
-            onStartEdit={() => startInlineEdit("descripcion_servicio")}
-            onDraftChange={setInlineDraft}
-            onCancel={cancelInlineEdit}
-            onSave={() => handleSaveInlineField("descripcion_servicio")}
-          />
-          <ProviderInlineTextField
-            label="Notas internas"
-            icon={StickyNote}
-            emptyLabel="Agregar nota..."
-            value={notasLocal}
-            editing={editingInlineField === "notas"}
-            draft={inlineDraft}
-            saving={inlineSaving}
-            error={editingInlineField === "notas" ? inlineError : null}
-            disabled={updating || editSubmitting || deleting || inlineSaving}
-            onStartEdit={() => startInlineEdit("notas")}
-            onDraftChange={setInlineDraft}
-            onCancel={cancelInlineEdit}
-            onSave={() => handleSaveInlineField("notas")}
-          />
-        </div>
-      ) : null}
 
       <ProviderNotasReunion
         bodaId={bodaId}
