@@ -329,7 +329,18 @@ export function NotasInternas({
                     </div>
                   ) : (
                     <>
-                      <p className="whitespace-pre-wrap text-sm text-bloom-ink">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {nota.origen === "proveedor" ? (
+                          <span className="inline-flex rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-800">
+                            De proveedor
+                          </span>
+                        ) : null}
+                      </div>
+                      <p
+                        className={`whitespace-pre-wrap text-sm text-bloom-ink ${
+                          nota.origen === "proveedor" ? "mt-1.5" : ""
+                        }`}
+                      >
                         {nota.contenido}
                       </p>
                       <div className="mt-2 space-y-0.5 text-xs text-bloom-muted">

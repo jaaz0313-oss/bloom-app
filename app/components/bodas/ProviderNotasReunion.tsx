@@ -157,6 +157,21 @@ export function ProviderNotasReunion({
           bodaNombre,
           detalle: `${conQuien} · ${resumen.slice(0, 120)}${resumen.length > 120 ? "…" : ""}`,
         });
+
+        const categoria = provider.categoria?.trim() || "Sin categoría";
+        const { error: copiaError } = await supabase.from("notas_boda").insert({
+          boda_id: bodaId,
+          contenido: `📋 ${conQuien} (${categoria}): ${resumen}`,
+          created_by: currentUserId,
+          created_by_nombre: currentUserNombre.trim() || null,
+          origen: "proveedor",
+        });
+        if (copiaError) {
+          console.error(
+            "[ProviderNotasReunion] No se pudo copiar a notas_boda:",
+            copiaError.message,
+          );
+        }
       }
 
       setFormOpen(false);

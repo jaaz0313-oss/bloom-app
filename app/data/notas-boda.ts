@@ -1,3 +1,5 @@
+export type NotaBodaOrigen = "manual" | "proveedor";
+
 export type NotaBodaRow = {
   id: string;
   boda_id: string;
@@ -6,6 +8,7 @@ export type NotaBodaRow = {
   created_by_nombre: string | null;
   created_at: string;
   updated_at: string;
+  origen?: NotaBodaOrigen | null;
 };
 
 export function wasNotaBodaEdited(
