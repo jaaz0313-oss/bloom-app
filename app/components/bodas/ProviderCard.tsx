@@ -4,6 +4,7 @@ import { useEffect, useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { DraggableAttributes } from "@dnd-kit/core";
 import type { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
+import { FileText, StickyNote } from "lucide-react";
 import {
   getProviderSaldoPendienteConPagos,
   getProveedorGrupoCategoriasCompaneras,
@@ -1066,9 +1067,11 @@ export function ProviderCard({
         </button>
 
         {canManage ? (
-          <div className="space-y-2 px-5 pb-3 sm:px-6">
+          <div className="space-y-3 border-t border-bloom-border/60 px-5 py-3 sm:px-6">
             <ProviderInlineTextField
-              emptyLabel="Agregar descripción del servicio..."
+              label="Descripción del servicio"
+              icon={FileText}
+              emptyLabel="Agregar descripción..."
               value={descripcionServicioLocal}
               editing={editingInlineField === "descripcion_servicio"}
               draft={inlineDraft}
@@ -1087,6 +1090,8 @@ export function ProviderCard({
               onSave={() => handleSaveInlineField("descripcion_servicio")}
             />
             <ProviderInlineTextField
+              label="Notas internas"
+              icon={StickyNote}
               emptyLabel="Agregar nota..."
               value={notasLocal}
               editing={editingInlineField === "notas"}
@@ -2091,6 +2096,8 @@ function ProviderEstadoBadge({ provider }: { provider: ProveedorRow }) {
 }
 
 function ProviderInlineTextField({
+  label,
+  icon: Icon,
   emptyLabel,
   value,
   editing,
@@ -2103,6 +2110,8 @@ function ProviderInlineTextField({
   onCancel,
   onSave,
 }: {
+  label: string;
+  icon: React.ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
   emptyLabel: string;
   value: string;
   editing: boolean;
@@ -2115,69 +2124,72 @@ function ProviderInlineTextField({
   onCancel: () => void;
   onSave: () => void;
 }) {
-  if (editing) {
-    return (
-      <div className="space-y-2">
-        <textarea
-          className={textareaClass}
-          value={draft}
-          onChange={(e) => onDraftChange(e.target.value)}
-          rows={3}
-          autoFocus
-          disabled={saving}
-        />
-        {error ? (
-          <p className="text-xs text-red-700" role="alert">
-            {error}
-          </p>
-        ) : null}
-        <div className="flex flex-wrap justify-end gap-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            disabled={saving}
-            className="rounded-full border border-bloom-border bg-bloom-surface px-3 py-1 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-canvas disabled:opacity-60"
-          >
-            Cancelar
-          </button>
-          <button
-            type="button"
-            onClick={onSave}
-            disabled={saving}
-            className="rounded-full bg-bloom-accent px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-bloom-accent-hover disabled:opacity-60"
-          >
-            {saving ? "Guardando…" : "Guardar"}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return (
-      <button
-        type="button"
-        onClick={onStartEdit}
-        disabled={disabled}
-        className="block w-full rounded-lg px-1 py-0.5 text-left text-sm text-bloom-muted transition-colors hover:bg-bloom-canvas/70 hover:text-bloom-ink disabled:opacity-60"
-      >
-        {emptyLabel}
-      </button>
-    );
-  }
-
   return (
-    <button
-      type="button"
-      onClick={onStartEdit}
-      disabled={disabled}
-      className="block w-full rounded-lg px-1 py-0.5 text-left transition-colors hover:bg-bloom-canvas/70 disabled:opacity-60"
-    >
-      <span className="whitespace-pre-wrap text-sm text-bloom-ink">
-        {trimmed}
-      </span>
-    </button>
+    <div className="space-y-1.5">
+      <p className="inline-flex items-center gap-1.5 text-xs text-bloom-muted">
+        <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
+        <span>{label}</span>
+      </p>
+
+      {editing ? (
+        <div className="space-y-2">
+          <textarea
+            className={textareaClass}
+            value={draft}
+            onChange={(e) => onDraftChange(e.target.value)}
+            rows={3}
+            autoFocus
+            disabled={saving}
+            aria-label={label}
+          />
+          {error ? (
+            <p className="text-xs text-red-700" role="alert">
+              {error}
+            </p>
+          ) : null}
+          <div className="flex flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={saving}
+              className="rounded-full border border-bloom-border bg-bloom-surface px-3 py-1 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-canvas disabled:opacity-60"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={onSave}
+              disabled={saving}
+              className="rounded-full bg-bloom-accent px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-bloom-accent-hover disabled:opacity-60"
+            >
+              {saving ? "Guardando…" : "Guardar"}
+            </button>
+          </div>
+        </div>
+      ) : value.trim() ? (
+        <button
+          type="button"
+          onClick={onStartEdit}
+          disabled={disabled}
+          aria-label={`Editar ${label.toLowerCase()}`}
+          className="block w-full rounded-lg border border-transparent px-1.5 py-1 text-left transition-colors hover:border-bloom-border/70 hover:bg-bloom-canvas/70 disabled:opacity-60"
+        >
+          <span className="whitespace-pre-wrap text-sm text-bloom-ink">
+            {value.trim()}
+          </span>
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={onStartEdit}
+          disabled={disabled}
+          aria-label={emptyLabel}
+          className="block w-full rounded-lg border border-dashed border-bloom-border/80 px-1.5 py-1 text-left text-sm text-bloom-muted transition-colors hover:border-bloom-border hover:bg-bloom-canvas/70 hover:text-bloom-ink disabled:opacity-60"
+        >
+          {emptyLabel}
+        </button>
+      )}
+    </div>
   );
 }
 
