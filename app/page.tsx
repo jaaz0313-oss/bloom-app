@@ -469,7 +469,7 @@ export default async function Home({ searchParams }: HomeProps) {
             initialFinished={finishedWeddings}
             newWeddingButton={
               hasPermission(user.rol, "weddings.create") ? (
-                <NewWeddingModalButton />
+                <NewWeddingModalButton key="new-wedding-button" />
               ) : undefined
             }
           />
