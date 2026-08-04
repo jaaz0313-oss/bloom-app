@@ -1237,6 +1237,12 @@ export function ProviderCard({
                       {provider.documento_nit?.trim() || "No registrado"}
                     </dd>
                   </div>
+                  <div className="sm:col-span-2">
+                    <dt className="text-bloom-muted">Dirección / Residencia</dt>
+                    <dd>
+                      {provider.direccion?.trim() || "No registrado"}
+                    </dd>
+                  </div>
                 </dl>
               </div>
             </div>
@@ -1351,17 +1357,6 @@ export function ProviderCard({
               </button>
             </div>
           )}
-
-          {provider.direccion?.trim() ? (
-            <div className="mt-3 rounded-lg border border-bloom-border bg-bloom-canvas/60 px-3 py-2">
-              <p className="text-xs font-medium uppercase tracking-wider text-bloom-muted">
-                Dirección / Residencia
-              </p>
-              <p className="mt-1 text-xs text-bloom-ink">
-                {provider.direccion.trim()}
-              </p>
-            </div>
-          ) : null}
 
           <div className="mt-3 rounded-lg border border-bloom-border bg-bloom-canvas/60 px-3 py-2">
             <p className="text-xs font-medium uppercase tracking-wider text-bloom-muted">
