@@ -12,6 +12,24 @@ type LeadSugerenciasBodasSimilaresProps = {
 const SIN_DATA_MESSAGE =
   "Aún no hay suficientes bodas registradas para generar sugerencias. Las sugerencias aparecerán automáticamente a medida que registres más bodas.";
 
+function criterioSimilitudLabel(
+  criterio: SugerenciasBodasSimilaresResult["criterio"],
+): string {
+  switch (criterio) {
+    case "ciudad_ambos":
+      return "misma ciudad, invitados y presupuesto";
+    case "ciudad_parcial":
+      return "misma ciudad e invitados o presupuesto";
+    case "invitados":
+      return "invitados";
+    case "presupuesto":
+      return "presupuesto";
+    case "ambos":
+    default:
+      return "invitados y presupuesto";
+  }
+}
+
 export function LeadSugerenciasBodasSimilares({
   result,
 }: LeadSugerenciasBodasSimilaresProps) {
@@ -27,7 +45,7 @@ export function LeadSugerenciasBodasSimilares({
           <p className="text-sm text-bloom-muted">
             Basado en {result.bodasSimilaresCount}{" "}
             {result.bodasSimilaresCount === 1 ? "boda similar" : "bodas similares"}{" "}
-            por invitados y presupuesto.
+            por {criterioSimilitudLabel(result.criterio)}.
           </p>
         ) : (
           <p className="text-sm text-bloom-muted">
