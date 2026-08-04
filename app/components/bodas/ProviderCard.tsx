@@ -170,6 +170,7 @@ export function ProviderCard({
   const [inlineDraft, setInlineDraft] = useState("");
   const [inlineSaving, setInlineSaving] = useState(false);
   const [inlineError, setInlineError] = useState<string | null>(null);
+  const [infoProveedorOpen, setInfoProveedorOpen] = useState(false);
 
   useEffect(() => {
     if (editingInlineField === "descripcion_servicio") return;
@@ -1143,6 +1144,104 @@ export function ProviderCard({
             </div>
           )}
 
+          {showPaymentReminder && (
+            <div className="mt-4 border-t border-bloom-border pt-4">
+              <div className="inline-flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handlePaymentReminder}
+                  disabled={!hasWhatsAppTarget}
+                  title={
+                    hasWhatsAppTarget
+                      ? undefined
+                      : "Agrega el grupo de WhatsApp o el teléfono de la novia en la boda"
+                  }
+                  className="inline-flex items-center gap-1.5 rounded-full border border-green-200 bg-green-50 px-4 py-2 text-xs font-medium text-green-800 transition-colors hover:bg-green-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <WhatsAppIcon />
+                  Enviar recordatorio de pago
+                </button>
+                <WhatsAppLocaleToggle
+                  locale={whatsappLocale}
+                  onChange={setWhatsappLocale}
+                />
+              </div>
+            </div>
+          )}
+
+          {showPayments && (
+            <ProviderPayments
+              bodaId={bodaId}
+              proveedorId={provider.id}
+              proveedorNombre={provider.nombre}
+              bodaNombre={boda.nombrePareja}
+              pagos={pagos}
+              anticipo={provider.anticipo}
+              valorTotal={provider.valor_total}
+              createdAt={provider.created_at}
+              role={role}
+              driveFolderUrl={driveFolderUrl}
+            />
+          )}
+
+          <div className="mt-3">
+            <button
+              type="button"
+              aria-expanded={infoProveedorOpen}
+              aria-controls={`${panelId}-info-proveedor`}
+              onClick={() => setInfoProveedorOpen((open) => !open)}
+              className="inline-flex w-full items-center gap-2 rounded-lg px-1 py-1.5 text-left text-sm font-medium text-bloom-ink transition-colors hover:bg-bloom-canvas/70"
+            >
+              <AccordionChevron open={infoProveedorOpen} />
+              <span>Ver información del proveedor</span>
+            </button>
+            <div
+              id={`${panelId}-info-proveedor`}
+              className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${
+                infoProveedorOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+              }`}
+            >
+              <div className="min-h-0 overflow-hidden">
+                <dl className="mt-1 grid grid-cols-1 gap-2 rounded-lg border border-bloom-border bg-bloom-canvas/60 px-3 py-2 text-xs text-bloom-ink sm:grid-cols-2">
+                  <div>
+                    <dt className="text-bloom-muted">Teléfono</dt>
+                    <dd>{provider.telefono?.trim() || "No registrado"}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-bloom-muted">Email</dt>
+                    <dd className="break-all">
+                      {provider.email?.trim() || "No registrado"}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-bloom-muted">Banco</dt>
+                    <dd>{provider.banco?.trim() || "No registrado"}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-bloom-muted">Tipo de cuenta</dt>
+                    <dd>{provider.tipo_cuenta?.trim() || "No registrado"}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-bloom-muted">Número de cuenta</dt>
+                    <dd>{provider.numero_cuenta?.trim() || "No registrado"}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-bloom-muted">Titular</dt>
+                    <dd>
+                      {provider.titular_cuenta?.trim() || "No registrado"}
+                    </dd>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <dt className="text-bloom-muted">Documento / NIT</dt>
+                    <dd>
+                      {provider.documento_nit?.trim() || "No registrado"}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+            </div>
+          </div>
+
           {hasDepositoReembolsable(provider) && (
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <span className="inline-flex rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-medium text-sky-800">
@@ -1253,77 +1352,16 @@ export function ProviderCard({
             </div>
           )}
 
-          {(provider.banco ||
-            provider.tipo_cuenta ||
-            provider.numero_cuenta ||
-            provider.titular_cuenta ||
-            provider.documento_nit) && (
+          {provider.direccion?.trim() ? (
             <div className="mt-3 rounded-lg border border-bloom-border bg-bloom-canvas/60 px-3 py-2">
               <p className="text-xs font-medium uppercase tracking-wider text-bloom-muted">
-                Datos bancarios
+                Dirección / Residencia
               </p>
-              <dl className="mt-1 grid grid-cols-1 gap-1 text-xs text-bloom-ink sm:grid-cols-2">
-                {provider.banco && (
-                  <div>
-                    <dt className="text-bloom-muted">Banco</dt>
-                    <dd>{provider.banco}</dd>
-                  </div>
-                )}
-                {provider.tipo_cuenta && (
-                  <div>
-                    <dt className="text-bloom-muted">Tipo de cuenta</dt>
-                    <dd>{provider.tipo_cuenta}</dd>
-                  </div>
-                )}
-                {provider.numero_cuenta && (
-                  <div>
-                    <dt className="text-bloom-muted">Número de cuenta</dt>
-                    <dd>{provider.numero_cuenta}</dd>
-                  </div>
-                )}
-                {provider.titular_cuenta && (
-                  <div>
-                    <dt className="text-bloom-muted">Titular</dt>
-                    <dd>{provider.titular_cuenta}</dd>
-                  </div>
-                )}
-                {provider.documento_nit && (
-                  <div className="sm:col-span-2">
-                    <dt className="text-bloom-muted">Documento / NIT</dt>
-                    <dd>{provider.documento_nit}</dd>
-                  </div>
-                )}
-              </dl>
-            </div>
-          )}
-
-          {(provider.telefono || provider.email || provider.direccion) && (
-            <div className="mt-3 rounded-lg border border-bloom-border bg-bloom-canvas/60 px-3 py-2">
-              <p className="text-xs font-medium uppercase tracking-wider text-bloom-muted">
-                Contacto del proveedor
+              <p className="mt-1 text-xs text-bloom-ink">
+                {provider.direccion.trim()}
               </p>
-              <dl className="mt-1 grid grid-cols-1 gap-1 text-xs text-bloom-ink sm:grid-cols-2">
-                {provider.telefono && (
-                  <div>
-                    <dt className="text-bloom-muted">Teléfono</dt>
-                    <dd>{provider.telefono}</dd>
-                  </div>
-                )}
-                {provider.email && (
-                  <div>
-                    <dt className="text-bloom-muted">Email</dt>
-                    <dd>{provider.email}</dd>
-                  </div>
-                )}
-                {provider.direccion && (
-                  <div className="sm:col-span-2">
-                    <dt className="text-bloom-muted">Dirección / Residencia</dt>
-                    <dd>{provider.direccion}</dd>
-                  </div>
-                )}
-              </dl>
             </div>
-          )}
+          ) : null}
 
           <div className="mt-3 rounded-lg border border-bloom-border bg-bloom-canvas/60 px-3 py-2">
             <p className="text-xs font-medium uppercase tracking-wider text-bloom-muted">
@@ -1408,46 +1446,6 @@ export function ProviderCard({
               </div>
             </dl>
           )}
-
-      {showPaymentReminder && (
-        <div className="mt-4 border-t border-bloom-border pt-4">
-          <div className="inline-flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={handlePaymentReminder}
-              disabled={!hasWhatsAppTarget}
-              title={
-                hasWhatsAppTarget
-                  ? undefined
-                  : "Agrega el grupo de WhatsApp o el teléfono de la novia en la boda"
-              }
-              className="inline-flex items-center gap-1.5 rounded-full border border-green-200 bg-green-50 px-4 py-2 text-xs font-medium text-green-800 transition-colors hover:bg-green-100 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <WhatsAppIcon />
-              Enviar recordatorio de pago
-            </button>
-            <WhatsAppLocaleToggle
-              locale={whatsappLocale}
-              onChange={setWhatsappLocale}
-            />
-          </div>
-        </div>
-      )}
-
-      {showPayments && (
-        <ProviderPayments
-          bodaId={bodaId}
-          proveedorId={provider.id}
-          proveedorNombre={provider.nombre}
-          bodaNombre={boda.nombrePareja}
-          pagos={pagos}
-          anticipo={provider.anticipo}
-          valorTotal={provider.valor_total}
-          createdAt={provider.created_at}
-          role={role}
-          driveFolderUrl={driveFolderUrl}
-        />
-      )}
 
       <ProviderNotasReunion
         bodaId={bodaId}
