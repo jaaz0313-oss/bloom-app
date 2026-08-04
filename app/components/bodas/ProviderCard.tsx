@@ -159,6 +159,26 @@ export function ProviderCard({
   const canSendWhatsApp = hasPermission(role, "whatsapp.send");
   const isAdmin = role === "admin";
   const [comisionUpdating, setComisionUpdating] = useState(false);
+  const [descripcionServicioLocal, setDescripcionServicioLocal] = useState(
+    provider.descripcion_servicio ?? "",
+  );
+  const [notasLocal, setNotasLocal] = useState(provider.notas ?? "");
+  const [editingInlineField, setEditingInlineField] = useState<
+    "descripcion_servicio" | "notas" | null
+  >(null);
+  const [inlineDraft, setInlineDraft] = useState("");
+  const [inlineSaving, setInlineSaving] = useState(false);
+  const [inlineError, setInlineError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (editingInlineField === "descripcion_servicio") return;
+    setDescripcionServicioLocal(provider.descripcion_servicio ?? "");
+  }, [provider.descripcion_servicio, editingInlineField]);
+
+  useEffect(() => {
+    if (editingInlineField === "notas") return;
+    setNotasLocal(provider.notas ?? "");
+  }, [provider.notas, editingInlineField]);
   const providersForGrupo =
     allProviders.length > 0 ? allProviders : [provider];
   const esPrimarioGrupo = isProveedorGrupoPrimario(providersForGrupo, provider);
@@ -232,6 +252,62 @@ export function ProviderCard({
       if (byName !== 0) return byName;
       return a.categoria.localeCompare(b.categoria, "es");
     });
+
+  function startInlineEdit(field: "descripcion_servicio" | "notas") {
+    if (!canManage || inlineSaving) return;
+    setEditingInlineField(field);
+    setInlineDraft(
+      field === "descripcion_servicio"
+        ? descripcionServicioLocal
+        : notasLocal,
+    );
+    setInlineError(null);
+  }
+
+  function cancelInlineEdit() {
+    if (inlineSaving) return;
+    setEditingInlineField(null);
+    setInlineError(null);
+  }
+
+  async function handleSaveInlineField(
+    field: "descripcion_servicio" | "notas",
+  ) {
+    if (!canManage) {
+      setInlineError("No tienes permisos para editar proveedores.");
+      return;
+    }
+    if (!supabase) {
+      setInlineError("Supabase no está configurado.");
+      return;
+    }
+
+    const trimmed = inlineDraft.trim();
+    setInlineSaving(true);
+    setInlineError(null);
+
+    try {
+      const { error: updateError } = await supabase
+        .from("proveedores")
+        .update({ [field]: trimmed || null })
+        .eq("id", provider.id);
+
+      if (updateError) {
+        setInlineError(updateError.message);
+        return;
+      }
+
+      if (field === "descripcion_servicio") {
+        setDescripcionServicioLocal(trimmed);
+      } else {
+        setNotasLocal(trimmed);
+      }
+      setEditingInlineField(null);
+      router.refresh();
+    } finally {
+      setInlineSaving(false);
+    }
+  }
 
   async function handleVincularProveedor(e: React.FormEvent) {
     e.preventDefault();
@@ -989,6 +1065,45 @@ export function ProviderCard({
           <AccordionChevron open={expanded} />
         </button>
 
+        {canManage ? (
+          <div className="space-y-2 px-5 pb-3 sm:px-6">
+            <ProviderInlineTextField
+              emptyLabel="Agregar descripción del servicio..."
+              value={descripcionServicioLocal}
+              editing={editingInlineField === "descripcion_servicio"}
+              draft={inlineDraft}
+              saving={inlineSaving}
+              error={
+                editingInlineField === "descripcion_servicio"
+                  ? inlineError
+                  : null
+              }
+              disabled={
+                updating || editSubmitting || deleting || inlineSaving
+              }
+              onStartEdit={() => startInlineEdit("descripcion_servicio")}
+              onDraftChange={setInlineDraft}
+              onCancel={cancelInlineEdit}
+              onSave={() => handleSaveInlineField("descripcion_servicio")}
+            />
+            <ProviderInlineTextField
+              emptyLabel="Agregar nota..."
+              value={notasLocal}
+              editing={editingInlineField === "notas"}
+              draft={inlineDraft}
+              saving={inlineSaving}
+              error={editingInlineField === "notas" ? inlineError : null}
+              disabled={
+                updating || editSubmitting || deleting || inlineSaving
+              }
+              onStartEdit={() => startInlineEdit("notas")}
+              onDraftChange={setInlineDraft}
+              onCancel={cancelInlineEdit}
+              onSave={() => handleSaveInlineField("notas")}
+            />
+          </div>
+        ) : null}
+
         <div
           id={panelId}
           role="region"
@@ -1085,28 +1200,6 @@ export function ProviderCard({
               >
                 Registrar cotización
               </button>
-            </div>
-          )}
-
-          {provider.descripcion_servicio && (
-            <div className="mt-3">
-              <p className="text-xs font-medium uppercase tracking-wider text-bloom-muted">
-                Descripción del servicio
-              </p>
-              <p className="mt-1 whitespace-pre-wrap text-sm text-bloom-ink">
-                {provider.descripcion_servicio}
-              </p>
-            </div>
-          )}
-
-          {provider.notas && (
-            <div className="mt-3">
-              <p className="text-xs font-medium uppercase tracking-wider text-bloom-muted">
-                Notas
-              </p>
-              <p className="mt-1 whitespace-pre-wrap text-sm text-bloom-ink">
-                {provider.notas}
-              </p>
             </div>
           )}
 
@@ -1994,6 +2087,97 @@ function ProviderEstadoBadge({ provider }: { provider: ProveedorRow }) {
     >
       {PROVIDER_STATUS_LABELS[provider.estado]}
     </span>
+  );
+}
+
+function ProviderInlineTextField({
+  emptyLabel,
+  value,
+  editing,
+  draft,
+  saving,
+  error,
+  disabled,
+  onStartEdit,
+  onDraftChange,
+  onCancel,
+  onSave,
+}: {
+  emptyLabel: string;
+  value: string;
+  editing: boolean;
+  draft: string;
+  saving: boolean;
+  error: string | null;
+  disabled: boolean;
+  onStartEdit: () => void;
+  onDraftChange: (value: string) => void;
+  onCancel: () => void;
+  onSave: () => void;
+}) {
+  if (editing) {
+    return (
+      <div className="space-y-2">
+        <textarea
+          className={textareaClass}
+          value={draft}
+          onChange={(e) => onDraftChange(e.target.value)}
+          rows={3}
+          autoFocus
+          disabled={saving}
+        />
+        {error ? (
+          <p className="text-xs text-red-700" role="alert">
+            {error}
+          </p>
+        ) : null}
+        <div className="flex flex-wrap justify-end gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={saving}
+            className="rounded-full border border-bloom-border bg-bloom-surface px-3 py-1 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-canvas disabled:opacity-60"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={onSave}
+            disabled={saving}
+            className="rounded-full bg-bloom-accent px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-bloom-accent-hover disabled:opacity-60"
+          >
+            {saving ? "Guardando…" : "Guardar"}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return (
+      <button
+        type="button"
+        onClick={onStartEdit}
+        disabled={disabled}
+        className="block w-full rounded-lg px-1 py-0.5 text-left text-sm text-bloom-muted transition-colors hover:bg-bloom-canvas/70 hover:text-bloom-ink disabled:opacity-60"
+      >
+        {emptyLabel}
+      </button>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onStartEdit}
+      disabled={disabled}
+      className="block w-full rounded-lg px-1 py-0.5 text-left transition-colors hover:bg-bloom-canvas/70 disabled:opacity-60"
+    >
+      <span className="whitespace-pre-wrap text-sm text-bloom-ink">
+        {trimmed}
+      </span>
+    </button>
   );
 }
 
