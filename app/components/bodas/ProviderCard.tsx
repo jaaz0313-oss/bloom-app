@@ -1066,49 +1066,6 @@ export function ProviderCard({
           <AccordionChevron open={expanded} />
         </button>
 
-        {canManage ? (
-          <div className="space-y-3 border-t border-bloom-border/60 px-5 py-3 sm:px-6">
-            <ProviderInlineTextField
-              label="Descripción del servicio"
-              icon={FileText}
-              emptyLabel="Agregar descripción..."
-              value={descripcionServicioLocal}
-              editing={editingInlineField === "descripcion_servicio"}
-              draft={inlineDraft}
-              saving={inlineSaving}
-              error={
-                editingInlineField === "descripcion_servicio"
-                  ? inlineError
-                  : null
-              }
-              disabled={
-                updating || editSubmitting || deleting || inlineSaving
-              }
-              onStartEdit={() => startInlineEdit("descripcion_servicio")}
-              onDraftChange={setInlineDraft}
-              onCancel={cancelInlineEdit}
-              onSave={() => handleSaveInlineField("descripcion_servicio")}
-            />
-            <ProviderInlineTextField
-              label="Notas internas"
-              icon={StickyNote}
-              emptyLabel="Agregar nota..."
-              value={notasLocal}
-              editing={editingInlineField === "notas"}
-              draft={inlineDraft}
-              saving={inlineSaving}
-              error={editingInlineField === "notas" ? inlineError : null}
-              disabled={
-                updating || editSubmitting || deleting || inlineSaving
-              }
-              onStartEdit={() => startInlineEdit("notas")}
-              onDraftChange={setInlineDraft}
-              onCancel={cancelInlineEdit}
-              onSave={() => handleSaveInlineField("notas")}
-            />
-          </div>
-        ) : null}
-
         <div
           id={panelId}
           role="region"
@@ -1445,6 +1402,45 @@ export function ProviderCard({
           driveFolderUrl={driveFolderUrl}
         />
       )}
+
+      {canManage ? (
+        <div className="mt-4 space-y-3 border-t border-bloom-border/60 pt-4">
+          <ProviderInlineTextField
+            label="Descripción del servicio"
+            icon={FileText}
+            emptyLabel="Agregar descripción..."
+            value={descripcionServicioLocal}
+            editing={editingInlineField === "descripcion_servicio"}
+            draft={inlineDraft}
+            saving={inlineSaving}
+            error={
+              editingInlineField === "descripcion_servicio"
+                ? inlineError
+                : null
+            }
+            disabled={updating || editSubmitting || deleting || inlineSaving}
+            onStartEdit={() => startInlineEdit("descripcion_servicio")}
+            onDraftChange={setInlineDraft}
+            onCancel={cancelInlineEdit}
+            onSave={() => handleSaveInlineField("descripcion_servicio")}
+          />
+          <ProviderInlineTextField
+            label="Notas internas"
+            icon={StickyNote}
+            emptyLabel="Agregar nota..."
+            value={notasLocal}
+            editing={editingInlineField === "notas"}
+            draft={inlineDraft}
+            saving={inlineSaving}
+            error={editingInlineField === "notas" ? inlineError : null}
+            disabled={updating || editSubmitting || deleting || inlineSaving}
+            onStartEdit={() => startInlineEdit("notas")}
+            onDraftChange={setInlineDraft}
+            onCancel={cancelInlineEdit}
+            onSave={() => handleSaveInlineField("notas")}
+          />
+        </div>
+      ) : null}
 
       <ProviderNotasReunion
         bodaId={bodaId}
