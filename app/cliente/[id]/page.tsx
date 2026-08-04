@@ -191,7 +191,11 @@ export default async function ClienteBodaPage({ params }: PageProps) {
       <main className="mx-auto w-full max-w-3xl flex-1 space-y-12 px-5 py-12 sm:space-y-14 sm:px-8 sm:py-16">
         <ClienteBodaEstado estado={estadoBoda} />
         <ClienteCronograma resumen={cronogramaResumen} />
-        <ClienteTastingsSection tastings={tastings} />
+        <ClienteTastingsSection
+          tastings={tastings}
+          nombrePareja={bodaRow.nombre_pareja}
+          fechaBoda={bodaRow.fecha_boda}
+        />
         <ClienteDetallesCelebracionSection
           bodaId={id}
           initialDetalles={detallesCelebracion}

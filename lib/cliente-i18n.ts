@@ -279,6 +279,11 @@ export type ClienteUiCopy = {
     visita: string;
     reunion: string;
   };
+  downloadSchedule: string;
+  downloadScheduleError: string;
+  agendaPdfTitle: string;
+  agendaPdfAddress: string;
+  agendaPdfMeetLink: string;
   detallesCelebracionTitle: string;
   detallesCelebracionSubtitle: (filled: number, total: number) => string;
   detallesCelebracionIntro: string;
@@ -397,6 +402,11 @@ const UI_ES: ClienteUiCopy = {
     visita: "Visita",
     reunion: "Reunión",
   },
+  downloadSchedule: "📅 Descargar agenda",
+  downloadScheduleError: "No se pudo generar la agenda.",
+  agendaPdfTitle: "Agenda de citas",
+  agendaPdfAddress: "Dirección",
+  agendaPdfMeetLink: "Meet",
   detallesCelebracionTitle: "Detalles de la boda",
   detallesCelebracionSubtitle: (filled, total) =>
     filled === 0
@@ -563,6 +573,11 @@ const UI_EN: ClienteUiCopy = {
     visita: "Visit",
     reunion: "Meeting",
   },
+  downloadSchedule: "📅 Download schedule",
+  downloadScheduleError: "Could not generate the schedule.",
+  agendaPdfTitle: "Appointment schedule",
+  agendaPdfAddress: "Address",
+  agendaPdfMeetLink: "Meet",
   detallesCelebracionTitle: "Wedding Details",
   detallesCelebracionSubtitle: (filled, total) =>
     filled === 0

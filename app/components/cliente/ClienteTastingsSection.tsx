@@ -2,7 +2,9 @@
 
 import { useId, useMemo, useState } from "react";
 import { useClienteLocale } from "@/app/components/cliente/ClienteLocaleProvider";
+import { CLIENTE_DOWNLOAD_BUTTON_CLASS } from "@/app/components/cliente/cliente-download-styles";
 import type { TastingRow } from "@/app/data/tastings";
+import { downloadClienteAgendaPdf } from "@/lib/cliente-agenda-pdf";
 import {
   getClienteTastingsDayLabel,
 } from "@/lib/cliente-i18n";
@@ -20,10 +22,18 @@ import {
 
 type ClienteTastingsSectionProps = {
   tastings: TastingRow[];
+  nombrePareja: string;
+  fechaBoda: string;
 };
 
-export function ClienteTastingsSection({ tastings }: ClienteTastingsSectionProps) {
+export function ClienteTastingsSection({
+  tastings,
+  nombrePareja,
+  fechaBoda,
+}: ClienteTastingsSectionProps) {
   const [open, setOpen] = useState(true);
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
   const panelId = useId();
   const { locale, t } = useClienteLocale();
 
@@ -31,6 +41,33 @@ export function ClienteTastingsSection({ tastings }: ClienteTastingsSectionProps
     () => groupClienteTastingsByDay(tastings),
     [tastings],
   );
+
+  async function handleDownloadAgenda() {
+    setDownloading(true);
+    setDownloadError(null);
+
+    try {
+      await downloadClienteAgendaPdf({
+        nombrePareja,
+        fechaBoda,
+        tastings,
+        locale,
+        copy: {
+          title: t.agendaPdfTitle,
+          noProvider: t.tastingsNoProvider,
+          address: t.agendaPdfAddress,
+          meetLink: t.agendaPdfMeetLink,
+          notes: t.tastingsNotes,
+          cost: t.tastingsCost,
+          tipoLabels: t.tastingsTipoLabels,
+        },
+      });
+    } catch {
+      setDownloadError(t.downloadScheduleError);
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   if (tastings.length === 0) {
     return null;
@@ -58,6 +95,22 @@ export function ClienteTastingsSection({ tastings }: ClienteTastingsSectionProps
           {t.tastingsSubtitle(tastings.length, dias.length)}
         </span>
       </button>
+
+      <div className="flex flex-col items-stretch gap-2 border-t border-bloom-border/80 px-5 py-4 sm:items-start sm:px-8">
+        <button
+          type="button"
+          onClick={handleDownloadAgenda}
+          disabled={downloading}
+          className={CLIENTE_DOWNLOAD_BUTTON_CLASS}
+        >
+          {downloading ? t.generatingPdf : t.downloadSchedule}
+        </button>
+        {downloadError && (
+          <p className="text-sm text-red-700" role="alert">
+            {downloadError}
+          </p>
+        )}
+      </div>
 
       <div
         id={panelId}
