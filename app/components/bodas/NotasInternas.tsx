@@ -1,8 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ResponsiveModal } from "@/app/components/ui/ResponsiveModal";
 import { wasNotaBodaEdited, type NotaBodaRow } from "@/app/data/notas-boda";
+import {
+  normalizeTareaPrioridad,
+  TAREA_PRIORIDAD_LABELS,
+  type TareaPrioridad,
+} from "@/app/data/tareas";
 import { formatDateTimeStable } from "@/lib/format";
 import type { UserRole } from "@/lib/auth/roles";
 import {
@@ -28,6 +34,24 @@ type NotasInternasProps = {
 const textareaClass =
   "w-full resize-y rounded-xl border border-bloom-border bg-bloom-canvas px-3 py-2 text-sm text-bloom-ink outline-none ring-0 focus:border-bloom-accent focus:ring-2 focus:ring-bloom-accent/30";
 
+const inputClass =
+  "w-full rounded-xl border border-bloom-border bg-bloom-canvas px-3 py-2 text-sm text-bloom-ink outline-none ring-0 focus:border-bloom-accent focus:ring-2 focus:ring-bloom-accent/30";
+
+const ASSIGNEE_USERNAMES = ["jaime", "luisa", "juliana", "natalia"] as const;
+
+type ConvertirTareaForm = {
+  titulo: string;
+  asignadoA: string;
+  prioridad: TareaPrioridad;
+  fechaLimite: string;
+};
+
+function truncateTitulo(texto: string, max = 100): string {
+  const trimmed = texto.trim().replace(/\s+/g, " ");
+  if (trimmed.length <= max) return trimmed;
+  return `${trimmed.slice(0, max - 1).trimEnd()}…`;
+}
+
 export function NotasInternas({
   bodaId,
   bodaNombre,
@@ -51,6 +75,32 @@ export function NotasInternas({
   const [editContenido, setEditContenido] = useState("");
   const [savingEditId, setSavingEditId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [convertNota, setConvertNota] = useState<NotaBodaRow | null>(null);
+  const [convertForm, setConvertForm] = useState<ConvertirTareaForm>({
+    titulo: "",
+    asignadoA: "",
+    prioridad: "media",
+    fechaLimite: "",
+  });
+  const [convertSubmitting, setConvertSubmitting] = useState(false);
+  const [convertError, setConvertError] = useState<string | null>(null);
+
+  const currentUsername =
+    equipo.find((u) => u.id === currentUserId)?.username ?? "";
+
+  const assignees = useMemo(() => {
+    const byUsername = new Map(
+      equipo.map((u) => [u.username.trim().toLowerCase(), u]),
+    );
+    const preferred = ASSIGNEE_USERNAMES.map((username) =>
+      byUsername.get(username),
+    ).filter((u): u is EquipoUsuarioMencion => Boolean(u));
+    if (preferred.length > 0) return preferred;
+    return [...equipo].sort((a, b) =>
+      a.nombre.localeCompare(b.nombre, "es"),
+    );
+  }, [equipo]);
 
   function canEditNota(nota: NotaBodaRow): boolean {
     if (role === "admin" || role === "lider") return true;
@@ -60,6 +110,78 @@ export function NotasInternas({
   function canDeleteNota(nota: NotaBodaRow): boolean {
     if (role === "admin") return true;
     return nota.created_by === currentUserId;
+  }
+
+  function openConvertirTarea(nota: NotaBodaRow) {
+    setError(null);
+    setSuccessMessage(null);
+    setConvertError(null);
+    setConvertNota(nota);
+    setConvertForm({
+      titulo: truncateTitulo(nota.contenido),
+      asignadoA:
+        assignees.find((u) => u.username === currentUsername)?.username ??
+        assignees[0]?.username ??
+        "",
+      prioridad: "media",
+      fechaLimite: "",
+    });
+  }
+
+  function closeConvertirTarea() {
+    if (convertSubmitting) return;
+    setConvertNota(null);
+    setConvertError(null);
+  }
+
+  async function handleConvertirTarea(e: React.FormEvent) {
+    e.preventDefault();
+    setConvertError(null);
+    setSuccessMessage(null);
+
+    const titulo = convertForm.titulo.trim();
+    if (!titulo) {
+      setConvertError("Ingresa el título de la tarea.");
+      return;
+    }
+    if (!convertForm.asignadoA.trim()) {
+      setConvertError("Selecciona a quién asignar la tarea.");
+      return;
+    }
+    if (!currentUsername) {
+      setConvertError("No se pudo identificar tu usuario.");
+      return;
+    }
+    if (!supabase) {
+      setConvertError("Supabase no está configurado.");
+      return;
+    }
+
+    setConvertSubmitting(true);
+    try {
+      const { error: insertError } = await supabase.from("tareas").insert({
+        titulo,
+        descripcion: convertNota?.contenido?.trim() || null,
+        boda_id: bodaId,
+        asignado_a: convertForm.asignadoA.trim(),
+        creado_por: currentUsername,
+        prioridad: convertForm.prioridad,
+        fecha_limite: convertForm.fechaLimite || null,
+        completada: false,
+        updated_at: new Date().toISOString(),
+      });
+
+      if (insertError) {
+        setConvertError(insertError.message);
+        return;
+      }
+
+      setConvertNota(null);
+      setSuccessMessage("Tarea creada correctamente");
+      router.refresh();
+    } finally {
+      setConvertSubmitting(false);
+    }
   }
 
   async function procesarMenciones(notaId: string, texto: string) {
@@ -280,6 +402,15 @@ export function NotasInternas({
         </p>
       )}
 
+      {successMessage && (
+        <p
+          className="mt-3 rounded-xl border border-green-200 bg-green-50 px-4 py-2 text-sm text-green-800"
+          role="status"
+        >
+          {successMessage}
+        </p>
+      )}
+
       {notas.length === 0 ? (
         <p className="mt-6 rounded-xl border border-dashed border-bloom-border bg-bloom-canvas/60 px-4 py-8 text-center text-sm text-bloom-muted">
           Aún no hay notas para esta boda.
@@ -359,8 +490,17 @@ export function NotasInternas({
                     </>
                   )}
                 </div>
-                {!isEditing && (canEditNota(nota) || canDeleteNota(nota)) ? (
+                {!isEditing ? (
                   <div className="flex shrink-0 items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => openConvertirTarea(nota)}
+                      aria-label="Convertir en tarea"
+                      title="Convertir en tarea"
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-bloom-border bg-bloom-surface text-bloom-muted transition-colors hover:bg-bloom-canvas hover:text-bloom-ink"
+                    >
+                      <TaskIcon />
+                    </button>
                     {canEditNota(nota) ? (
                       <button
                         type="button"
@@ -390,7 +530,168 @@ export function NotasInternas({
           })}
         </ul>
       )}
+
+      <ResponsiveModal
+        open={Boolean(convertNota)}
+        onClose={closeConvertirTarea}
+        title="Convertir en tarea"
+        subtitle="Crea una tarea a partir de esta nota."
+        size="md"
+        closeDisabled={convertSubmitting}
+        footer={
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={closeConvertirTarea}
+              disabled={convertSubmitting}
+              className="rounded-full border border-bloom-border bg-bloom-surface px-4 py-2 text-sm font-medium text-bloom-ink transition-colors hover:bg-bloom-canvas disabled:opacity-60"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              form="convertir-nota-tarea-form"
+              disabled={convertSubmitting}
+              className="rounded-full bg-bloom-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-bloom-accent-hover disabled:opacity-60"
+            >
+              {convertSubmitting ? "Creando…" : "Crear tarea"}
+            </button>
+          </div>
+        }
+      >
+        <form
+          id="convertir-nota-tarea-form"
+          className="space-y-4"
+          onSubmit={handleConvertirTarea}
+        >
+          <div className="space-y-1.5">
+            <label
+              htmlFor="convertir-tarea-titulo"
+              className="text-sm font-medium text-bloom-ink"
+            >
+              Título
+            </label>
+            <input
+              id="convertir-tarea-titulo"
+              className={inputClass}
+              value={convertForm.titulo}
+              onChange={(e) =>
+                setConvertForm((s) => ({ ...s, titulo: e.target.value }))
+              }
+              maxLength={120}
+              required
+              disabled={convertSubmitting}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label
+              htmlFor="convertir-tarea-asignado"
+              className="text-sm font-medium text-bloom-ink"
+            >
+              Asignado a
+            </label>
+            <select
+              id="convertir-tarea-asignado"
+              className={inputClass}
+              value={convertForm.asignadoA}
+              onChange={(e) =>
+                setConvertForm((s) => ({ ...s, asignadoA: e.target.value }))
+              }
+              required
+              disabled={convertSubmitting || assignees.length === 0}
+            >
+              {assignees.length === 0 ? (
+                <option value="">Sin usuarios disponibles</option>
+              ) : (
+                assignees.map((user) => (
+                  <option key={user.id} value={user.username}>
+                    {user.nombre} ({user.username})
+                  </option>
+                ))
+              )}
+            </select>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <label
+                htmlFor="convertir-tarea-prioridad"
+                className="text-sm font-medium text-bloom-ink"
+              >
+                Prioridad
+              </label>
+              <select
+                id="convertir-tarea-prioridad"
+                className={inputClass}
+                value={convertForm.prioridad}
+                onChange={(e) =>
+                  setConvertForm((s) => ({
+                    ...s,
+                    prioridad: normalizeTareaPrioridad(e.target.value),
+                  }))
+                }
+                disabled={convertSubmitting}
+              >
+                {(Object.keys(TAREA_PRIORIDAD_LABELS) as TareaPrioridad[]).map(
+                  (prioridad) => (
+                    <option key={prioridad} value={prioridad}>
+                      {TAREA_PRIORIDAD_LABELS[prioridad]}
+                    </option>
+                  ),
+                )}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label
+                htmlFor="convertir-tarea-fecha"
+                className="text-sm font-medium text-bloom-ink"
+              >
+                Fecha límite
+              </label>
+              <input
+                id="convertir-tarea-fecha"
+                type="date"
+                className={inputClass}
+                value={convertForm.fechaLimite}
+                onChange={(e) =>
+                  setConvertForm((s) => ({
+                    ...s,
+                    fechaLimite: e.target.value,
+                  }))
+                }
+                disabled={convertSubmitting}
+              />
+            </div>
+          </div>
+
+          {convertError ? (
+            <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {convertError}
+            </p>
+          ) : null}
+        </form>
+      </ResponsiveModal>
     </Shell>
+  );
+}
+
+function TaskIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-4 w-4"
+      aria-hidden
+    >
+      <path d="M5.5 3.5h9A1.5 1.5 0 0 1 16 5v10a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 4 15V5a1.5 1.5 0 0 1 1.5-1.5Z" />
+      <path d="m7 10 2 2 4-4" />
+    </svg>
   );
 }
 
