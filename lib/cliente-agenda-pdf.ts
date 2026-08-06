@@ -16,8 +16,24 @@ import {
   normalizeTastingTipoCita,
 } from "@/lib/tastings";
 
+console.log("[cliente-agenda-pdf] module loaded", {
+  jsPDFType: typeof jsPDF,
+  jsPDFName: jsPDF?.name ?? "(no name)",
+});
+
 const CELESTIA_EMAIL = "celestiaandevents@gmail.com";
 const CELESTIA_PHONE = "+57 319 553 8654";
+
+function logAgendaError(step: string, error: unknown) {
+  console.error(`[cliente-agenda-pdf] ERROR at "${step}"`, error);
+  if (error instanceof Error) {
+    console.error("[cliente-agenda-pdf] error.message:", error.message);
+    console.error("[cliente-agenda-pdf] error.stack:", error.stack);
+    console.error("[cliente-agenda-pdf] error.name:", error.name);
+  } else {
+    console.error("[cliente-agenda-pdf] non-Error value:", error);
+  }
+}
 
 const COLORS = {
   canvas: [247, 244, 239] as [number, number, number],
@@ -81,19 +97,47 @@ export function buildClienteAgendaPdfFilename(
 }
 
 async function loadLogoDataUrl(): Promise<string | null> {
+  console.log("[cliente-agenda-pdf] loadLogoDataUrl: fetching /logo.png …");
   try {
     const response = await fetch("/logo.png");
-    if (!response.ok) return null;
+    console.log("[cliente-agenda-pdf] loadLogoDataUrl: response", {
+      ok: response.ok,
+      status: response.status,
+      statusText: response.statusText,
+      contentType: response.headers.get("content-type"),
+      url: response.url,
+    });
+    if (!response.ok) {
+      console.warn(
+        "[cliente-agenda-pdf] loadLogoDataUrl: non-OK response, skipping logo",
+      );
+      return null;
+    }
     const blob = await response.blob();
+    console.log("[cliente-agenda-pdf] loadLogoDataUrl: blob", {
+      size: blob.size,
+      type: blob.type,
+    });
     return await new Promise<string | null>((resolve) => {
       const reader = new FileReader();
       reader.onloadend = () => {
-        resolve(typeof reader.result === "string" ? reader.result : null);
+        const result =
+          typeof reader.result === "string" ? reader.result : null;
+        console.log("[cliente-agenda-pdf] loadLogoDataUrl: FileReader done", {
+          hasResult: Boolean(result),
+          resultLength: result?.length ?? 0,
+          prefix: result?.slice(0, 40) ?? null,
+        });
+        resolve(result);
       };
-      reader.onerror = () => resolve(null);
+      reader.onerror = () => {
+        logAgendaError("loadLogoDataUrl FileReader", reader.error);
+        resolve(null);
+      };
       reader.readAsDataURL(blob);
     });
-  } catch {
+  } catch (error) {
+    logAgendaError("loadLogoDataUrl fetch/read", error);
     return null;
   }
 }
@@ -196,159 +240,262 @@ function drawTastingCard(
   y: number,
   locale: ClienteLocale,
   copy: ClienteAgendaPdfCopy,
+  index: number,
 ): number {
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const contentWidth = pageWidth - MARGIN_X * 2;
-  const tipo = normalizeTastingTipoCita(tasting.tipo_cita);
-  const tipoLabel = copy.tipoLabels[tipo];
-  const provider = getTastingDisplayTitle(tasting, {
-    noProviderLabel: copy.noProvider,
+  console.log(`[cliente-agenda-pdf] drawTastingCard #${index} start`, {
+    id: tasting.id,
+    tipo_cita: tasting.tipo_cita,
+    nombre_proveedor: tasting.nombre_proveedor,
+    fecha: tasting.fecha,
+    hora_inicio: tasting.hora_inicio,
+    hora_fin: tasting.hora_fin,
+    direccion: tasting.direccion,
+    google_meet_link: tasting.google_meet_link,
+    costo: tasting.costo,
+    hasNotas: Boolean(tasting.notas?.trim()),
+    y,
   });
-  const fecha = formatClienteShortDate(tasting.fecha, locale);
-  const horario = formatClienteTastingTimeRange(
-    tasting.hora_inicio,
-    tasting.hora_fin,
-  );
 
-  const cardHeight = estimateCardHeight(doc, tasting, copy, contentWidth - 8);
-  y = ensureSpace(doc, y, cardHeight);
+  try {
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const contentWidth = pageWidth - MARGIN_X * 2;
+    const tipo = normalizeTastingTipoCita(tasting.tipo_cita);
+    const tipoLabel = copy.tipoLabels[tipo];
+    const provider = getTastingDisplayTitle(tasting, {
+      noProviderLabel: copy.noProvider,
+    });
+    const fecha = formatClienteShortDate(tasting.fecha, locale);
+    const horario = formatClienteTastingTimeRange(
+      tasting.hora_inicio,
+      tasting.hora_fin,
+    );
 
-  const cardTop = y;
-  let cursorY = y + 8;
+    console.log(`[cliente-agenda-pdf] drawTastingCard #${index} normalized`, {
+      tipo,
+      tipoLabel,
+      provider,
+      fecha,
+      horario,
+    });
 
-  doc.setFillColor(...COLORS.white);
-  doc.setDrawColor(...COLORS.border);
-  doc.setLineWidth(0.3);
+    const cardHeight = estimateCardHeight(doc, tasting, copy, contentWidth - 8);
+    y = ensureSpace(doc, y, cardHeight);
 
-  drawTipoBadge(doc, MARGIN_X + 4, cursorY, tipoLabel, tipo);
+    const cardTop = y;
+    let cursorY = y + 8;
 
-  cursorY += 7;
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
-  doc.setTextColor(...COLORS.ink);
-  doc.text(provider, MARGIN_X + 4, cursorY);
+    doc.setFillColor(...COLORS.white);
+    doc.setDrawColor(...COLORS.border);
+    doc.setLineWidth(0.3);
 
-  cursorY += 6;
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(...COLORS.accent);
-  doc.text(`${fecha}  ·  ${horario}`, MARGIN_X + 4, cursorY);
+    drawTipoBadge(doc, MARGIN_X + 4, cursorY, tipoLabel, tipo);
 
-  cursorY += 3;
+    cursorY += 7;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.setTextColor(...COLORS.ink);
+    doc.text(provider, MARGIN_X + 4, cursorY);
 
-  const detail = (
-    label: string,
-    value: string,
-    options?: { link?: boolean },
-  ) => {
-    const text = `${label}: ${value}`;
-    const lines = doc.splitTextToSize(text, contentWidth - 8) as string[];
-    cursorY += 5;
+    cursorY += 6;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
-    doc.setTextColor(...(options?.link ? COLORS.accent : COLORS.ink));
-    doc.text(lines, MARGIN_X + 4, cursorY);
-    cursorY += (lines.length - 1) * 4.2;
-  };
+    doc.setTextColor(...COLORS.accent);
+    doc.text(`${fecha}  ·  ${horario}`, MARGIN_X + 4, cursorY);
 
-  const direccion = tasting.direccion?.trim();
-  if (direccion) {
-    detail(copy.address, direccion, { link: true });
+    cursorY += 3;
+
+    const detail = (
+      label: string,
+      value: string,
+      options?: { link?: boolean },
+    ) => {
+      const text = `${label}: ${value}`;
+      const lines = doc.splitTextToSize(text, contentWidth - 8) as string[];
+      cursorY += 5;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(...(options?.link ? COLORS.accent : COLORS.ink));
+      doc.text(lines, MARGIN_X + 4, cursorY);
+      cursorY += (lines.length - 1) * 4.2;
+    };
+
+    const direccion = tasting.direccion?.trim();
+    if (direccion) {
+      detail(copy.address, direccion, { link: true });
+    }
+
+    const meet = tasting.google_meet_link?.trim();
+    if (meet) {
+      detail(copy.meetLink, meet, { link: true });
+    }
+
+    const notas = tasting.notas?.trim();
+    if (notas) {
+      detail(copy.notes, notas);
+    }
+
+    const costo = Number(tasting.costo ?? 0);
+    if (Number.isFinite(costo) && costo > 0) {
+      detail(copy.cost, formatCurrency(costo));
+    }
+
+    const finalBottom = cursorY + 5;
+    doc.roundedRect(
+      MARGIN_X,
+      cardTop,
+      contentWidth,
+      finalBottom - cardTop,
+      2,
+      2,
+      "S",
+    );
+
+    console.log(`[cliente-agenda-pdf] drawTastingCard #${index} done`, {
+      nextY: finalBottom + 4,
+    });
+    return finalBottom + 4;
+  } catch (error) {
+    logAgendaError(`drawTastingCard #${index} id=${tasting.id}`, error);
+    throw error;
   }
-
-  const meet = tasting.google_meet_link?.trim();
-  if (meet) {
-    detail(copy.meetLink, meet, { link: true });
-  }
-
-  const notas = tasting.notas?.trim();
-  if (notas) {
-    detail(copy.notes, notas);
-  }
-
-  const costo = Number(tasting.costo ?? 0);
-  if (Number.isFinite(costo) && costo > 0) {
-    detail(copy.cost, formatCurrency(costo));
-  }
-
-  const finalBottom = cursorY + 5;
-  doc.roundedRect(
-    MARGIN_X,
-    cardTop,
-    contentWidth,
-    finalBottom - cardTop,
-    2,
-    2,
-    "S",
-  );
-
-  return finalBottom + 4;
 }
 
 export async function generateClienteAgendaPdf(
   input: ClienteAgendaPdfInput,
 ): Promise<jsPDF> {
-  const { nombrePareja, fechaBoda, tastings, locale, copy } = input;
-  const doc = new jsPDF({ unit: "mm", format: "a4" });
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const sorted = sortTastingsBySchedule(tastings);
+  console.log("[cliente-agenda-pdf] generateClienteAgendaPdf START", {
+    jsPDFType: typeof jsPDF,
+    nombrePareja: input.nombrePareja,
+    fechaBoda: input.fechaBoda,
+    locale: input.locale,
+    tastingsCount: input.tastings?.length ?? 0,
+    copyKeys: input.copy ? Object.keys(input.copy) : null,
+    copy,
+  });
 
-  doc.setFillColor(...COLORS.canvas);
-  doc.rect(0, 0, pageWidth, 52, "F");
+  try {
+    if (typeof jsPDF !== "function") {
+      throw new Error(
+        `jsPDF import invalid: expected function, got ${typeof jsPDF}`,
+      );
+    }
 
-  const logoDataUrl = await loadLogoDataUrl();
-  if (logoDataUrl) {
-    const logoWidth = 36;
-    const logoHeight = 18;
-    doc.addImage(
-      logoDataUrl,
-      "PNG",
-      (pageWidth - logoWidth) / 2,
-      10,
-      logoWidth,
-      logoHeight,
-    );
-  } else {
+    const { nombrePareja, fechaBoda, tastings, locale, copy } = input;
+    console.log("[cliente-agenda-pdf] creating jsPDF document …");
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+    console.log("[cliente-agenda-pdf] jsPDF document created", {
+      pageWidth: doc.internal.pageSize.getWidth(),
+      pageHeight: doc.internal.pageSize.getHeight(),
+    });
+
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const sorted = sortTastingsBySchedule(tastings);
+    console.log("[cliente-agenda-pdf] tastings sorted", {
+      count: sorted.length,
+      ids: sorted.map((t) => t.id),
+    });
+
+    doc.setFillColor(...COLORS.canvas);
+    doc.rect(0, 0, pageWidth, 52, "F");
+
+    console.log("[cliente-agenda-pdf] BEFORE loadLogoDataUrl");
+    const logoDataUrl = await loadLogoDataUrl();
+    console.log("[cliente-agenda-pdf] AFTER loadLogoDataUrl", {
+      hasLogo: Boolean(logoDataUrl),
+      logoLength: logoDataUrl?.length ?? 0,
+    });
+
+    if (logoDataUrl) {
+      try {
+        const logoWidth = 36;
+        const logoHeight = 18;
+        console.log("[cliente-agenda-pdf] adding logo image to PDF …");
+        doc.addImage(
+          logoDataUrl,
+          "PNG",
+          (pageWidth - logoWidth) / 2,
+          10,
+          logoWidth,
+          logoHeight,
+        );
+        console.log("[cliente-agenda-pdf] logo image added OK");
+      } catch (logoError) {
+        logAgendaError("doc.addImage(logo)", logoError);
+        console.warn(
+          "[cliente-agenda-pdf] falling back to text header after logo failure",
+        );
+        doc.setFont("times", "bold");
+        doc.setFontSize(18);
+        doc.setTextColor(...COLORS.accent);
+        doc.text("Celestia Events", pageWidth / 2, 22, { align: "center" });
+      }
+    } else {
+      console.log("[cliente-agenda-pdf] no logo, using text header");
+      doc.setFont("times", "bold");
+      doc.setFontSize(18);
+      doc.setTextColor(...COLORS.accent);
+      doc.text("Celestia Events", pageWidth / 2, 22, { align: "center" });
+    }
+
     doc.setFont("times", "bold");
-    doc.setFontSize(18);
-    doc.setTextColor(...COLORS.accent);
-    doc.text("Celestia Events", pageWidth / 2, 22, { align: "center" });
+    doc.setFontSize(20);
+    doc.setTextColor(...COLORS.ink);
+    doc.text(copy.title, pageWidth / 2, 38, { align: "center" });
+
+    const subtitulo = [
+      nombrePareja,
+      formatClienteWeddingDate(fechaBoda, locale),
+    ]
+      .filter(Boolean)
+      .join("  ·  ");
+
+    console.log("[cliente-agenda-pdf] header subtitle", { subtitulo });
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(...COLORS.muted);
+    doc.text(subtitulo, pageWidth / 2, 46, { align: "center" });
+
+    let y = 60;
+    for (let index = 0; index < sorted.length; index += 1) {
+      const tasting = sorted[index];
+      console.log(
+        `[cliente-agenda-pdf] processing tasting ${index + 1}/${sorted.length}`,
+        { id: tasting.id, y },
+      );
+      y = drawTastingCard(doc, tasting, y, locale, copy, index);
+    }
+
+    const totalPages = doc.getNumberOfPages();
+    console.log("[cliente-agenda-pdf] drawing footers", { totalPages });
+    for (let page = 1; page <= totalPages; page += 1) {
+      doc.setPage(page);
+      drawFooter(doc);
+    }
+
+    console.log("[cliente-agenda-pdf] generateClienteAgendaPdf DONE");
+    return doc;
+  } catch (error) {
+    logAgendaError("generateClienteAgendaPdf", error);
+    throw error;
   }
-
-  doc.setFont("times", "bold");
-  doc.setFontSize(20);
-  doc.setTextColor(...COLORS.ink);
-  doc.text(copy.title, pageWidth / 2, 38, { align: "center" });
-
-  const subtitulo = [
-    nombrePareja,
-    formatClienteWeddingDate(fechaBoda, locale),
-  ]
-    .filter(Boolean)
-    .join("  ·  ");
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-  doc.setTextColor(...COLORS.muted);
-  doc.text(subtitulo, pageWidth / 2, 46, { align: "center" });
-
-  let y = 60;
-  for (const tasting of sorted) {
-    y = drawTastingCard(doc, tasting, y, locale, copy);
-  }
-
-  const totalPages = doc.getNumberOfPages();
-  for (let page = 1; page <= totalPages; page += 1) {
-    doc.setPage(page);
-    drawFooter(doc);
-  }
-
-  return doc;
 }
 
 export async function downloadClienteAgendaPdf(
   input: ClienteAgendaPdfInput,
 ): Promise<void> {
-  const doc = await generateClienteAgendaPdf(input);
-  doc.save(buildClienteAgendaPdfFilename(input.nombrePareja, input.locale));
+  console.log("[cliente-agenda-pdf] downloadClienteAgendaPdf START");
+  try {
+    const doc = await generateClienteAgendaPdf(input);
+    const filename = buildClienteAgendaPdfFilename(
+      input.nombrePareja,
+      input.locale,
+    );
+    console.log("[cliente-agenda-pdf] saving PDF", { filename });
+    doc.save(filename);
+    console.log("[cliente-agenda-pdf] downloadClienteAgendaPdf DONE");
+  } catch (error) {
+    logAgendaError("downloadClienteAgendaPdf", error);
+    throw error;
+  }
 }

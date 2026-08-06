@@ -47,6 +47,12 @@ export function ClienteTastingsSection({
     setDownloadError(null);
 
     try {
+      console.log("[ClienteTastingsSection] download click", {
+        nombrePareja,
+        fechaBoda,
+        locale,
+        tastingsCount: tastings.length,
+      });
       await downloadClienteAgendaPdf({
         nombrePareja,
         fechaBoda,
@@ -62,7 +68,15 @@ export function ClienteTastingsSection({
           tipoLabels: t.tastingsTipoLabels,
         },
       });
-    } catch {
+    } catch (error) {
+      console.error(
+        "[ClienteTastingsSection] downloadClienteAgendaPdf failed",
+        error,
+      );
+      if (error instanceof Error) {
+        console.error("[ClienteTastingsSection] message:", error.message);
+        console.error("[ClienteTastingsSection] stack:", error.stack);
+      }
       setDownloadError(t.downloadScheduleError);
     } finally {
       setDownloading(false);
