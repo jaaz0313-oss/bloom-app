@@ -197,17 +197,27 @@ export default async function ClienteBodaPage({ params }: PageProps) {
 
       <main className="mx-auto w-full max-w-3xl flex-1 space-y-12 px-5 py-12 sm:space-y-14 sm:px-8 sm:py-16">
         <ClienteBodaEstado estado={estadoBoda} />
-        <ClienteCronograma resumen={cronogramaResumen} />
-        <ClienteProveedoresEvaluacionSection proveedores={enEvaluacion} />
+        <ClienteDetallesCelebracionSection
+          bodaId={id}
+          initialDetalles={detallesCelebracion}
+          telefonoNovia={bodaRow.telefono_novia}
+        />
         <ClienteTastingsSection
           tastings={tastings}
           nombrePareja={bodaRow.nombre_pareja}
           fechaBoda={bodaRow.fecha_boda}
         />
-        <ClienteDetallesCelebracionSection
-          bodaId={id}
-          initialDetalles={detallesCelebracion}
-          telefonoNovia={bodaRow.telefono_novia}
+        <ClienteCronograma resumen={cronogramaResumen} />
+        <ClienteProximosPagos pagosPendientes={pagosPendientes} />
+        <ClienteProveedoresSection
+          contratados={contratados}
+          pagosByProveedor={pagosByProveedor}
+        />
+        <ClienteProveedoresEvaluacionSection proveedores={enEvaluacion} />
+        <ClientePaymentOverview
+          totalContratado={totalContratado}
+          totalPagado={totalPagado}
+          saldoPendiente={saldoPendiente}
         />
         <ClienteProveedoresSugeridosSection
           bodaId={id}
@@ -216,16 +226,6 @@ export default async function ClienteBodaPage({ params }: PageProps) {
         {mostrarSeatingPlan && (
           <ClienteSeatingPlanSection link={seatingPlanLink} />
         )}
-        <ClientePaymentOverview
-          totalContratado={totalContratado}
-          totalPagado={totalPagado}
-          saldoPendiente={saldoPendiente}
-        />
-        <ClienteProximosPagos pagosPendientes={pagosPendientes} />
-        <ClienteProveedoresSection
-          contratados={contratados}
-          pagosByProveedor={pagosByProveedor}
-        />
       </main>
 
       <ClientePageFooter />
