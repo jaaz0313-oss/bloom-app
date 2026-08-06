@@ -379,6 +379,25 @@ export function BodaDetailSections({
         />
       </BodaAccordionSection>
 
+      <BodaAccordionSection
+        title="Citas"
+        defaultOpen={false}
+        hasContent={filterCitasFuturas(citas).length > 0}
+      >
+        <CitasSection
+          embedded
+          futureOnly
+          initialCitas={citas}
+          bodas={bodasLookup}
+          leads={leadsLookup}
+          equipo={equipoCitas}
+          role={role}
+          currentUserId={currentUserId}
+          currentUserNombre={plannerName}
+          defaultBodaId={bodaId}
+        />
+      </BodaAccordionSection>
+
       {canViewTastings(role) && (
         <BodaAccordionSection
           title="Semana de Tastings"
@@ -396,23 +415,6 @@ export function BodaDetailSections({
             role={role}
             currentUserId={currentUserId}
             currentUserNombre={plannerName}
-          />
-        </BodaAccordionSection>
-      )}
-
-      {canManageSugeridos && (
-        <BodaAccordionSection
-          title="Proveedores sugeridos"
-          defaultOpen={false}
-          hasContent={proveedoresSugeridos.length > 0}
-        >
-          <ProveedoresSugeridosSection
-            embedded
-            bodaId={bodaId}
-            bodaNombre={boda.nombre_pareja}
-            initialProveedores={proveedoresSugeridos}
-            role={role}
-            currentUserId={currentUserId}
           />
         </BodaAccordionSection>
       )}
@@ -445,36 +447,35 @@ export function BodaDetailSections({
         </BodaAccordionSection>
       )}
 
-      <BodaAccordionSection
-        title="Citas"
-        defaultOpen={false}
-        hasContent={filterCitasFuturas(citas).length > 0}
-      >
-        <CitasSection
-          embedded
-          futureOnly
-          initialCitas={citas}
-          bodas={bodasLookup}
-          leads={leadsLookup}
-          equipo={equipoCitas}
-          role={role}
-          currentUserId={currentUserId}
-          currentUserNombre={plannerName}
-          defaultBodaId={bodaId}
-        />
-      </BodaAccordionSection>
+      {canManageSugeridos && (
+        <BodaAccordionSection
+          title="Proveedores sugeridos"
+          defaultOpen={false}
+          hasContent={proveedoresSugeridos.length > 0}
+        >
+          <ProveedoresSugeridosSection
+            embedded
+            bodaId={bodaId}
+            bodaNombre={boda.nombre_pareja}
+            initialProveedores={proveedoresSugeridos}
+            role={role}
+            currentUserId={currentUserId}
+          />
+        </BodaAccordionSection>
+      )}
 
       <BodaAccordionSection
-        title="Proyección de pagos"
-        defaultOpen
-        hasContent={hasPaymentContent}
+        title="Cronograma de contratación"
+        defaultOpen={false}
+        hasContent={liveHasCronograma}
       >
-        <PaymentProjection
+        <CronogramaContratacion
           embedded
-          totalContratado={projection.totalContratado}
-          totalPagado={projection.totalPagado}
-          saldoPendiente={projection.saldoPendiente}
-          depositos={depositos}
+          bodaId={bodaId}
+          fechaBoda={boda.fecha_boda}
+          canManage={hasPermission(role, "cronograma.manage")}
+          canActualizarPlantilla={canManageBodaEstado(role)}
+          providers={liveProviders}
         />
       </BodaAccordionSection>
 
@@ -526,17 +527,16 @@ export function BodaDetailSections({
       </BodaAccordionSection>
 
       <BodaAccordionSection
-        title="Cronograma de contratación"
-        defaultOpen={false}
-        hasContent={liveHasCronograma}
+        title="Proyección de pagos"
+        defaultOpen
+        hasContent={hasPaymentContent}
       >
-        <CronogramaContratacion
+        <PaymentProjection
           embedded
-          bodaId={bodaId}
-          fechaBoda={boda.fecha_boda}
-          canManage={hasPermission(role, "cronograma.manage")}
-          canActualizarPlantilla={canManageBodaEstado(role)}
-          providers={liveProviders}
+          totalContratado={projection.totalContratado}
+          totalPagado={projection.totalPagado}
+          saldoPendiente={projection.saldoPendiente}
+          depositos={depositos}
         />
       </BodaAccordionSection>
     </div>
