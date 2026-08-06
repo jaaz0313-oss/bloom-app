@@ -11,6 +11,7 @@ import { ClientePageFooter } from "@/app/components/cliente/ClientePageFooter";
 import { ClientePageHeader } from "@/app/components/cliente/ClientePageHeader";
 import { ClienteHelpGuide } from "@/app/components/cliente/ClienteHelpGuide";
 import { ClientePaymentOverview } from "@/app/components/cliente/ClientePaymentOverview";
+import { ClienteProveedoresEvaluacionSection } from "@/app/components/cliente/ClienteProveedoresEvaluacionSection";
 import { ClienteProveedoresSection } from "@/app/components/cliente/ClienteProveedoresSection";
 import { ClienteProximosPagos } from "@/app/components/cliente/ClienteProximosPagos";
 import { ClienteSeatingPlanSection } from "@/app/components/cliente/ClienteSeatingPlanSection";
@@ -80,11 +81,11 @@ export default async function ClienteBodaPage({ params }: PageProps) {
 
   const bodaRow = boda as BodaRow;
 
-  const { data: proveedoresContratadosData } = await supabase
+  const { data: proveedoresData } = await supabase
     .from("proveedores")
     .select("*")
     .eq("boda_id", id)
-    .eq("estado", "contratado")
+    .in("estado", ["contratado", "en_negociacion"])
     .order("categoria", { ascending: true });
 
   const { data: proveedoresCronogramaData } = await supabase
@@ -110,7 +111,13 @@ export default async function ClienteBodaPage({ params }: PageProps) {
     .eq("boda_id", id)
     .maybeSingle();
 
-  const contratados = (proveedoresContratadosData ?? []) as ProveedorRow[];
+  const proveedoresVisibles = (proveedoresData ?? []) as ProveedorRow[];
+  const contratados = proveedoresVisibles.filter(
+    (provider) => provider.estado === "contratado",
+  );
+  const enEvaluacion = proveedoresVisibles.filter(
+    (provider) => provider.estado === "en_negociacion",
+  );
   const proveedoresCronograma = (proveedoresCronogramaData ??
     []) as ClienteCronogramaProveedor[];
   const cronogramaItems = (cronogramaData ?? []) as CronogramaItemRow[];
@@ -191,6 +198,7 @@ export default async function ClienteBodaPage({ params }: PageProps) {
       <main className="mx-auto w-full max-w-3xl flex-1 space-y-12 px-5 py-12 sm:space-y-14 sm:px-8 sm:py-16">
         <ClienteBodaEstado estado={estadoBoda} />
         <ClienteCronograma resumen={cronogramaResumen} />
+        <ClienteProveedoresEvaluacionSection proveedores={enEvaluacion} />
         <ClienteTastingsSection
           tastings={tastings}
           nombrePareja={bodaRow.nombre_pareja}

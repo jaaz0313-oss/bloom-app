@@ -332,6 +332,10 @@ export type ClienteUiCopy = {
   providersTitle: string;
   providersSubtitle: (count: number) => string;
   providersEmpty: string;
+  providersEvaluationTitle: string;
+  providersEvaluationSubtitle: (count: number) => string;
+  providersEvaluationBadge: string;
+  providersEvaluationQuotedValue: string;
   noCostBadge: string;
   sharedPriceWith: (categories: string) => string;
   contractedValue: string;
@@ -472,6 +476,13 @@ const UI_ES: ClienteUiCopy = {
       ? "1 proveedor confirmado para su celebración"
       : `${count} proveedores confirmados para su celebración`,
   providersEmpty: "Aún no hay proveedores contratados para mostrar.",
+  providersEvaluationTitle: "En evaluación",
+  providersEvaluationSubtitle: (count) =>
+    count === 1
+      ? "1 proveedor en evaluación"
+      : `${count} proveedores en evaluación`,
+  providersEvaluationBadge: "En evaluación",
+  providersEvaluationQuotedValue: "Valor cotizado",
   noCostBadge: "Sin costo",
   sharedPriceWith: (categories) => `Precio compartido con ${categories}`,
   contractedValue: "Valor contratado",
@@ -643,6 +654,13 @@ const UI_EN: ClienteUiCopy = {
       ? "1 vendor confirmed for your celebration"
       : `${count} vendors confirmed for your celebration`,
   providersEmpty: "No booked vendors to show yet.",
+  providersEvaluationTitle: "Under evaluation",
+  providersEvaluationSubtitle: (count) =>
+    count === 1
+      ? "1 vendor under evaluation"
+      : `${count} vendors under evaluation`,
+  providersEvaluationBadge: "Under evaluation",
+  providersEvaluationQuotedValue: "Quoted amount",
   noCostBadge: "No cost",
   sharedPriceWith: (categories) => `Shared price with ${categories}`,
   contractedValue: "Contracted amount",
