@@ -1,8 +1,14 @@
 "use client";
 
+import { useMemo } from "react";
 import { ClienteAccordionSection } from "@/app/components/cliente/ClienteAccordionSection";
 import { useClienteLocale } from "@/app/components/cliente/ClienteLocaleProvider";
-import type { ProveedorRow } from "@/app/data/providers";
+import {
+  getProveedorGrupoPrimaryId,
+  isProveedorGrupoPrimario,
+  sortProveedoresContiguosPorGrupo,
+  type ProveedorRow,
+} from "@/app/data/providers";
 import { getClienteCronogramaCategoriaLabel } from "@/lib/cliente-i18n";
 import { formatCurrency } from "@/lib/format";
 
@@ -15,22 +21,74 @@ export function ClienteProveedoresEvaluacionSection({
 }: ClienteProveedoresEvaluacionSectionProps) {
   const { locale, t } = useClienteLocale();
 
-  if (proveedores.length === 0) {
+  const proveedoresOrdenados = useMemo(
+    () => sortProveedoresContiguosPorGrupo(proveedores),
+    [proveedores],
+  );
+
+  if (proveedoresOrdenados.length === 0) {
     return null;
   }
 
   return (
     <ClienteAccordionSection
       title={t.providersEvaluationTitle}
-      summary={t.providersEvaluationSubtitle(proveedores.length)}
+      summary={t.providersEvaluationSubtitle(proveedoresOrdenados.length)}
       defaultOpen
     >
       <ul className="space-y-4">
-        {proveedores.map((provider) => {
+        {proveedoresOrdenados.map((provider) => {
+          const esPrimarioGrupo = isProveedorGrupoPrimario(
+            proveedoresOrdenados,
+            provider,
+          );
+          const esSecundarioGrupo =
+            !esPrimarioGrupo && Boolean(provider.grupo_id);
           const categoriaLabel = getClienteCronogramaCategoriaLabel(
             provider.categoria,
             locale,
           );
+
+          if (esSecundarioGrupo) {
+            const primaryId = provider.grupo_id
+              ? getProveedorGrupoPrimaryId(
+                  proveedoresOrdenados,
+                  provider.grupo_id,
+                )
+              : provider.id;
+            const primaryProvider =
+              primaryId != null
+                ? (proveedoresOrdenados.find((p) => p.id === primaryId) ??
+                  provider)
+                : provider;
+            const incluidoEnLabel = t.includedInProvider(
+              primaryProvider.nombre.trim().toLowerCase() ===
+                provider.nombre.trim().toLowerCase()
+                ? `${primaryProvider.nombre} (${getClienteCronogramaCategoriaLabel(primaryProvider.categoria, locale)})`
+                : primaryProvider.nombre,
+            );
+
+            return (
+              <li
+                key={provider.id}
+                className="rounded-xl border border-bloom-border/80 bg-bloom-canvas/40 px-5 py-4 sm:px-6"
+              >
+                <p className="font-display text-xl text-bloom-ink">
+                  {provider.nombre}
+                </p>
+                <p className="mt-0.5 text-sm text-bloom-muted">
+                  {categoriaLabel}
+                </p>
+                <p
+                  className="mt-1 truncate text-xs text-bloom-muted"
+                  title={incluidoEnLabel}
+                >
+                  {incluidoEnLabel}
+                </p>
+              </li>
+            );
+          }
+
           const descripcion = provider.descripcion_servicio?.trim();
           const montoCotizado = Number(provider.monto_cotizado ?? 0);
 
