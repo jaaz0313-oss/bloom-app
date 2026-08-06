@@ -169,6 +169,7 @@ export function TastingsSection({
   const [form, setForm] = useState<FormState>(emptyForm);
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [markingPaidId, setMarkingPaidId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [scheduleWarnings, setScheduleWarnings] = useState<TastingScheduleWarning[]>(
     [],
@@ -437,6 +438,60 @@ export function TastingsSection({
       router.refresh();
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleMarkPruebaPagada(tasting: TastingRow) {
+    if (!canManage || !supabase) return;
+    if ((tasting.costo ?? 0) <= 0 || tasting.prueba_pagada) return;
+
+    setMarkingPaidId(tasting.id);
+    setError(null);
+
+    try {
+      const { data, error: updateError } = await supabase
+        .from("tastings")
+        .update({
+          prueba_pagada: true,
+          costo_pagado: true,
+        })
+        .eq("id", tasting.id)
+        .select("*")
+        .single();
+
+      if (updateError) {
+        setError(updateError.message);
+        return;
+      }
+
+      const updated = normalizeTastingRow(data as TastingRow);
+      setTastings((current) =>
+        sortTastingsBySchedule(
+          current.map((item) => (item.id === updated.id ? updated : item)),
+        ),
+      );
+
+      if (editingId === tasting.id) {
+        setForm((current) => ({ ...current, pruebaPagada: true }));
+      }
+
+      await logAuditoria({
+        accion: AUDITORIA_ACCIONES.TASTING_EDITADO,
+        entidad: "tasting",
+        entidadId: updated.id,
+        bodaNombre,
+        detalle: `Prueba marcada como pagada · ${getTastingDisplayTitle(updated)} · ${formatShortDateStable(updated.fecha)} ${formatTastingSchedule(updated)}`,
+      });
+
+      router.refresh();
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo marcar la prueba como pagada.",
+      );
+    } finally {
+      setMarkingPaidId(null);
     }
   }
 
@@ -959,8 +1014,27 @@ export function TastingsSection({
                           ✅ Prueba pagada
                         </span>
                       ) : (
-                        <span className="inline-flex rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-800">
-                          💰 Pago pendiente
+                        <span className="inline-flex flex-wrap items-center gap-2">
+                          <span className="inline-flex rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-medium text-orange-800">
+                            💰 Pago pendiente
+                          </span>
+                          {canManage && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                void handleMarkPruebaPagada(tasting)
+                              }
+                              disabled={
+                                markingPaidId === tasting.id ||
+                                deletingId === tasting.id
+                              }
+                              className="inline-flex items-center rounded-full border border-orange-300 bg-orange-50 px-2.5 py-0.5 text-xs font-medium text-orange-900 transition-colors hover:bg-orange-100 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {markingPaidId === tasting.id
+                                ? "Guardando…"
+                                : "Marcar como pagada"}
+                            </button>
+                          )}
                         </span>
                       ))}
                   </div>
