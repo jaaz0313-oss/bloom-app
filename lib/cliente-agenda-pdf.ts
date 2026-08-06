@@ -370,7 +370,7 @@ export async function generateClienteAgendaPdf(
     locale: input.locale,
     tastingsCount: input.tastings?.length ?? 0,
     copyKeys: input.copy ? Object.keys(input.copy) : null,
-    copy,
+    copy: input.copy,
   });
 
   try {
