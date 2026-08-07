@@ -521,25 +521,12 @@ export function LeadsBoard({
       return;
     }
 
-    const fechaTentativa = lead.fecha_tentativa?.trim() || "";
-    const ciudad = lead.ciudad?.trim() || "";
-    if (!fechaTentativa || !ciudad) {
-      const missing: string[] = [];
-      if (!fechaTentativa) missing.push("fecha tentativa");
-      if (!ciudad) missing.push("ciudad");
-      const message = `No se puede convertir "${lead.nombre_pareja}": falta ${missing.join(" y ")}. Ábrelo en Editar, completa ${missing.join(" y ")} y vuelve a intentar.`;
-      console.warn("[convert] blocked: missing required fields", {
-        fecha_tentativa: lead.fecha_tentativa,
-        ciudad: lead.ciudad,
-        missing,
-      });
-      showConvertError(lead.id, message);
-      return;
-    }
+    const fechaTentativa = lead.fecha_tentativa?.trim() || null;
+    const ciudad = lead.ciudad?.trim() || null;
 
     setSubmitting(true);
     try {
-      console.log("[convert] inserting boda…");
+      console.log("[convert] inserting boda…", { fechaTentativa, ciudad });
       const { data: nuevaBoda, error: insertError } = await supabase
         .from("bodas")
         .insert({
@@ -580,15 +567,25 @@ export function LeadsBoard({
         }
       }
 
-      const cronogramaResult = await insertarCronograma(
-        supabase,
-        nuevaBoda.id,
-        fechaTentativa,
-      );
-      if (!cronogramaResult.ok) {
-        console.error("[convert] cronograma failed:", cronogramaResult.message);
-        showConvertError(lead.id, cronogramaResult.message);
-        return;
+      // El cronograma necesita fecha de boda para calcular hitos; si no hay, se omite.
+      if (fechaTentativa) {
+        const cronogramaResult = await insertarCronograma(
+          supabase,
+          nuevaBoda.id,
+          fechaTentativa,
+        );
+        if (!cronogramaResult.ok) {
+          console.error(
+            "[convert] cronograma failed:",
+            cronogramaResult.message,
+          );
+          showConvertError(lead.id, cronogramaResult.message);
+          return;
+        }
+      } else {
+        console.log(
+          "[convert] skipping cronograma: no fecha_tentativa on lead",
+        );
       }
 
       const importResult = await importarCotizacionLeadABoda(
