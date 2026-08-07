@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   LEAD_SEGUIMIENTO_LABELS,
@@ -100,6 +100,10 @@ export function LeadsBoard({
   const [discardedOpen, setDiscardedOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [convertErrorLeadId, setConvertErrorLeadId] = useState<string | null>(
+    null,
+  );
+  const errorBannerRef = useRef<HTMLParagraphElement | null>(null);
   const [driveWarning, setDriveWarning] = useState<string | null>(null);
   const [form, setForm] = useState<LeadFormState>(emptyLeadForm);
   const [fechaConflicto, setFechaConflicto] = useState<string[]>([]);
@@ -477,24 +481,65 @@ export function LeadsBoard({
     }
   }
 
+  function showConvertError(leadId: string, message: string) {
+    setConvertErrorLeadId(leadId);
+    setError(message);
+    queueMicrotask(() => {
+      errorBannerRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
+    });
+  }
+
   async function handleConvert(lead: LeadRow) {
+    console.log(
+      "[convert] lead:",
+      lead.id,
+      lead.nombre_pareja,
+      lead.estado,
+    );
+    console.log(
+      "[convert] fecha_tentativa:",
+      lead.fecha_tentativa,
+      "ciudad:",
+      lead.ciudad,
+    );
+
     setError(null);
+    setConvertErrorLeadId(null);
     setDriveWarning(null);
+
     if (!hasPermission(role, "weddings.create")) {
-      setError("No tienes permisos para crear bodas.");
+      console.warn("[convert] blocked: missing weddings.create permission");
+      showConvertError(lead.id, "No tienes permisos para crear bodas.");
       return;
     }
-    if (!supabase) return setError("Supabase no está configurado.");
-    const fechaTentativa = lead.fecha_tentativa ?? "";
+    if (!supabase) {
+      console.warn("[convert] blocked: supabase not configured");
+      showConvertError(lead.id, "Supabase no está configurado.");
+      return;
+    }
+
+    const fechaTentativa = lead.fecha_tentativa?.trim() || "";
     const ciudad = lead.ciudad?.trim() || "";
     if (!fechaTentativa || !ciudad) {
-      return setError(
-        "Completa la fecha tentativa y la ciudad del lead antes de convertirlo a boda.",
-      );
+      const missing: string[] = [];
+      if (!fechaTentativa) missing.push("fecha tentativa");
+      if (!ciudad) missing.push("ciudad");
+      const message = `No se puede convertir "${lead.nombre_pareja}": falta ${missing.join(" y ")}. Ábrelo en Editar, completa ${missing.join(" y ")} y vuelve a intentar.`;
+      console.warn("[convert] blocked: missing required fields", {
+        fecha_tentativa: lead.fecha_tentativa,
+        ciudad: lead.ciudad,
+        missing,
+      });
+      showConvertError(lead.id, message);
+      return;
     }
 
     setSubmitting(true);
     try {
+      console.log("[convert] inserting boda…");
       const { data: nuevaBoda, error: insertError } = await supabase
         .from("bodas")
         .insert({
@@ -513,7 +558,12 @@ export function LeadsBoard({
         })
         .select("id")
         .single();
-      if (insertError) return setError(insertError.message);
+      if (insertError) {
+        console.error("[convert] insert boda failed:", insertError);
+        showConvertError(lead.id, insertError.message);
+        return;
+      }
+      console.log("[convert] boda created:", nuevaBoda.id);
 
       const leadNotas = lead.notas?.trim();
       if (leadNotas) {
@@ -523,7 +573,11 @@ export function LeadsBoard({
           created_by: currentUserId,
           created_by_nombre: currentUserNombre.trim() || null,
         });
-        if (notaError) return setError(notaError.message);
+        if (notaError) {
+          console.error("[convert] insert nota failed:", notaError);
+          showConvertError(lead.id, notaError.message);
+          return;
+        }
       }
 
       const cronogramaResult = await insertarCronograma(
@@ -531,14 +585,22 @@ export function LeadsBoard({
         nuevaBoda.id,
         fechaTentativa,
       );
-      if (!cronogramaResult.ok) return setError(cronogramaResult.message);
+      if (!cronogramaResult.ok) {
+        console.error("[convert] cronograma failed:", cronogramaResult.message);
+        showConvertError(lead.id, cronogramaResult.message);
+        return;
+      }
 
       const importResult = await importarCotizacionLeadABoda(
         supabase,
         lead.id,
         nuevaBoda.id,
       );
-      if (!importResult.ok) return setError(importResult.message);
+      if (!importResult.ok) {
+        console.error("[convert] import cotizacion failed:", importResult.message);
+        showConvertError(lead.id, importResult.message);
+        return;
+      }
 
       await logAuditoria({
         accion: AUDITORIA_ACCIONES.LEAD_CONVERTIDO,
@@ -550,6 +612,7 @@ export function LeadsBoard({
 
       const driveResult = await ensureBodaDriveFolder(nuevaBoda.id);
       if (!driveResult.ok) {
+        console.warn("[convert] drive folder warning:", driveResult);
         setDriveWarning(DRIVE_FOLDER_CREATE_WARNING);
       }
 
@@ -557,6 +620,9 @@ export function LeadsBoard({
       const items = sugerenciasBodasSimilaresToInsertItems(sugerencias);
 
       if (items.length > 0) {
+        console.log("[convert] showing IA suggestions prompt", {
+          count: items.length,
+        });
         setIaPrompt({
           bodaId: nuevaBoda.id,
           leadNombre: lead.nombre_pareja,
@@ -565,7 +631,16 @@ export function LeadsBoard({
         return;
       }
 
+      console.log("[convert] done, refreshing");
       router.refresh();
+    } catch (err) {
+      console.error("[convert] unexpected error:", err);
+      showConvertError(
+        lead.id,
+        err instanceof Error
+          ? err.message
+          : "No se pudo convertir el lead a boda.",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -644,7 +719,11 @@ export function LeadsBoard({
       </div>
 
       {error && (
-        <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+        <p
+          ref={errorBannerRef}
+          className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700"
+          role="alert"
+        >
           {error}
         </p>
       )}
@@ -760,7 +839,7 @@ export function LeadsBoard({
                   {hasPermission(role, "weddings.create") && (
                     <button
                       type="button"
-                      onClick={() => handleConvert(lead)}
+                      onClick={() => void handleConvert(lead)}
                       disabled={submitting}
                       className="rounded-full bg-bloom-accent px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-bloom-accent-hover disabled:opacity-60"
                     >
@@ -778,6 +857,14 @@ export function LeadsBoard({
                     </button>
                   ) : null}
                 </div>
+                {convertErrorLeadId === lead.id && error ? (
+                  <p
+                    className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700"
+                    role="alert"
+                  >
+                    {error}
+                  </p>
+                ) : null}
               </div>
               {(lead.cantidad_invitados !== null ||
                 lead.tipo_ceremonia ||
