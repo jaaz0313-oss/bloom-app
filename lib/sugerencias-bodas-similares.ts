@@ -6,19 +6,30 @@ import {
 } from "@/lib/proveedores-sugeridos-automaticos";
 import { getBaseCategoria, normalizeProviderCategory } from "@/lib/provider-categories";
 
-/** Tolerancia de similitud (±30%) para invitados y presupuesto. */
+/** Tolerancia de similitud estándar (±30%). */
 export const SIMILITUD_RATIO = 0.3;
 
-/** Mínimo de bodas que deben coincidir antes de relajar el criterio. */
+/** Tolerancia relajada de fallback (±50%). */
+export const SIMILITUD_RATIO_RELAJADO = 0.5;
+
+/** Máximo de opciones por categoría (menor a mayor precio). */
+export const MAX_PROVEEDORES_POR_CATEGORIA = 3;
+
+/** Mínimo de bodas que deben coincidir antes de bajar de prioridad. */
 export const MIN_BODAS_SIMILARES = 2;
 
 export type CriterioSimilitud =
   | "ciudad_ambos"
   | "ciudad_parcial"
-  | "ambos"
+  | "ciudad_invitados"
+  | "ciudad"
+  | "nacional"
+  | "relajado"
   | "invitados"
   | "presupuesto"
   | "ninguno";
+
+export type IndicadorPresupuesto = "verde" | "amarillo" | "rojo";
 
 export type SugerenciaBodaSimilarProveedor = {
   directorio_proveedor_id: string | null;
@@ -27,10 +38,16 @@ export type SugerenciaBodaSimilarProveedor = {
   precio_historico: number;
   boda_referencia: string;
   instagram: string | null;
+  /** Porcentaje del presupuesto del lead que representa este precio. */
+  porcentaje_presupuesto: number | null;
+  /** Semáforo vs promedio histórico; null si el lead no tiene presupuesto. */
+  indicador: IndicadorPresupuesto | null;
 };
 
 export type SugerenciaBodaSimilarCategoria = {
   categoria: string;
+  /** Promedio histórico de la categoría (para contexto del semáforo). */
+  promedio_categoria: number;
   proveedores: SugerenciaBodaSimilarProveedor[];
 };
 
@@ -38,6 +55,11 @@ export type SugerenciasBodasSimilaresResult = {
   categorias: SugerenciaBodaSimilarCategoria[];
   bodasSimilaresCount: number;
   criterio: CriterioSimilitud;
+  /** Suma del precio más bajo de cada categoría. */
+  estimadoTotal: number;
+  presupuestoLead: number | null;
+  /** Lead sin ciudad, invitados ni presupuesto para filtrar. */
+  sinCriterios: boolean;
 };
 
 type BodaCandidata = {
@@ -73,9 +95,12 @@ const EMPTY_RESULT: SugerenciasBodasSimilaresResult = {
   categorias: [],
   bodasSimilaresCount: 0,
   criterio: "ninguno",
+  estimadoTotal: 0,
+  presupuestoLead: null,
+  sinCriterios: false,
 };
 
-function withinRange(value: number, target: number, ratio = SIMILITUD_RATIO): boolean {
+function withinRange(value: number, target: number, ratio: number): boolean {
   if (target <= 0) return false;
   return value >= target * (1 - ratio) && value <= target * (1 + ratio);
 }
@@ -130,6 +155,22 @@ export function promedioPonderadoPorRecencia(
   return weightSum > 0 ? weightedSum / weightSum : 0;
 }
 
+/**
+ * Verde: precio ≤ promedio histórico de la categoría.
+ * Amarillo: supera el promedio hasta +20%.
+ * Rojo: supera el promedio en más de 20%.
+ */
+export function calcularIndicadorPresupuesto(
+  precio: number,
+  promedioCategoria: number,
+): IndicadorPresupuesto {
+  if (!(promedioCategoria > 0) || !(precio > 0)) return "verde";
+  const ratio = precio / promedioCategoria;
+  if (ratio <= 1) return "verde";
+  if (ratio <= 1.2) return "amarillo";
+  return "rojo";
+}
+
 type Evaluada = {
   boda: BodaCandidata;
   matchInvitados: boolean;
@@ -144,27 +185,119 @@ function evaluarCandidatas(
     presupuesto: number | null;
     ciudad: string | null;
   },
+  ratio: number,
 ): Evaluada[] {
   const tieneInvitados = criterios.invitados != null && criterios.invitados > 0;
-  const tienePresupuesto = criterios.presupuesto != null && criterios.presupuesto > 0;
+  const tienePresupuesto =
+    criterios.presupuesto != null && criterios.presupuesto > 0;
   const ciudadTarget = normalizeCiudad(criterios.ciudad);
 
   return candidatas.map((boda) => {
     const matchInvitados =
       tieneInvitados &&
       boda.num_invitados != null &&
-      withinRange(boda.num_invitados, criterios.invitados as number);
+      withinRange(boda.num_invitados, criterios.invitados as number, ratio);
     const matchPresupuesto =
       tienePresupuesto &&
-      withinRange(boda.presupuesto, criterios.presupuesto as number);
-    const matchCiudad = Boolean(ciudadTarget) && sameCiudad(boda.ciudad, criterios.ciudad);
+      withinRange(boda.presupuesto, criterios.presupuesto as number, ratio);
+    const matchCiudad =
+      Boolean(ciudadTarget) && sameCiudad(boda.ciudad, criterios.ciudad);
     return { boda, matchInvitados, matchPresupuesto, matchCiudad };
   });
 }
 
+type NivelSimilitud =
+  | "ciudad_ambos"
+  | "ciudad_parcial"
+  | "ciudad_invitados"
+  | "ciudad_solo"
+  | "nacional"
+  | "invitados"
+  | "presupuesto";
+
+function filtrarPorNivel(
+  evaluadas: Evaluada[],
+  nivel: NivelSimilitud,
+  opciones: {
+    tieneInvitados: boolean;
+    tienePresupuesto: boolean;
+    tieneCiudad: boolean;
+  },
+): BodaCandidata[] {
+  const { tieneInvitados, tienePresupuesto, tieneCiudad } = opciones;
+
+  switch (nivel) {
+    case "ciudad_ambos":
+      if (!tieneCiudad || !tieneInvitados || !tienePresupuesto) return [];
+      return evaluadas
+        .filter((e) => e.matchCiudad && e.matchInvitados && e.matchPresupuesto)
+        .map((e) => e.boda);
+    case "ciudad_parcial":
+      if (!tieneCiudad) return [];
+      return evaluadas
+        .filter(
+          (e) =>
+            e.matchCiudad &&
+            ((tieneInvitados && e.matchInvitados) ||
+              (tienePresupuesto && e.matchPresupuesto)),
+        )
+        .map((e) => e.boda);
+    case "ciudad_invitados":
+      if (!tieneCiudad || !tieneInvitados) return [];
+      return evaluadas
+        .filter((e) => e.matchCiudad && e.matchInvitados)
+        .map((e) => e.boda);
+    case "ciudad_solo":
+      if (!tieneCiudad) return [];
+      return evaluadas.filter((e) => e.matchCiudad).map((e) => e.boda);
+    case "nacional":
+      if (!tieneInvitados || !tienePresupuesto) return [];
+      return evaluadas
+        .filter((e) => e.matchInvitados && e.matchPresupuesto)
+        .map((e) => e.boda);
+    case "invitados":
+      if (!tieneInvitados) return [];
+      return evaluadas.filter((e) => e.matchInvitados).map((e) => e.boda);
+    case "presupuesto":
+      if (!tienePresupuesto) return [];
+      return evaluadas.filter((e) => e.matchPresupuesto).map((e) => e.boda);
+    default:
+      return [];
+  }
+}
+
+function primerMatchSuficiente(
+  evaluadas: Evaluada[],
+  intentos: Array<{ nivel: NivelSimilitud; criterio: CriterioSimilitud }>,
+  flags: {
+    tieneInvitados: boolean;
+    tienePresupuesto: boolean;
+    tieneCiudad: boolean;
+  },
+  options?: { aceptarUno?: boolean; forzarCriterio?: CriterioSimilitud },
+): { bodas: BodaCandidata[]; criterio: CriterioSimilitud } | null {
+  for (const intento of intentos) {
+    const bodas = filtrarPorNivel(evaluadas, intento.nivel, flags);
+    if (bodas.length >= MIN_BODAS_SIMILARES) {
+      return {
+        bodas,
+        criterio: options?.forzarCriterio ?? intento.criterio,
+      };
+    }
+    if (options?.aceptarUno && bodas.length > 0) {
+      return {
+        bodas,
+        criterio: options.forzarCriterio ?? intento.criterio,
+      };
+    }
+  }
+  return null;
+}
+
 /**
  * Determina qué bodas son similares al lead, priorizando misma ciudad y
- * relajando criterios si no hay suficientes matches.
+ * relajando criterios (±50%) si no hay suficientes matches.
+ * Sin presupuesto, usa solo ciudad e invitados.
  */
 export function seleccionarBodasSimilares(
   candidatas: BodaCandidata[],
@@ -175,86 +308,128 @@ export function seleccionarBodasSimilares(
   },
 ): { bodas: BodaCandidata[]; criterio: CriterioSimilitud } {
   const tieneInvitados = criterios.invitados != null && criterios.invitados > 0;
-  const tienePresupuesto = criterios.presupuesto != null && criterios.presupuesto > 0;
+  const tienePresupuesto =
+    criterios.presupuesto != null && criterios.presupuesto > 0;
   const tieneCiudad = Boolean(normalizeCiudad(criterios.ciudad ?? null));
+  const flags = { tieneInvitados, tienePresupuesto, tieneCiudad };
 
-  if (!tieneInvitados && !tienePresupuesto) {
+  if (!tieneInvitados && !tienePresupuesto && !tieneCiudad) {
     return { bodas: [], criterio: "ninguno" };
   }
 
-  const evaluadas = evaluarCandidatas(candidatas, {
+  const criteriosNorm = {
     invitados: criterios.invitados,
     presupuesto: criterios.presupuesto,
     ciudad: criterios.ciudad ?? null,
-  });
+  };
 
-  if (tieneCiudad) {
-    // Prioridad 1: misma ciudad + invitados + presupuesto (si ambos están).
-    if (tieneInvitados && tienePresupuesto) {
-      const ciudadAmbos = evaluadas
-        .filter((e) => e.matchCiudad && e.matchInvitados && e.matchPresupuesto)
-        .map((e) => e.boda);
+  const evaluadasEstrictas = evaluarCandidatas(
+    candidatas,
+    criteriosNorm,
+    SIMILITUD_RATIO,
+  );
+  const evaluadasRelajadas = evaluarCandidatas(
+    candidatas,
+    criteriosNorm,
+    SIMILITUD_RATIO_RELAJADO,
+  );
 
-      if (ciudadAmbos.length >= MIN_BODAS_SIMILARES) {
-        return { bodas: ciudadAmbos, criterio: "ciudad_ambos" };
-      }
-    }
+  // Sin presupuesto: solo ciudad + invitados (sin filtrar por presupuesto).
+  if (!tienePresupuesto) {
+    const sinPresupuesto: Array<{
+      nivel: NivelSimilitud;
+      criterio: CriterioSimilitud;
+    }> = [
+      { nivel: "ciudad_invitados", criterio: "ciudad_invitados" },
+      { nivel: "ciudad_solo", criterio: "ciudad" },
+      { nivel: "invitados", criterio: "invitados" },
+    ];
 
-    // Prioridad 2: misma ciudad + al menos uno de invitados/presupuesto.
-    const ciudadParcial = evaluadas
-      .filter(
-        (e) =>
-          e.matchCiudad &&
-          ((tieneInvitados && e.matchInvitados) ||
-            (tienePresupuesto && e.matchPresupuesto)),
-      )
-      .map((e) => e.boda);
+    const estricto = primerMatchSuficiente(
+      evaluadasEstrictas,
+      sinPresupuesto,
+      flags,
+    );
+    if (estricto) return estricto;
 
-    if (ciudadParcial.length >= MIN_BODAS_SIMILARES) {
-      return { bodas: ciudadParcial, criterio: "ciudad_parcial" };
-    }
+    const relajado = primerMatchSuficiente(
+      evaluadasRelajadas,
+      sinPresupuesto,
+      flags,
+      { aceptarUno: true, forzarCriterio: "relajado" },
+    );
+    if (relajado) return relajado;
+
+    return { bodas: [], criterio: "ninguno" };
   }
 
-  // Prioridad 3 (fallback nacional): si no hay suficientes bodas en la misma ciudad.
-  if (tieneInvitados && tienePresupuesto) {
-    const ambos = evaluadas
-      .filter((e) => e.matchInvitados && e.matchPresupuesto)
-      .map((e) => e.boda);
+  const intentosEstrictos: Array<{
+    nivel: NivelSimilitud;
+    criterio: CriterioSimilitud;
+  }> = [
+    { nivel: "ciudad_ambos", criterio: "ciudad_ambos" },
+    { nivel: "ciudad_parcial", criterio: "ciudad_parcial" },
+    { nivel: "nacional", criterio: "nacional" },
+  ];
 
-    if (ambos.length >= MIN_BODAS_SIMILARES) {
-      return { bodas: ambos, criterio: "ambos" };
-    }
+  const estricto = primerMatchSuficiente(
+    evaluadasEstrictas,
+    intentosEstrictos,
+    flags,
+  );
+  if (estricto) return estricto;
 
-    const alguno = evaluadas
-      .filter((e) => e.matchInvitados || e.matchPresupuesto)
-      .map((e) => e.boda);
+  const relajado = primerMatchSuficiente(
+    evaluadasRelajadas,
+    intentosEstrictos,
+    flags,
+    { aceptarUno: true, forzarCriterio: "relajado" },
+  );
+  if (relajado) return relajado;
 
-    return { bodas: alguno, criterio: alguno.length > 0 ? "ambos" : "ninguno" };
-  }
-
+  // Último recurso: un solo criterio (invitados o presupuesto) al ±50%.
   if (tieneInvitados) {
-    const bodas = evaluadas.filter((e) => e.matchInvitados).map((e) => e.boda);
-    return { bodas, criterio: bodas.length > 0 ? "invitados" : "ninguno" };
+    const invitados = filtrarPorNivel(evaluadasRelajadas, "invitados", flags);
+    const presupuesto = filtrarPorNivel(
+      evaluadasRelajadas,
+      "presupuesto",
+      flags,
+    );
+    const unidos = new Map<string, BodaCandidata>();
+    for (const boda of [...invitados, ...presupuesto]) {
+      unidos.set(boda.id, boda);
+    }
+    const bodas = Array.from(unidos.values());
+    return { bodas, criterio: bodas.length > 0 ? "relajado" : "ninguno" };
   }
 
-  const bodas = evaluadas.filter((e) => e.matchPresupuesto).map((e) => e.boda);
-  return { bodas, criterio: bodas.length > 0 ? "presupuesto" : "ninguno" };
+  const bodas = filtrarPorNivel(evaluadasRelajadas, "presupuesto", flags);
+  if (bodas.length === 0) {
+    const estrictas = filtrarPorNivel(evaluadasEstrictas, "presupuesto", flags);
+    return {
+      bodas: estrictas,
+      criterio: estrictas.length > 0 ? "presupuesto" : "ninguno",
+    };
+  }
+  return { bodas, criterio: "relajado" };
 }
 
 /**
  * Agrupa proveedores contratados de bodas similares por categoría.
- * Si un proveedor aparece varias veces, el precio es el promedio ponderado
- * por recencia (más reciente = más peso).
+ * Devuelve hasta 3 opciones por categoría, ordenadas de menor a mayor precio.
  */
 export function construirSugerenciasPorCategoria(
   bodasSimilares: BodaCandidata[],
   proveedores: ProveedorHistorial[],
   directorio: DirectorioLookupEntry[],
+  presupuestoLead: number | null = null,
 ): SugerenciaBodaSimilarCategoria[] {
   if (bodasSimilares.length === 0) return [];
 
   const bodasById = new Map(bodasSimilares.map((b) => [b.id, b]));
   const directorioLookup = buildDirectorioLookup(directorio);
+  const presupuesto =
+    presupuestoLead != null && presupuestoLead > 0 ? presupuestoLead : null;
 
   type Bucket = {
     nombre: string;
@@ -298,13 +473,27 @@ export function construirSugerenciasPorCategoria(
 
   return Array.from(porCategoria.values())
     .map((map) => {
-      const proveedoresGrupo: SugerenciaBodaSimilarProveedor[] = Array.from(
-        map.values(),
-      )
+      const bucketsConPrecio = Array.from(map.values())
         .map((bucket) => {
           const precio = promedioPonderadoPorRecencia(bucket.ocurrencias);
           if (precio <= 0) return null;
+          return { bucket, precio };
+        })
+        .filter(
+          (item): item is { bucket: Bucket; precio: number } => item != null,
+        );
 
+      if (bucketsConPrecio.length === 0) {
+        return null;
+      }
+
+      const promedioCategoria =
+        bucketsConPrecio.reduce((sum, item) => sum + item.precio, 0) /
+        bucketsConPrecio.length;
+
+      const proveedoresGrupo: SugerenciaBodaSimilarProveedor[] = bucketsConPrecio
+        .map(({ bucket, precio }) => {
+          const precioRedondeado = Math.round(precio);
           const masReciente = [...bucket.ocurrencias].sort((a, b) =>
             b.createdAt.localeCompare(a.createdAt),
           )[0];
@@ -313,30 +502,55 @@ export function construirSugerenciasPorCategoria(
             {
               nombre: bucket.nombre,
               categoria: bucket.categoria,
-              valor_total: Math.round(precio),
+              valor_total: precioRedondeado,
             },
             directorioLookup,
           );
+
+          const porcentaje_presupuesto =
+            presupuesto != null
+              ? Math.round((precioRedondeado / presupuesto) * 1000) / 10
+              : null;
 
           return {
             directorio_proveedor_id: directorioMatch?.id ?? null,
             nombre_proveedor: bucket.nombre,
             categoria: bucket.categoria,
-            precio_historico: Math.round(precio),
+            precio_historico: precioRedondeado,
             boda_referencia: masReciente?.bodaNombre ?? "",
             instagram: directorioMatch?.instagram ?? null,
+            porcentaje_presupuesto,
+            indicador:
+              presupuesto != null
+                ? calcularIndicadorPresupuesto(
+                    precioRedondeado,
+                    promedioCategoria,
+                  )
+                : null,
           } satisfies SugerenciaBodaSimilarProveedor;
         })
-        .filter((p): p is SugerenciaBodaSimilarProveedor => p != null)
-        .sort((a, b) => a.nombre_proveedor.localeCompare(b.nombre_proveedor, "es"));
+        .sort((a, b) => a.precio_historico - b.precio_historico)
+        .slice(0, MAX_PROVEEDORES_POR_CATEGORIA);
 
       return {
         categoria: proveedoresGrupo[0]?.categoria ?? "",
+        promedio_categoria: Math.round(promedioCategoria),
         proveedores: proveedoresGrupo,
-      };
+      } satisfies SugerenciaBodaSimilarCategoria;
     })
+    .filter((group): group is SugerenciaBodaSimilarCategoria => group != null)
     .filter((group) => group.proveedores.length > 0)
     .sort((a, b) => a.categoria.localeCompare(b.categoria, "es"));
+}
+
+/** Suma el precio más bajo de cada categoría. */
+export function calcularEstimadoTotal(
+  categorias: SugerenciaBodaSimilarCategoria[],
+): number {
+  return categorias.reduce((sum, categoria) => {
+    const masBarato = categoria.proveedores[0];
+    return sum + (masBarato?.precio_historico ?? 0);
+  }, 0);
 }
 
 export async function fetchSugerenciasBodasSimilares(
@@ -367,7 +581,8 @@ export async function fetchSugerenciasBodasSimilares(
   for (const proveedor of proveedores) {
     presupuestoPorBoda.set(
       proveedor.boda_id,
-      (presupuestoPorBoda.get(proveedor.boda_id) ?? 0) + Number(proveedor.valor_total ?? 0),
+      (presupuestoPorBoda.get(proveedor.boda_id) ?? 0) +
+        Number(proveedor.valor_total ?? 0),
     );
   }
 
@@ -386,30 +601,51 @@ export async function fetchSugerenciasBodasSimilares(
     ciudad: boda.ciudad ?? null,
   }));
 
-  const { bodas: bodasSimilares, criterio } = seleccionarBodasSimilares(candidatas, {
-    invitados: lead.cantidad_invitados,
-    presupuesto: lead.presupuesto_estimado,
-    ciudad: lead.ciudad ?? null,
-  });
+  const presupuestoLead =
+    lead.presupuesto_estimado != null && lead.presupuesto_estimado > 0
+      ? lead.presupuesto_estimado
+      : null;
+  const tieneInvitados =
+    lead.cantidad_invitados != null && lead.cantidad_invitados > 0;
+  const tieneCiudad = Boolean(normalizeCiudad(lead.ciudad));
+  const sinCriterios =
+    !presupuestoLead && !tieneInvitados && !tieneCiudad;
+
+  if (sinCriterios) {
+    return { ...EMPTY_RESULT, presupuestoLead, sinCriterios: true };
+  }
+
+  const { bodas: bodasSimilares, criterio } = seleccionarBodasSimilares(
+    candidatas,
+    {
+      invitados: lead.cantidad_invitados,
+      presupuesto: presupuestoLead,
+      ciudad: lead.ciudad ?? null,
+    },
+  );
 
   if (bodasSimilares.length === 0) {
-    return EMPTY_RESULT;
+    return { ...EMPTY_RESULT, presupuestoLead, sinCriterios: false };
   }
 
   const categorias = construirSugerenciasPorCategoria(
     bodasSimilares,
     proveedores,
     (directorioData ?? []) as DirectorioLookupEntry[],
+    presupuestoLead,
   );
 
   if (categorias.length === 0) {
-    return EMPTY_RESULT;
+    return { ...EMPTY_RESULT, presupuestoLead, sinCriterios: false };
   }
 
   return {
     categorias,
     bodasSimilaresCount: bodasSimilares.length,
     criterio,
+    estimadoTotal: calcularEstimadoTotal(categorias),
+    presupuestoLead,
+    sinCriterios: false,
   };
 }
 
