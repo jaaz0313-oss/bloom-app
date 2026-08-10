@@ -177,9 +177,25 @@ export function formatShortDateStable(isoDate: string): string {
 
 const COLOMBIA_TIME_ZONE = "America/Bogota";
 
+const SHORT_MONTH_LABELS_ES = [
+  "ene.",
+  "feb.",
+  "mar.",
+  "abr.",
+  "may.",
+  "jun.",
+  "jul.",
+  "ago.",
+  "sep.",
+  "oct.",
+  "nov.",
+  "dic.",
+] as const;
+
 /**
  * Fecha y hora en zona Colombia (America/Bogota).
- * El timeZone fijo evita hydration mismatch entre servidor y cliente.
+ * Formato manual con partes fijas (evita hydration mismatch por ICU
+ * distinto entre servidor y cliente: "ago." vs "ago", "p.m." vs "p. m.").
  */
 export function formatDateTimeStable(isoDateTime: string): string {
   const normalized = isoDateTime.includes("T")
@@ -188,14 +204,31 @@ export function formatDateTimeStable(isoDateTime: string): string {
   const date = new Date(normalized);
   if (Number.isNaN(date.getTime())) return isoDateTime;
 
-  return date.toLocaleString("es-CO", {
+  const parts = new Intl.DateTimeFormat("es-CO", {
     timeZone: COLOMBIA_TIME_ZONE,
     day: "numeric",
-    month: "short",
+    month: "numeric",
     year: "numeric",
-    hour: "2-digit",
+    hour: "numeric",
     minute: "2-digit",
-  });
+    hourCycle: "h23",
+  }).formatToParts(date);
+
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((p) => p.type === type)?.value ?? "";
+
+  const day = get("day");
+  const monthIndex = Number(get("month"));
+  const year = get("year");
+  const hour24 = Number(get("hour"));
+  const minute = get("minute").padStart(2, "0");
+  const monthLabel = SHORT_MONTH_LABELS_ES[monthIndex - 1] ?? "";
+
+  const period = hour24 >= 12 ? "p. m." : "a. m.";
+  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
+  const hourLabel = String(hour12).padStart(2, "0");
+
+  return `${day} de ${monthLabel} de ${year}, ${hourLabel}:${minute} ${period}`;
 }
 
 const MESSAGE_LOWERCASE_WORDS = new Set([

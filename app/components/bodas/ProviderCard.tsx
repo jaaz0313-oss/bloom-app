@@ -269,6 +269,25 @@ export function ProviderCard({
     provider.monto_cotizado != null && provider.monto_cotizado > 0
       ? provider.monto_cotizado
       : provider.valor_total;
+  const localProvider = provider;
+  const valorMostrado = showFinanzasCompletas
+    ? localProvider.valor_total
+    : showValorCotizado
+      ? valorCotizadoMostrar
+      : null;
+  console.log(
+    "[header] provider.valor_total:",
+    providerProp.valor_total,
+    "localProvider.valor_total:",
+    localProvider?.valor_total,
+  );
+  console.log("[header render] valor a mostrar:", valorMostrado, {
+    estado: localProvider.estado,
+    showFinanzasCompletas,
+    showValorCotizado,
+    monto_cotizado: localProvider.monto_cotizado,
+    valorCotizadoMostrar,
+  });
   const hasWhatsAppTarget =
     Boolean(boda.whatsappGrupoLink?.trim()) ||
     Boolean(boda.telefonoNovia?.trim());
@@ -1122,13 +1141,13 @@ export function ProviderCard({
                 <div>
                   <dt className="text-bloom-muted">Valor total</dt>
                   <dd className="font-medium text-bloom-ink">
-                    {formatProveedorValorTotal(provider.valor_total)}
+                    {formatProveedorValorTotal(valorMostrado ?? 0)}
                   </dd>
                 </div>
                 <div>
                   <dt className="text-bloom-muted">Saldo pendiente</dt>
                   <dd className="font-medium text-bloom-ink">
-                    {hasProveedorValorDefinido(provider.valor_total) ? (
+                    {hasProveedorValorDefinido(localProvider.valor_total) ? (
                       formatCurrency(saldoPendiente)
                     ) : (
                       formatProveedorValorTotal(0)
@@ -1142,7 +1161,7 @@ export function ProviderCard({
                 <div>
                   <dt className="text-bloom-muted">Valor cotizado</dt>
                   <dd className="font-medium text-bloom-ink">
-                    {formatProveedorValorTotal(valorCotizadoMostrar)}
+                    {formatProveedorValorTotal(valorMostrado ?? 0)}
                   </dd>
                 </div>
               </dl>
