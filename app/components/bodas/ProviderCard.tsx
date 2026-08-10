@@ -266,9 +266,9 @@ export function ProviderCard({
   const showFinanzasCompletas =
     !sinCosto && provider.estado === "contratado";
   const valorCotizadoMostrar =
-    provider.monto_cotizado != null && provider.monto_cotizado > 0
-      ? provider.monto_cotizado
-      : provider.valor_total;
+    provider.valor_total != null && provider.valor_total > 0
+      ? provider.valor_total
+      : provider.monto_cotizado;
   const localProvider = provider;
   const valorMostrado = showFinanzasCompletas
     ? localProvider.valor_total
@@ -724,6 +724,8 @@ export function ProviderCard({
         ? porcentajeComision
         : (provider.porcentaje_comision ?? 10);
       const valorTotalGuardar = esPrimarioGrupo ? Math.round(valorTotal) : 0;
+      const montoCotizadoGuardar =
+        provider.estado === "en_negociacion" ? valorTotalGuardar : undefined;
 
       const { data: updatedRow, error: updateError } = await supabase
         .from("proveedores")
@@ -732,6 +734,9 @@ export function ProviderCard({
           categoria,
           descripcion_servicio: descripcionServicio || null,
           valor_total: valorTotalGuardar,
+          ...(montoCotizadoGuardar !== undefined
+            ? { monto_cotizado: montoCotizadoGuardar }
+            : {}),
           anticipo: anticipoGuardar,
           fecha_saldo: fechaSaldo,
           banco,
@@ -765,6 +770,9 @@ export function ProviderCard({
         categoria,
         descripcion_servicio: descripcionServicio || null,
         valor_total: valorTotalGuardar,
+        ...(montoCotizadoGuardar !== undefined
+          ? { monto_cotizado: montoCotizadoGuardar }
+          : {}),
         anticipo: anticipoGuardar,
         fecha_saldo: fechaSaldo,
         banco,
