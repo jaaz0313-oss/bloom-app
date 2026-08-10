@@ -80,12 +80,6 @@ export function ProviderList({
   driveFolderUrl = null,
   onProviderUpdated,
 }: ProviderListProps) {
-  function handleProviderUpdated(updated: ProveedorRow) {
-    setOrderedList((prev) =>
-      prev.map((item) => (item.id === updated.id ? updated : item)),
-    );
-    onProviderUpdated?.(updated);
-  }
   const canReorder = hasPermission(role, "providers.manage");
   const sortedFromProps = useMemo(
     () => sortVisibleProviders(providers),
@@ -97,11 +91,34 @@ export function ProviderList({
   const [isSavingOrder, setIsSavingOrder] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
+  function handleProviderUpdated(updated: ProveedorRow) {
+    console.log("[ProviderList] handleProviderUpdated", {
+      id: updated.id,
+      valor_total: updated.valor_total,
+      hasParentCallback: typeof onProviderUpdated === "function",
+    });
+    setOrderedList((prev) => {
+      const next = prev.map((item) =>
+        item.id === updated.id ? { ...item, ...updated } : item,
+      );
+      console.log(
+        "[ProviderList] orderedList after update",
+        next.find((item) => item.id === updated.id)?.valor_total,
+      );
+      return next;
+    });
+    onProviderUpdated?.(updated);
+  }
+
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
   useEffect(() => {
+    console.log(
+      "[ProviderList] sync orderedList from props",
+      sortedFromProps.map((p) => ({ id: p.id, valor_total: p.valor_total })),
+    );
     setOrderedList(sortedFromProps);
   }, [sortedFromProps]);
 

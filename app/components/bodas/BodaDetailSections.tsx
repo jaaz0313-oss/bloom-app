@@ -234,7 +234,23 @@ export function BodaDetailSections({
           if (!row?.id || row.boda_id !== bodaId) return;
 
           setLiveProviders((prev) => {
-            const next = sortProveedores(upsertById(prev, row));
+            // Merge con la fila existente: payloads realtime incompletos
+            // no deben borrar campos como valor_total.
+            const existing = prev.find((item) => item.id === row.id);
+            const patch = Object.fromEntries(
+              Object.entries(row).filter(([, value]) => value !== undefined),
+            ) as Partial<ProveedorRow>;
+            const merged = {
+              ...(existing ?? ({} as ProveedorRow)),
+              ...patch,
+              id: row.id,
+            } as ProveedorRow;
+            console.log("[BodaDetail] realtime proveedores upsert", {
+              id: merged.id,
+              valor_total: merged.valor_total,
+              patchKeys: Object.keys(patch),
+            });
+            const next = sortProveedores(upsertById(prev, merged));
             providerIdsRef.current = new Set(next.map((p) => p.id));
             return next;
           });
@@ -523,9 +539,18 @@ export function BodaDetailSections({
             highlightProveedorId={highlightProveedorId}
             driveFolderUrl={driveFolderUrl}
             onProviderUpdated={(updated) => {
-              setLiveProviders((prev) =>
-                sortProveedores(upsertById(prev, updated)),
-              );
+              console.log("[BodaDetail] onProviderUpdated", {
+                id: updated.id,
+                valor_total: updated.valor_total,
+              });
+              setLiveProviders((prev) => {
+                const next = sortProveedores(upsertById(prev, updated));
+                console.log(
+                  "[BodaDetail] liveProviders valor_total after update",
+                  next.find((item) => item.id === updated.id)?.valor_total,
+                );
+                return next;
+              });
             }}
           />
         </div>

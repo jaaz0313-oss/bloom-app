@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { DraggableAttributes } from "@dnd-kit/core";
 import type { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
@@ -119,7 +119,7 @@ function CotizacionWhatsAppButtons({
 }
 
 export function ProviderCard({
-  provider,
+  provider: providerProp,
   allProviders = [],
   bodaId,
   boda,
@@ -135,6 +135,45 @@ export function ProviderCard({
 }: ProviderCardProps) {
   const router = useRouter();
   const panelId = useId();
+  /**
+   * Copia local del proveedor para el encabezado/UI.
+   * Tras editar, se actualiza de inmediato; se ignora un prop stale
+   * (p. ej. refresh/realtime incompleto) hasta que el padre alcance el valor guardado.
+   */
+  const [provider, setProvider] = useState(providerProp);
+  const pendingValorTotalRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    console.log("[ProviderCard] provider prop", {
+      id: providerProp.id,
+      valor_total: providerProp.valor_total,
+      pending: pendingValorTotalRef.current,
+    });
+
+    if (
+      pendingValorTotalRef.current != null &&
+      providerProp.valor_total !== pendingValorTotalRef.current
+    ) {
+      console.warn(
+        "[ProviderCard] ignoring stale provider prop valor_total",
+        providerProp.valor_total,
+        "keeping pending",
+        pendingValorTotalRef.current,
+      );
+      return;
+    }
+
+    if (
+      pendingValorTotalRef.current != null &&
+      providerProp.valor_total === pendingValorTotalRef.current
+    ) {
+      console.log("[ProviderCard] prop caught up with saved valor_total");
+      pendingValorTotalRef.current = null;
+    }
+
+    setProvider(providerProp);
+  }, [providerProp]);
+
   const [expanded, setExpanded] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -699,8 +738,10 @@ export function ProviderCard({
         return;
       }
 
-      const updatedProvider = (updatedRow as ProveedorRow | null) ?? {
-        ...provider,
+      const updatedProvider: ProveedorRow = {
+        ...(providerProp as ProveedorRow),
+        ...((updatedRow as ProveedorRow | null) ?? {}),
+        id: provider.id,
         nombre,
         categoria,
         descripcion_servicio: descripcionServicio || null,
@@ -722,6 +763,15 @@ export function ProviderCard({
         deposito_reembolsable: depositoGuardar,
       };
 
+      console.log("[ProviderCard] edit save success", {
+        id: updatedProvider.id,
+        valor_total: updatedProvider.valor_total,
+        fromSelect: (updatedRow as ProveedorRow | null)?.valor_total ?? null,
+        hasOnProviderUpdated: typeof onProviderUpdated === "function",
+      });
+
+      pendingValorTotalRef.current = updatedProvider.valor_total;
+      setProvider(updatedProvider);
       onProviderUpdated?.(updatedProvider);
       setDescripcionServicioLocal(descripcionServicio);
       setNotasLocal(notas);
