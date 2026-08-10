@@ -66,6 +66,8 @@ type ProviderCardProps = {
   role: UserRole;
   dragHandle?: ProviderDragHandleProps;
   driveFolderUrl?: string | null;
+  /** Actualiza el estado local del listado tras editar (p. ej. valor total en el encabezado). */
+  onProviderUpdated?: (updated: ProveedorRow) => void;
 };
 
 export type ProviderDragHandleProps = {
@@ -129,6 +131,7 @@ export function ProviderCard({
   role,
   dragHandle,
   driveFolderUrl = null,
+  onProviderUpdated,
 }: ProviderCardProps) {
   const router = useRouter();
   const panelId = useId();
@@ -659,13 +662,18 @@ export function ProviderCard({
         ? Math.round(depositoReembolsable)
         : 0;
 
-      const { error: updateError } = await supabase
+      const porcentajeComisionGuardar = daComision
+        ? porcentajeComision
+        : (provider.porcentaje_comision ?? 10);
+      const valorTotalGuardar = esPrimarioGrupo ? Math.round(valorTotal) : 0;
+
+      const { data: updatedRow, error: updateError } = await supabase
         .from("proveedores")
         .update({
           nombre,
           categoria,
           descripcion_servicio: descripcionServicio || null,
-          valor_total: esPrimarioGrupo ? Math.round(valorTotal) : 0,
+          valor_total: valorTotalGuardar,
           anticipo: anticipoGuardar,
           fecha_saldo: fechaSaldo,
           banco,
@@ -679,18 +687,44 @@ export function ProviderCard({
           link_pago: linkPago,
           notas: notas || null,
           da_comision: daComision,
-          porcentaje_comision: daComision
-            ? porcentajeComision
-            : (provider.porcentaje_comision ?? 10),
+          porcentaje_comision: porcentajeComisionGuardar,
           deposito_reembolsable: depositoGuardar,
         })
-        .eq("id", provider.id);
+        .eq("id", provider.id)
+        .select("*")
+        .single();
 
       if (updateError) {
         setEditError(updateError.message);
         return;
       }
 
+      const updatedProvider = (updatedRow as ProveedorRow | null) ?? {
+        ...provider,
+        nombre,
+        categoria,
+        descripcion_servicio: descripcionServicio || null,
+        valor_total: valorTotalGuardar,
+        anticipo: anticipoGuardar,
+        fecha_saldo: fechaSaldo,
+        banco,
+        numero_cuenta: numeroCuenta,
+        tipo_cuenta: tipoCuenta,
+        titular_cuenta: titularCuenta,
+        documento_nit: documentoNit,
+        telefono,
+        email,
+        direccion,
+        link_pago: linkPago,
+        notas: notas || null,
+        da_comision: daComision,
+        porcentaje_comision: porcentajeComisionGuardar,
+        deposito_reembolsable: depositoGuardar,
+      };
+
+      onProviderUpdated?.(updatedProvider);
+      setDescripcionServicioLocal(descripcionServicio);
+      setNotasLocal(notas);
       setEditOpen(false);
       router.refresh();
     } finally {

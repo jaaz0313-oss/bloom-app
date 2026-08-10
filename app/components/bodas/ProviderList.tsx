@@ -45,6 +45,7 @@ type ProviderListProps = {
   whatsappGrupoLink?: string | null;
   highlightProveedorId?: string | null;
   driveFolderUrl?: string | null;
+  onProviderUpdated?: (updated: ProveedorRow) => void;
 };
 
 function compareProvidersByOrden(a: ProveedorRow, b: ProveedorRow): number {
@@ -77,7 +78,14 @@ export function ProviderList({
   whatsappGrupoLink = null,
   highlightProveedorId = null,
   driveFolderUrl = null,
+  onProviderUpdated,
 }: ProviderListProps) {
+  function handleProviderUpdated(updated: ProveedorRow) {
+    setOrderedList((prev) =>
+      prev.map((item) => (item.id === updated.id ? updated : item)),
+    );
+    onProviderUpdated?.(updated);
+  }
   const canReorder = hasPermission(role, "providers.manage");
   const sortedFromProps = useMemo(
     () => sortVisibleProviders(providers),
@@ -184,6 +192,7 @@ export function ProviderList({
           currentUserId={currentUserId}
           role={role}
           driveFolderUrl={driveFolderUrl}
+          onProviderUpdated={handleProviderUpdated}
         />
       </li>
     );
@@ -234,6 +243,7 @@ export function ProviderList({
             highlightProveedorId={highlightProveedorId}
             compareBar={compareBar}
             driveFolderUrl={driveFolderUrl}
+            onProviderUpdated={handleProviderUpdated}
           />
         );
       }
@@ -391,6 +401,7 @@ type SortableProviderItemProps = {
   highlightProveedorId: string | null;
   compareBar: ReactNode;
   driveFolderUrl?: string | null;
+  onProviderUpdated?: (updated: ProveedorRow) => void;
 };
 
 function SortableProviderItem({
@@ -407,6 +418,7 @@ function SortableProviderItem({
   highlightProveedorId,
   compareBar,
   driveFolderUrl = null,
+  onProviderUpdated,
 }: SortableProviderItemProps) {
   const {
     attributes,
@@ -456,6 +468,7 @@ function SortableProviderItem({
         role={role}
         dragHandle={dragHandle}
         driveFolderUrl={driveFolderUrl}
+        onProviderUpdated={onProviderUpdated}
       />
     </li>
   );

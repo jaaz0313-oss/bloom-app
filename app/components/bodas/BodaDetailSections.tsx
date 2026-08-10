@@ -522,6 +522,11 @@ export function BodaDetailSections({
             whatsappGrupoLink={boda.whatsapp_grupo_link}
             highlightProveedorId={highlightProveedorId}
             driveFolderUrl={driveFolderUrl}
+            onProviderUpdated={(updated) => {
+              setLiveProviders((prev) =>
+                sortProveedores(upsertById(prev, updated)),
+              );
+            }}
           />
         </div>
       </BodaAccordionSection>
