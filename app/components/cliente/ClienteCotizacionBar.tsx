@@ -11,6 +11,7 @@ type ClienteCotizacionBarProps = {
   bodaId: string;
   cotizacionDisponible: boolean;
   hasProyeccionActual: boolean;
+  allowExcelDownload?: boolean;
   seatingPlanLink?: string | null;
 };
 
@@ -18,6 +19,7 @@ export function ClienteCotizacionBar({
   bodaId,
   cotizacionDisponible,
   hasProyeccionActual,
+  allowExcelDownload = false,
   seatingPlanLink,
 }: ClienteCotizacionBarProps) {
   const { t } = useClienteLocale();
@@ -44,11 +46,13 @@ export function ClienteCotizacionBar({
                   inline
                   onError={setError}
                 />
-                <ClienteDescargarProyeccionExcelButton
-                  bodaId={bodaId}
-                  inline
-                  onError={setError}
-                />
+                {allowExcelDownload && (
+                  <ClienteDescargarProyeccionExcelButton
+                    bodaId={bodaId}
+                    inline
+                    onError={setError}
+                  />
+                )}
               </>
             )}
             {showSeatingAction && (

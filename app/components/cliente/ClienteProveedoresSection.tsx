@@ -26,7 +26,6 @@ import {
   type ClienteUiCopy,
 } from "@/lib/cliente-i18n";
 import { formatCurrency, formatShortDateStable } from "@/lib/format";
-import { useClienteEffectiveCopPorUsd } from "@/app/components/cliente/ClienteUsdPreferenceProvider";
 import { appendUsdApprox } from "@/lib/tasa-cambio";
 
 type ClienteProveedoresSectionProps = {
@@ -41,7 +40,6 @@ export function ClienteProveedoresSection({
   copPorUsd = null,
 }: ClienteProveedoresSectionProps) {
   const { t } = useClienteLocale();
-  const effectiveCopPorUsd = useClienteEffectiveCopPorUsd(copPorUsd);
   const proveedoresOrdenados = useMemo(
     () => sortProveedoresContiguosPorGrupo(contratados),
     [contratados],
@@ -65,7 +63,7 @@ export function ClienteProveedoresSection({
               allProviders={proveedoresOrdenados}
               pagos={pagosByProveedor[provider.id] ?? []}
               pagosByProveedor={pagosByProveedor}
-              copPorUsd={effectiveCopPorUsd}
+              copPorUsd={copPorUsd}
             />
           ))}
         </ul>

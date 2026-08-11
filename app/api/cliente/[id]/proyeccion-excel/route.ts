@@ -12,13 +12,28 @@ type RouteContext = {
 };
 
 /** Excel público del portal cliente. Sin sesión ni cookies. */
-export async function GET(request: Request, { params }: RouteContext) {
+export async function GET(_request: Request, { params }: RouteContext) {
   try {
     const { id } = await params;
-    const includeUsd =
-      new URL(request.url).searchParams.get("includeUsd") === "1";
-
     const supabase = createPublicSupabaseClient();
+
+    const { data: bodaFlags, error: flagsError } = await supabase
+      .from("bodas")
+      .select("permitir_excel_cliente, mostrar_usd_cliente")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (flagsError) {
+      throw flagsError;
+    }
+
+    if (!bodaFlags?.permitir_excel_cliente) {
+      return NextResponse.json(
+        { error: "La descarga de Excel no está habilitada para esta boda." },
+        { status: 403 },
+      );
+    }
+
     const context = await getClienteProyeccionContext(supabase, id);
 
     if (!context) {
@@ -28,6 +43,7 @@ export async function GET(request: Request, { params }: RouteContext) {
       );
     }
 
+    const includeUsd = Boolean(bodaFlags.mostrar_usd_cliente);
     const tasa = includeUsd ? await getTasaCambioCopPorUsd() : null;
     const excelBytes = generateClienteProyeccionExcel(context, {
       includeUsd,

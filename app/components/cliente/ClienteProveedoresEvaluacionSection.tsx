@@ -11,7 +11,6 @@ import {
 } from "@/app/data/providers";
 import { getClienteCronogramaCategoriaLabel } from "@/lib/cliente-i18n";
 import { formatCurrency } from "@/lib/format";
-import { useClienteEffectiveCopPorUsd } from "@/app/components/cliente/ClienteUsdPreferenceProvider";
 import { appendUsdApprox } from "@/lib/tasa-cambio";
 
 type ClienteProveedoresEvaluacionSectionProps = {
@@ -24,7 +23,6 @@ export function ClienteProveedoresEvaluacionSection({
   copPorUsd = null,
 }: ClienteProveedoresEvaluacionSectionProps) {
   const { locale, t } = useClienteLocale();
-  const effectiveCopPorUsd = useClienteEffectiveCopPorUsd(copPorUsd);
 
   const proveedoresOrdenados = useMemo(
     () => sortProveedoresContiguosPorGrupo(proveedores),
@@ -125,7 +123,7 @@ export function ClienteProveedoresEvaluacionSection({
                     {appendUsdApprox(
                       formatCurrency(montoCotizado),
                       montoCotizado,
-                      effectiveCopPorUsd,
+                      copPorUsd,
                     )}
                   </p>
                 ) : null}

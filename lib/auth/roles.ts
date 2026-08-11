@@ -85,6 +85,12 @@ export function canManageBodaEstado(role: UserRole | string): boolean {
   return normalized === "admin" || normalized === "lider";
 }
 
+/** Preferencias del portal cliente (USD / Excel) solo para admin y líder. */
+export function canManageClientePortalFlags(role: UserRole | string): boolean {
+  const normalized = role?.trim().toLowerCase();
+  return normalized === "admin" || normalized === "lider";
+}
+
 /** Leads visibles solo para admin y líder. */
 export function canViewLeads(role: UserRole | string): boolean {
   const normalized = role?.trim().toLowerCase();

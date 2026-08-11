@@ -10,6 +10,7 @@ import { BodaCotizacionInicialButton } from "@/app/components/bodas/BodaCotizaci
 import { BodaFechaConfirmada } from "@/app/components/bodas/BodaFechaConfirmada";
 import { BodaNumInvitados } from "@/app/components/bodas/BodaNumInvitados";
 import { ShareWithClientButton } from "@/app/components/bodas/ShareWithClientButton";
+import { BodaClientePortalToggles } from "@/app/components/bodas/BodaClientePortalToggles";
 import { AutoSyncCronograma } from "@/app/components/bodas/AutoSyncCronograma";
 import type { CitaRow } from "@/app/data/citas";
 import type { BriefBodaRow } from "@/app/data/brief-boda";
@@ -29,7 +30,12 @@ import {
 } from "@/lib/boda-section-content";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { requireAuthUser } from "@/lib/auth/user-profiles";
-import { hasPermission, isAdminRole, canManageBodaEstado } from "@/lib/auth/roles";
+import {
+  hasPermission,
+  isAdminRole,
+  canManageBodaEstado,
+  canManageClientePortalFlags,
+} from "@/lib/auth/roles";
 import type { EquipoUsuarioMencion } from "@/lib/notas-menciones";
 
 export const dynamic = "force-dynamic";
@@ -286,6 +292,13 @@ export default async function BodaDetailPage({ params, searchParams }: PageProps
             )}
             {isAdmin && <RevertirALeadButton boda={revertBodaPayload} />}
           </div>
+          {canManageClientePortalFlags(user.rol) && (
+            <BodaClientePortalToggles
+              bodaId={id}
+              mostrarUsdCliente={Boolean(bodaRow.mostrar_usd_cliente)}
+              permitirExcelCliente={Boolean(bodaRow.permitir_excel_cliente)}
+            />
+          )}
         </header>
 
         <BodaDetailSections

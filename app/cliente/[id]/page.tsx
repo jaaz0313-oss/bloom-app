@@ -172,13 +172,16 @@ export default async function ClienteBodaPage({ params }: PageProps) {
     Boolean(seatingPlanLink) &&
     shouldShowClienteSeatingPlan(cronogramaItems, bodaRow.fecha_boda);
 
+  const mostrarUsdCliente = Boolean(bodaRow.mostrar_usd_cliente);
+  const permitirExcelCliente = Boolean(bodaRow.permitir_excel_cliente);
+
   const showDownloadBar =
     cotizacionDisponible ||
     contratados.length > 0 ||
     (mostrarSeatingPlan && !cotizacionDisponible);
 
-  const tasaCambio = await getTasaCambioCopPorUsd();
-  const copPorUsd = tasaCambio?.copPorUsd ?? null;
+  const tasaCambio = mostrarUsdCliente ? await getTasaCambioCopPorUsd() : null;
+  const copPorUsd = mostrarUsdCliente ? (tasaCambio?.copPorUsd ?? null) : null;
 
   return (
     <div className="flex min-h-full flex-col bg-bloom-canvas">
@@ -195,6 +198,7 @@ export default async function ClienteBodaPage({ params }: PageProps) {
           bodaId={id}
           cotizacionDisponible={cotizacionDisponible}
           hasProyeccionActual={contratados.length > 0}
+          allowExcelDownload={permitirExcelCliente}
           seatingPlanLink={mostrarSeatingPlan ? seatingPlanLink : null}
         />
       )}
