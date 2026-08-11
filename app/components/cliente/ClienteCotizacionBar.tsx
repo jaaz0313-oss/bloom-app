@@ -3,7 +3,7 @@
 import { ClienteDescargarCotizacionButton } from "@/app/components/cliente/ClienteDescargarCotizacionButton";
 import { ClienteDescargarProyeccionButton } from "@/app/components/cliente/ClienteDescargarProyeccionButton";
 import { ClienteDescargarProyeccionExcelButton } from "@/app/components/cliente/ClienteDescargarProyeccionExcelButton";
-import { ClienteLanguageToggle } from "@/app/components/cliente/ClienteLanguageToggle";
+import { ClienteHeaderControls } from "@/app/components/cliente/ClienteHeaderControls";
 import { useClienteLocale } from "@/app/components/cliente/ClienteLocaleProvider";
 import { useState } from "react";
 
@@ -64,7 +64,7 @@ export function ClienteCotizacionBar({
           </div>
 
           <div className="sm:absolute sm:right-0 sm:top-1/2 sm:-translate-y-1/2">
-            <ClienteLanguageToggle />
+            <ClienteHeaderControls />
           </div>
         </div>
 

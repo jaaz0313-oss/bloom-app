@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useClienteLocale } from "@/app/components/cliente/ClienteLocaleProvider";
 import { CLIENTE_DOWNLOAD_BUTTON_CLASS } from "@/app/components/cliente/cliente-download-styles";
 
@@ -16,7 +16,9 @@ export function ClienteDescargarProyeccionExcelButton({
   onError,
 }: ClienteDescargarProyeccionExcelButtonProps) {
   const { t } = useClienteLocale();
+  const includeUsdId = useId();
   const [loading, setLoading] = useState(false);
+  const [includeUsd, setIncludeUsd] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function reportError(message: string | null) {
@@ -32,7 +34,10 @@ export function ClienteDescargarProyeccionExcelButton({
     reportError(null);
 
     try {
-      const response = await fetch(`/api/cliente/${bodaId}/proyeccion-excel`);
+      const query = includeUsd ? "?includeUsd=1" : "";
+      const response = await fetch(
+        `/api/cliente/${bodaId}/proyeccion-excel${query}`,
+      );
 
       if (!response.ok) {
         const payload = (await response.json().catch(() => null)) as {
@@ -63,25 +68,40 @@ export function ClienteDescargarProyeccionExcelButton({
     }
   }
 
-  const button = (
-    <button
-      type="button"
-      onClick={handleDownload}
-      disabled={loading}
-      className={CLIENTE_DOWNLOAD_BUTTON_CLASS}
-    >
-      <DownloadIcon />
-      {loading ? t.generatingExcel : t.downloadProjectionExcel}
-    </button>
+  const controls = (
+    <div className="flex flex-col items-center gap-2 sm:flex-row sm:items-center">
+      <label
+        htmlFor={includeUsdId}
+        className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-bloom-accent/25 bg-bloom-surface/90 px-3 py-1.5 text-xs font-medium text-bloom-muted shadow-sm ring-1 ring-bloom-border/40"
+      >
+        <input
+          id={includeUsdId}
+          type="checkbox"
+          checked={includeUsd}
+          onChange={(e) => setIncludeUsd(e.target.checked)}
+          className="h-3.5 w-3.5 accent-bloom-accent"
+        />
+        {t.includeUsdInExcelLabel}
+      </label>
+      <button
+        type="button"
+        onClick={handleDownload}
+        disabled={loading}
+        className={CLIENTE_DOWNLOAD_BUTTON_CLASS}
+      >
+        <DownloadIcon />
+        {loading ? t.generatingExcel : t.downloadProjectionExcel}
+      </button>
+    </div>
   );
 
   if (inline) {
-    return button;
+    return controls;
   }
 
   return (
     <div className="flex flex-col items-center gap-2">
-      {button}
+      {controls}
       {error && (
         <p className="text-center text-sm text-red-700" role="alert">
           {error}

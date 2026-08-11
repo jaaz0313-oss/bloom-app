@@ -15,6 +15,8 @@ export const CLIENTE_VALOR_POR_DEFINIR = "Por definir";
 export type ProjectionTableRow = {
   cells: [string, string, string, string, string];
   rowType: "valor" | "pago" | "sin-pagos" | "saldo" | "deposito" | "spacer";
+  /** Monto en COP para columnas USD opcionales (Excel). */
+  amountCop?: number | null;
 };
 
 function formatPagoConcepto(concepto: string | null): string {
@@ -36,6 +38,7 @@ export function buildProviderTableRows(
 
   rows.push({
     rowType: "valor",
+    amountCop: valorDefinido ? Number(provider.valor_total) : null,
     cells: [
       categoriaLabel,
       provider.nombre,
@@ -50,17 +53,20 @@ export function buildProviderTableRows(
   if (pagosHistorial.length === 0) {
     rows.push({
       rowType: "sin-pagos",
+      amountCop: null,
       cells: ["", "", "Sin pagos registrados", "—", "—"],
     });
   } else {
     for (const pago of pagosHistorial) {
+      const monto = Number(pago.monto);
       rows.push({
         rowType: "pago",
+        amountCop: Number.isFinite(monto) ? monto : null,
         cells: [
           "",
           "",
           formatPagoConcepto(pago.concepto),
-          formatCurrency(Number(pago.monto)),
+          formatCurrency(monto),
           formatShortDateStable(pago.fecha_pago),
         ],
       });
@@ -69,6 +75,7 @@ export function buildProviderTableRows(
 
   rows.push({
     rowType: "saldo",
+    amountCop: valorDefinido ? saldo : null,
     cells: [
       "",
       "",
@@ -83,6 +90,7 @@ export function buildProviderTableRows(
 
     rows.push({
       rowType: "deposito",
+      amountCop: montoDeposito,
       cells: [
         "",
         "",
@@ -95,6 +103,7 @@ export function buildProviderTableRows(
 
   rows.push({
     rowType: "spacer",
+    amountCop: null,
     cells: ["", "", "", "", ""],
   });
 

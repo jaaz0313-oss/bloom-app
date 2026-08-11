@@ -363,6 +363,9 @@ export type ClienteUiCopy = {
   downloadQuoteError: string;
   downloadProjectionError: string;
   languageToggleLabel: string;
+  showUsdLabel: string;
+  hideUsdLabel: string;
+  includeUsdInExcelLabel: string;
   pwaInstallBannerIos: string;
   pwaInstallBannerAndroid: string;
   pwaInstallBannerOther: string;
@@ -512,6 +515,9 @@ const UI_ES: ClienteUiCopy = {
   downloadQuoteError: "No se pudo descargar la cotización.",
   downloadProjectionError: "No se pudo descargar la proyección.",
   languageToggleLabel: "Idioma",
+  showUsdLabel: "Ver en USD",
+  hideUsdLabel: "Ocultar USD",
+  includeUsdInExcelLabel: "Incluir USD",
   pwaInstallBannerIos:
     "Para acceder fácilmente: toca el botón compartir (□↑) en Safari y selecciona 'Añadir a pantalla de inicio' 🌸",
   pwaInstallBannerAndroid:
@@ -692,6 +698,9 @@ const UI_EN: ClienteUiCopy = {
   downloadQuoteError: "Could not download the quote.",
   downloadProjectionError: "Could not download the projection.",
   languageToggleLabel: "Language",
+  showUsdLabel: "Show USD",
+  hideUsdLabel: "Hide USD",
+  includeUsdInExcelLabel: "Include USD",
   pwaInstallBannerIos:
     "For easy access: tap the share button (□↑) in Safari and select 'Add to Home Screen' 🌸",
   pwaInstallBannerAndroid:

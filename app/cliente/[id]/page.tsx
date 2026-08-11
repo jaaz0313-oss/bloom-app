@@ -218,7 +218,10 @@ export default async function ClienteBodaPage({ params }: PageProps) {
           pagosByProveedor={pagosByProveedor}
           copPorUsd={copPorUsd}
         />
-        <ClienteProveedoresEvaluacionSection proveedores={enEvaluacion} />
+        <ClienteProveedoresEvaluacionSection
+          proveedores={enEvaluacion}
+          copPorUsd={copPorUsd}
+        />
         <ClientePaymentOverview
           totalContratado={totalContratado}
           totalPagado={totalPagado}

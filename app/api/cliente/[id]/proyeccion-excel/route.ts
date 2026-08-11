@@ -5,15 +5,19 @@ import {
   generateClienteProyeccionExcel,
 } from "@/lib/cliente-proyeccion-excel";
 import { createPublicSupabaseClient } from "@/lib/supabase-public";
+import { getTasaCambioCopPorUsd } from "@/lib/tasa-cambio";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
 /** Excel público del portal cliente. Sin sesión ni cookies. */
-export async function GET(_request: Request, { params }: RouteContext) {
+export async function GET(request: Request, { params }: RouteContext) {
   try {
     const { id } = await params;
+    const includeUsd =
+      new URL(request.url).searchParams.get("includeUsd") === "1";
+
     const supabase = createPublicSupabaseClient();
     const context = await getClienteProyeccionContext(supabase, id);
 
@@ -24,7 +28,11 @@ export async function GET(_request: Request, { params }: RouteContext) {
       );
     }
 
-    const excelBytes = generateClienteProyeccionExcel(context);
+    const tasa = includeUsd ? await getTasaCambioCopPorUsd() : null;
+    const excelBytes = generateClienteProyeccionExcel(context, {
+      includeUsd,
+      copPorUsd: tasa?.copPorUsd ?? null,
+    });
     const filename = buildClienteProyeccionExcelFilename(
       context.boda.nombre_pareja,
     );

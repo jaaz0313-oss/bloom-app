@@ -1,7 +1,7 @@
 "use client";
 
 import { CelestiaLogo } from "@/app/components/cliente/CelestiaLogo";
-import { ClienteLanguageToggle } from "@/app/components/cliente/ClienteLanguageToggle";
+import { ClienteHeaderControls } from "@/app/components/cliente/ClienteHeaderControls";
 import { useClienteLocale } from "@/app/components/cliente/ClienteLocaleProvider";
 import { formatClienteWeddingDate } from "@/lib/cliente-i18n";
 
@@ -30,7 +30,7 @@ export function ClientePageHeader({
 
       {showLanguageToggle && (
         <div className="absolute right-4 top-4 z-10 sm:right-8 sm:top-5">
-          <ClienteLanguageToggle />
+          <ClienteHeaderControls />
         </div>
       )}
 

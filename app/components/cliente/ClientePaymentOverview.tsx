@@ -1,6 +1,7 @@
 "use client";
 
 import { useClienteLocale } from "@/app/components/cliente/ClienteLocaleProvider";
+import { useClienteEffectiveCopPorUsd } from "@/app/components/cliente/ClienteUsdPreferenceProvider";
 import { computeClientePorcentajePagado } from "@/lib/cliente-pagos";
 import { formatCurrency } from "@/lib/format";
 import { appendUsdApprox } from "@/lib/tasa-cambio";
@@ -19,6 +20,7 @@ export function ClientePaymentOverview({
   copPorUsd = null,
 }: ClientePaymentOverviewProps) {
   const { t } = useClienteLocale();
+  const effectiveCopPorUsd = useClienteEffectiveCopPorUsd(copPorUsd);
   const percent = computeClientePorcentajePagado(
     totalContratado,
     totalPagado,
@@ -65,7 +67,7 @@ export function ClientePaymentOverview({
           value={appendUsdApprox(
             formatCurrency(totalContratado),
             totalContratado,
-            copPorUsd,
+            effectiveCopPorUsd,
           )}
           tone="neutral"
         />
@@ -74,7 +76,7 @@ export function ClientePaymentOverview({
           value={appendUsdApprox(
             formatCurrency(totalPagado),
             totalPagado,
-            copPorUsd,
+            effectiveCopPorUsd,
           )}
           tone="success"
         />
@@ -83,7 +85,7 @@ export function ClientePaymentOverview({
           value={appendUsdApprox(
             formatCurrency(saldoPendiente),
             saldoPendiente,
-            copPorUsd,
+            effectiveCopPorUsd,
           )}
           tone="pending"
         />
