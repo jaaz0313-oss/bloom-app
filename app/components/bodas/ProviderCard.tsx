@@ -596,13 +596,14 @@ export function ProviderCard({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [contratadoConfirmOpen, setContratadoConfirmOpen] = useState(false);
-  const [editDirectoryQuery, setEditDirectoryQuery] = useState("");
   const [editDirectoryResults, setEditDirectoryResults] = useState<
     EditDirectorioLookup[]
   >([]);
   const [editDirectorySearchedQuery, setEditDirectorySearchedQuery] = useState<
     string | null
   >(null);
+  const [editDirectoryPickerDismissed, setEditDirectoryPickerDismissed] =
+    useState(false);
   const [editForm, setEditForm] = useState<EditFormState>({
     nombre: provider.nombre,
     categoria: provider.categoria,
@@ -671,19 +672,32 @@ export function ProviderCard({
     // Solo precargar al abrir el modal (no en cada refresh del prop).
     setEditForm(buildEditFormFromProvider(provider));
     setEditError(null);
-    setEditDirectoryQuery("");
     setEditDirectoryResults([]);
     setEditDirectorySearchedQuery(null);
+    setEditDirectoryPickerDismissed(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al abrir
   }, [editOpen]);
 
-  useEffect(() => {
-    if (!editOpen || !supabase || editSubmitting) return;
+  const trimmedEditNombre = editForm.nombre.trim();
+  const showEditDirectoryPicker =
+    editOpen &&
+    trimmedEditNombre.length >= 2 &&
+    !editDirectoryPickerDismissed &&
+    !editSubmitting;
+  const editDirectorySearchPending =
+    showEditDirectoryPicker &&
+    editDirectorySearchedQuery !== trimmedEditNombre;
+  const showEditDirectoryEmptyState =
+    showEditDirectoryPicker &&
+    !editDirectorySearchPending &&
+    editDirectoryResults.length === 0;
 
-    const query = editDirectoryQuery.trim();
-    if (query.length < 2) {
-      setEditDirectoryResults([]);
-      setEditDirectorySearchedQuery(null);
+  useEffect(() => {
+    if (!showEditDirectoryPicker || !supabase) {
+      if (trimmedEditNombre.length < 2) {
+        setEditDirectoryResults([]);
+        setEditDirectorySearchedQuery(null);
+      }
       return;
     }
 
@@ -693,37 +707,50 @@ export function ProviderCard({
       const selectCols =
         "id,nombre,categoria,telefono,email,direccion,banco,tipo_cuenta,numero_cuenta,titular,documento_nit,notas";
 
-      // Buscar en todo el directorio (sin exigir categoría) para no ocultar resultados.
-      const { data, error: lookupError } = await supabase
-        .from("directorio_proveedores")
-        .select(selectCols)
-        .eq("activo", true)
-        .ilike("nombre", `%${query}%`)
-        .order("nombre", { ascending: true })
-        .limit(12);
+      const byCategory = categoria
+        ? await supabase
+            .from("directorio_proveedores")
+            .select(selectCols)
+            .eq("activo", true)
+            .eq("categoria", categoria)
+            .ilike("nombre", `%${trimmedEditNombre}%`)
+            .order("nombre", { ascending: true })
+            .limit(8)
+        : null;
 
       if (cancelled) return;
 
-      if (lookupError) {
+      let results = (byCategory?.data ?? []) as EditDirectorioLookup[];
+      const lookupError = byCategory?.error ?? null;
+
+      // Si no hay match en la categoría (o no hay categoría), buscar en todo el directorio.
+      if ((!categoria || results.length === 0) && !lookupError) {
+        const fallback = await supabase
+          .from("directorio_proveedores")
+          .select(selectCols)
+          .eq("activo", true)
+          .ilike("nombre", `%${trimmedEditNombre}%`)
+          .order("nombre", { ascending: true })
+          .limit(8);
+        if (cancelled) return;
+        if (fallback.error) {
+          setEditDirectoryResults([]);
+          setEditDirectorySearchedQuery(trimmedEditNombre);
+          return;
+        }
+        // Si había categoría con resultados, ya están en results; si no, usar fallback.
+        if (results.length === 0) {
+          results = (fallback.data ?? []) as EditDirectorioLookup[];
+        }
+      } else if (lookupError) {
         setEditDirectoryResults([]);
-        setEditDirectorySearchedQuery(query);
+        setEditDirectorySearchedQuery(trimmedEditNombre);
         return;
       }
 
-      const allResults = (data ?? []) as EditDirectorioLookup[];
-      const sameCategory = categoria
-        ? allResults.filter(
-            (row) =>
-              row.categoria.trim().toLowerCase() === categoria.toLowerCase(),
-          )
-        : [];
-      // Mostrar primero los de la misma categoría; si no hay, todos.
-      const results =
-        sameCategory.length > 0 ? sameCategory : allResults;
-
       if (!cancelled) {
         setEditDirectoryResults(results);
-        setEditDirectorySearchedQuery(query);
+        setEditDirectorySearchedQuery(trimmedEditNombre);
       }
     }, 250);
 
@@ -732,10 +759,9 @@ export function ProviderCard({
       window.clearTimeout(timeout);
     };
   }, [
-    editDirectoryQuery,
     editForm.categoria,
-    editOpen,
-    editSubmitting,
+    showEditDirectoryPicker,
+    trimmedEditNombre,
   ]);
 
   function applyDirectorioToEditForm(row: EditDirectorioLookup) {
@@ -753,9 +779,9 @@ export function ProviderCard({
       documentoNit: row.documento_nit ?? "",
       notas: row.notas?.trim() ? row.notas : s.notas,
     }));
-    setEditDirectoryQuery(row.nombre);
     setEditDirectoryResults([]);
-    setEditDirectorySearchedQuery(null);
+    setEditDirectorySearchedQuery(row.nombre);
+    setEditDirectoryPickerDismissed(true);
   }
 
   useEffect(() => {
@@ -1857,62 +1883,58 @@ export function ProviderCard({
             </div>
 
             <form className="mt-5 space-y-4" onSubmit={handleEditSave}>
-              <Field label="Buscar en directorio">
-                <div className="space-y-2">
-                  <input
-                    type="search"
-                    className={inputClass}
-                    value={editDirectoryQuery}
-                    onChange={(e) => setEditDirectoryQuery(e.target.value)}
-                    placeholder="Escribe al menos 2 letras para buscar…"
-                    disabled={editSubmitting}
-                    autoComplete="off"
-                  />
-                  {editDirectoryResults.length > 0 && (
-                    <ul className="overflow-hidden rounded-xl border border-bloom-border bg-bloom-canvas shadow-sm">
-                      {editDirectoryResults.map((row) => (
-                        <li key={row.id}>
-                          <button
-                            type="button"
-                            onClick={() => applyDirectorioToEditForm(row)}
-                            className="flex w-full flex-col items-start px-3 py-2.5 text-left text-sm transition-colors hover:bg-bloom-surface"
-                            disabled={editSubmitting}
-                          >
-                            <span className="font-medium text-bloom-ink">
-                              {row.nombre}
-                            </span>
-                            <span className="text-xs text-bloom-muted">
-                              {row.categoria}
-                            </span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  {editDirectorySearchedQuery &&
-                    editDirectoryResults.length === 0 && (
-                      <p className="text-xs text-bloom-muted">
-                        Sin resultados para &quot;{editDirectorySearchedQuery}
-                        &quot;. Puedes escribir el nombre manualmente abajo.
-                      </p>
-                    )}
-                </div>
-              </Field>
-
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field label="Nombre">
-                  <input
-                    className={inputClass}
-                    value={editForm.nombre}
-                    onChange={(e) =>
-                      setEditForm((s) => ({
-                        ...s,
-                        nombre: e.target.value,
-                      }))
-                    }
-                    placeholder="Opcional — o selecciona del directorio"
-                    disabled={editSubmitting}
-                  />
+                  <div className="space-y-2">
+                    <input
+                      className={inputClass}
+                      value={editForm.nombre}
+                      onChange={(e) => {
+                        setEditForm((s) => ({
+                          ...s,
+                          nombre: e.target.value,
+                        }));
+                        setEditDirectoryPickerDismissed(false);
+                        setEditDirectorySearchedQuery(null);
+                      }}
+                      placeholder="Escribe para buscar en directorio o ingresar manualmente"
+                      disabled={editSubmitting}
+                      autoComplete="off"
+                    />
+                    {showEditDirectoryPicker && (
+                      <div className="rounded-xl border border-bloom-border bg-bloom-surface shadow-sm">
+                        {editDirectorySearchPending ? (
+                          <p className="px-3 py-2 text-sm text-bloom-muted">
+                            Buscando…
+                          </p>
+                        ) : showEditDirectoryEmptyState ? (
+                          <p className="px-3 py-2 text-sm text-bloom-muted">
+                            No hay proveedores del directorio para esta
+                            búsqueda. Puedes seguir escribiendo el nombre
+                            manualmente.
+                          </p>
+                        ) : editDirectoryResults.length > 0 ? (
+                          <ul className="max-h-52 overflow-y-auto py-1">
+                            {editDirectoryResults.map((row) => (
+                              <li key={row.id}>
+                                <button
+                                  type="button"
+                                  className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-bloom-ink transition-colors hover:bg-bloom-canvas"
+                                  onClick={() => applyDirectorioToEditForm(row)}
+                                  disabled={editSubmitting}
+                                >
+                                  <span>{row.nombre}</span>
+                                  <span className="text-xs text-bloom-muted">
+                                    {row.categoria}
+                                  </span>
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
+                      </div>
+                    )}
+                  </div>
                 </Field>
                 <Field label="Categoría">
                   <input
