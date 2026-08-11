@@ -2,6 +2,7 @@
 
 import { ClienteDescargarCotizacionButton } from "@/app/components/cliente/ClienteDescargarCotizacionButton";
 import { ClienteDescargarProyeccionButton } from "@/app/components/cliente/ClienteDescargarProyeccionButton";
+import { ClienteDescargarProyeccionExcelButton } from "@/app/components/cliente/ClienteDescargarProyeccionExcelButton";
 import { ClienteLanguageToggle } from "@/app/components/cliente/ClienteLanguageToggle";
 import { useClienteLocale } from "@/app/components/cliente/ClienteLocaleProvider";
 import { useState } from "react";
@@ -37,11 +38,18 @@ export function ClienteCotizacionBar({
               />
             )}
             {hasProyeccionActual && (
-              <ClienteDescargarProyeccionButton
-                bodaId={bodaId}
-                inline
-                onError={setError}
-              />
+              <>
+                <ClienteDescargarProyeccionButton
+                  bodaId={bodaId}
+                  inline
+                  onError={setError}
+                />
+                <ClienteDescargarProyeccionExcelButton
+                  bodaId={bodaId}
+                  inline
+                  onError={setError}
+                />
+              </>
             )}
             {showSeatingAction && (
               <a

@@ -1,0 +1,115 @@
+import { buildPagosConAnticipo, type PagoRow } from "@/app/data/pagos";
+import {
+  dedupeProveedoresPorGrupo,
+  getDepositoReembolsableMonto,
+  getProveedorGrupoCategorias,
+  getProviderSaldoPendienteConPagos,
+  hasDepositoReembolsable,
+  hasProveedorValorDefinido,
+  type ProveedorRow,
+} from "@/app/data/providers";
+import { formatCurrency, formatShortDateStable } from "@/lib/format";
+
+export const CLIENTE_VALOR_POR_DEFINIR = "Por definir";
+
+export type ProjectionTableRow = {
+  cells: [string, string, string, string, string];
+  rowType: "valor" | "pago" | "sin-pagos" | "saldo" | "deposito" | "spacer";
+};
+
+function formatPagoConcepto(concepto: string | null): string {
+  const trimmed = concepto?.trim();
+  return trimmed || "Pago";
+}
+
+export function buildProviderTableRows(
+  provider: ProveedorRow,
+  pagos: PagoRow[],
+  categoriaLabel: string,
+): ProjectionTableRow[] {
+  const rows: ProjectionTableRow[] = [];
+  const valorDefinido = hasProveedorValorDefinido(provider.valor_total);
+  const pagosHistorial = [...buildPagosConAnticipo(provider, pagos)].sort(
+    (a, b) => a.fecha_pago.localeCompare(b.fecha_pago),
+  );
+  const saldo = getProviderSaldoPendienteConPagos(provider, pagos);
+
+  rows.push({
+    rowType: "valor",
+    cells: [
+      categoriaLabel,
+      provider.nombre,
+      "Valor total",
+      valorDefinido
+        ? formatCurrency(provider.valor_total)
+        : CLIENTE_VALOR_POR_DEFINIR,
+      "",
+    ],
+  });
+
+  if (pagosHistorial.length === 0) {
+    rows.push({
+      rowType: "sin-pagos",
+      cells: ["", "", "Sin pagos registrados", "—", "—"],
+    });
+  } else {
+    for (const pago of pagosHistorial) {
+      rows.push({
+        rowType: "pago",
+        cells: [
+          "",
+          "",
+          formatPagoConcepto(pago.concepto),
+          formatCurrency(Number(pago.monto)),
+          formatShortDateStable(pago.fecha_pago),
+        ],
+      });
+    }
+  }
+
+  rows.push({
+    rowType: "saldo",
+    cells: [
+      "",
+      "",
+      "Saldo pendiente",
+      valorDefinido ? formatCurrency(saldo) : CLIENTE_VALOR_POR_DEFINIR,
+      "",
+    ],
+  });
+
+  if (hasDepositoReembolsable(provider)) {
+    const montoDeposito = getDepositoReembolsableMonto(provider);
+
+    rows.push({
+      rowType: "deposito",
+      cells: [
+        "",
+        "",
+        "Depósito reembolsable",
+        formatCurrency(montoDeposito),
+        "",
+      ],
+    });
+  }
+
+  rows.push({
+    rowType: "spacer",
+    cells: ["", "", "", "", ""],
+  });
+
+  return rows;
+}
+
+export function buildProjectionTableBody(
+  proveedores: ProveedorRow[],
+  pagosByProveedor: Record<string, PagoRow[]>,
+): ProjectionTableRow[] {
+  return dedupeProveedoresPorGrupo(proveedores).flatMap((provider) =>
+    buildProviderTableRows(
+      provider,
+      pagosByProveedor[provider.id] ?? [],
+      getProveedorGrupoCategorias(proveedores, provider).join(", "),
+    ),
+  );
+}

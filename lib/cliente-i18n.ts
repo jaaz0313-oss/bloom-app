@@ -1,6 +1,7 @@
 import type { ClienteCronogramaHitoEstado } from "@/lib/cliente-cronograma";
 import type { ClientePagoUrgency } from "@/lib/cliente-pagos";
 import { formatCurrency } from "@/lib/format";
+import { appendUsdApprox } from "@/lib/tasa-cambio";
 
 export type ClienteLocale = "es" | "en";
 
@@ -43,6 +44,7 @@ export function getClienteTastingsDayLabel(
 export function formatClienteProveedorValue(
   amount: number | null | undefined,
   locale: ClienteLocale,
+  copPorUsd?: number | null,
 ): string {
   if (amount == null) {
     return locale === "en" ? "To be defined" : "Por definir";
@@ -53,7 +55,7 @@ export function formatClienteProveedorValue(
     return locale === "en" ? "To be defined" : "Por definir";
   }
 
-  return formatCurrency(value);
+  return appendUsdApprox(formatCurrency(value), value, copPorUsd);
 }
 
 export function getClienteMensajeMotivacional(
@@ -355,7 +357,9 @@ export type ClienteUiCopy = {
   viewSeatingPlan: string;
   downloadQuote: string;
   downloadProjection: string;
+  downloadProjectionExcel: string;
   generatingPdf: string;
+  generatingExcel: string;
   downloadQuoteError: string;
   downloadProjectionError: string;
   languageToggleLabel: string;
@@ -501,8 +505,10 @@ const UI_ES: ClienteUiCopy = {
   seatingSubtitle: "Distribución de mesas e invitados para su celebración",
   viewSeatingPlan: "Ver seating plan",
   downloadQuote: "Cotización inicial",
-  downloadProjection: "Proyección actual",
+  downloadProjection: "Descargar PDF",
+  downloadProjectionExcel: "Descargar Excel",
   generatingPdf: "Generando PDF…",
+  generatingExcel: "Generando Excel…",
   downloadQuoteError: "No se pudo descargar la cotización.",
   downloadProjectionError: "No se pudo descargar la proyección.",
   languageToggleLabel: "Idioma",
@@ -679,8 +685,10 @@ const UI_EN: ClienteUiCopy = {
   seatingSubtitle: "Table layout and guest seating for your celebration",
   viewSeatingPlan: "View seating plan",
   downloadQuote: "Initial quote",
-  downloadProjection: "Current projection",
+  downloadProjection: "Download PDF",
+  downloadProjectionExcel: "Download Excel",
   generatingPdf: "Generating PDF…",
+  generatingExcel: "Generating Excel…",
   downloadQuoteError: "Could not download the quote.",
   downloadProjectionError: "Could not download the projection.",
   languageToggleLabel: "Language",

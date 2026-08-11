@@ -20,6 +20,8 @@ import {
   type ProveedorRow,
 } from "@/app/data/providers";
 import { formatCurrency, formatInputCurrency, formatInputCurrencyFromNumber, formatProveedorValorTotal, formatShortDateStable, parseInputCurrency } from "@/lib/format";
+import { useTasaCambio } from "@/lib/hooks/use-tasa-cambio";
+import { formatUsdApprox } from "@/lib/tasa-cambio";
 import { supabase } from "@/lib/supabase";
 import { syncBodaProveedoresContratados } from "@/lib/sync-boda";
 import { marcarHitoCronogramaPorProveedorContratado } from "@/lib/cronograma";
@@ -142,6 +144,7 @@ export function ProviderCard({
    */
   const [provider, setProvider] = useState(providerProp);
   const pendingValorTotalRef = useRef<number | null>(null);
+  const copPorUsd = useTasaCambio();
 
   useEffect(() => {
     console.log("[ProviderCard] provider prop", {
@@ -1150,13 +1153,25 @@ export function ProviderCard({
                   <dt className="text-bloom-muted">Valor total</dt>
                   <dd className="font-medium text-bloom-ink">
                     {formatProveedorValorTotal(valorMostrado ?? 0)}
+                    {hasProveedorValorDefinido(valorMostrado) ? (
+                      <UsdApproxLine
+                        amountCop={Number(valorMostrado)}
+                        copPorUsd={copPorUsd}
+                      />
+                    ) : null}
                   </dd>
                 </div>
                 <div>
                   <dt className="text-bloom-muted">Saldo pendiente</dt>
                   <dd className="font-medium text-bloom-ink">
                     {hasProveedorValorDefinido(localProvider.valor_total) ? (
-                      formatCurrency(saldoPendiente)
+                      <>
+                        {formatCurrency(saldoPendiente)}
+                        <UsdApproxLine
+                          amountCop={saldoPendiente}
+                          copPorUsd={copPorUsd}
+                        />
+                      </>
                     ) : (
                       formatProveedorValorTotal(0)
                     )}
@@ -2297,6 +2312,22 @@ function ProviderInlineTextField({
         </button>
       )}
     </div>
+  );
+}
+
+function UsdApproxLine({
+  amountCop,
+  copPorUsd,
+}: {
+  amountCop: number;
+  copPorUsd: number | null;
+}) {
+  const label = formatUsdApprox(amountCop, copPorUsd);
+  if (!label) return null;
+  return (
+    <span className="mt-0.5 block text-xs font-normal text-bloom-muted">
+      {label}
+    </span>
   );
 }
 

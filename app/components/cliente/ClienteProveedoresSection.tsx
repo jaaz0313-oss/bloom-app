@@ -26,15 +26,18 @@ import {
   type ClienteUiCopy,
 } from "@/lib/cliente-i18n";
 import { formatCurrency, formatShortDateStable } from "@/lib/format";
+import { appendUsdApprox } from "@/lib/tasa-cambio";
 
 type ClienteProveedoresSectionProps = {
   contratados: ProveedorRow[];
   pagosByProveedor: Record<string, PagoRow[]>;
+  copPorUsd?: number | null;
 };
 
 export function ClienteProveedoresSection({
   contratados,
   pagosByProveedor,
+  copPorUsd = null,
 }: ClienteProveedoresSectionProps) {
   const { t } = useClienteLocale();
   const proveedoresOrdenados = useMemo(
@@ -60,6 +63,7 @@ export function ClienteProveedoresSection({
               allProviders={proveedoresOrdenados}
               pagos={pagosByProveedor[provider.id] ?? []}
               pagosByProveedor={pagosByProveedor}
+              copPorUsd={copPorUsd}
             />
           ))}
         </ul>
@@ -73,6 +77,7 @@ type ClienteProveedorAccordionItemProps = {
   allProviders: ProveedorRow[];
   pagos: PagoRow[];
   pagosByProveedor: Record<string, PagoRow[]>;
+  copPorUsd: number | null;
 };
 
 function ClienteProveedorAccordionItem({
@@ -80,6 +85,7 @@ function ClienteProveedorAccordionItem({
   allProviders,
   pagos,
   pagosByProveedor,
+  copPorUsd,
 }: ClienteProveedorAccordionItemProps) {
   const [open, setOpen] = useState(false);
   const panelId = useId();
@@ -179,7 +185,11 @@ function ClienteProveedorAccordionItem({
             <div className="grid gap-3 text-sm sm:grid-cols-3">
               <SummaryItem
                 label={t.contractedValue}
-                value={formatClienteProveedorValue(provider.valor_total, locale)}
+                value={formatClienteProveedorValue(
+                  provider.valor_total,
+                  locale,
+                  copPorUsd,
+                )}
               />
               <SummaryItem
                 label={t.pendingBalance}
@@ -188,6 +198,7 @@ function ClienteProveedorAccordionItem({
                     ? saldo
                     : null,
                   locale,
+                  copPorUsd,
                 )}
                 emphasized
               />
@@ -202,7 +213,13 @@ function ClienteProveedorAccordionItem({
             </div>
             {showDeposito ? (
               <p className="text-sm font-medium text-sky-800">
-                {t.refundableDeposit(formatCurrency(depositoMonto))}
+                {t.refundableDeposit(
+                  appendUsdApprox(
+                    formatCurrency(depositoMonto),
+                    depositoMonto,
+                    copPorUsd,
+                  ),
+                )}
               </p>
             ) : null}
           </div>

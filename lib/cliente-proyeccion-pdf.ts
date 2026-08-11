@@ -4,24 +4,16 @@ import fs from "node:fs";
 import path from "node:path";
 import { jsPDF } from "jspdf";
 import autoTable, { type CellHookData } from "jspdf-autotable";
-import { buildPagosConAnticipo, type PagoRow } from "@/app/data/pagos";
 import {
   dedupeProveedoresPorGrupo,
-  getDepositoReembolsableMonto,
   getProveedorGrupoCategorias,
-  getProviderSaldoPendienteConPagos,
-  hasDepositoReembolsable,
-  hasProveedorValorDefinido,
-  type ProveedorRow,
 } from "@/app/data/providers";
 import type { ClienteProyeccionContext } from "@/lib/cliente-proyeccion";
 import {
-  formatCurrency,
-  formatShortDateStable,
-  formatWeddingDate,
-} from "@/lib/format";
-
-const CLIENTE_VALOR_POR_DEFINIR = "Por definir";
+  buildProjectionTableBody,
+  type ProjectionTableRow,
+} from "@/lib/cliente-proyeccion-table";
+import { formatCurrency, formatWeddingDate } from "@/lib/format";
 
 const CELESTIA_EMAIL = "celestiaandevents@gmail.com";
 const CELESTIA_PHONE = "+57 319 553 8654";
@@ -33,11 +25,6 @@ const COLORS = {
   accent: [125, 107, 90] as [number, number, number],
   border: [232, 226, 217] as [number, number, number],
   white: [255, 255, 255] as [number, number, number],
-};
-
-type ProjectionTableRow = {
-  cells: [string, string, string, string, string];
-  rowType: "valor" | "pago" | "sin-pagos" | "saldo" | "deposito" | "spacer";
 };
 
 const TABLE_THEME = {
@@ -112,103 +99,6 @@ function drawFooter(doc: jsPDF) {
     pageWidth / 2,
     footerY,
     { align: "center" },
-  );
-}
-
-function formatPagoConcepto(concepto: string | null): string {
-  const trimmed = concepto?.trim();
-  return trimmed || "Pago";
-}
-
-function buildProviderTableRows(
-  provider: ProveedorRow,
-  pagos: PagoRow[],
-  categoriaLabel: string,
-): ProjectionTableRow[] {
-  const rows: ProjectionTableRow[] = [];
-  const valorDefinido = hasProveedorValorDefinido(provider.valor_total);
-  const pagosHistorial = [...buildPagosConAnticipo(provider, pagos)].sort(
-    (a, b) => a.fecha_pago.localeCompare(b.fecha_pago),
-  );
-  const saldo = getProviderSaldoPendienteConPagos(provider, pagos);
-
-  rows.push({
-    rowType: "valor",
-    cells: [
-      categoriaLabel,
-      provider.nombre,
-      "Valor total",
-      valorDefinido
-        ? formatCurrency(provider.valor_total)
-        : CLIENTE_VALOR_POR_DEFINIR,
-      "",
-    ],
-  });
-
-  if (pagosHistorial.length === 0) {
-    rows.push({
-      rowType: "sin-pagos",
-      cells: ["", "", "Sin pagos registrados", "—", "—"],
-    });
-  } else {
-    for (const pago of pagosHistorial) {
-      rows.push({
-        rowType: "pago",
-        cells: [
-          "",
-          "",
-          formatPagoConcepto(pago.concepto),
-          formatCurrency(Number(pago.monto)),
-          formatShortDateStable(pago.fecha_pago),
-        ],
-      });
-    }
-  }
-
-  rows.push({
-    rowType: "saldo",
-    cells: [
-      "",
-      "",
-      "Saldo pendiente",
-      valorDefinido ? formatCurrency(saldo) : CLIENTE_VALOR_POR_DEFINIR,
-      "",
-    ],
-  });
-
-  if (hasDepositoReembolsable(provider)) {
-    const montoDeposito = getDepositoReembolsableMonto(provider);
-
-    rows.push({
-      rowType: "deposito",
-      cells: [
-        "",
-        "",
-        "Depósito reembolsable",
-        formatCurrency(montoDeposito),
-        "",
-      ],
-    });
-  }
-
-  rows.push({
-    rowType: "spacer",
-    cells: ["", "", "", "", ""],
-  });
-
-  return rows;
-}
-
-function buildProjectionTableBody(
-  proveedores: ProveedorRow[],
-  pagosByProveedor: Record<string, PagoRow[]>,
-): ProjectionTableRow[] {
-  return dedupeProveedoresPorGrupo(proveedores).flatMap((provider) =>
-    buildProviderTableRows(
-      provider,
-      pagosByProveedor[provider.id] ?? [],
-      getProveedorGrupoCategorias(proveedores, provider).join(", "),
-    ),
   );
 }
 

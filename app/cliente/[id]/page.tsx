@@ -37,6 +37,7 @@ import {
 } from "@/lib/cliente-cotizacion";
 import { shouldShowClienteSeatingPlan } from "@/lib/cliente-seating-plan";
 import { createPublicSupabaseClient } from "@/lib/supabase-public";
+import { getTasaCambioCopPorUsd } from "@/lib/tasa-cambio";
 
 export const dynamic = "force-dynamic";
 
@@ -176,6 +177,9 @@ export default async function ClienteBodaPage({ params }: PageProps) {
     contratados.length > 0 ||
     (mostrarSeatingPlan && !cotizacionDisponible);
 
+  const tasaCambio = await getTasaCambioCopPorUsd();
+  const copPorUsd = tasaCambio?.copPorUsd ?? null;
+
   return (
     <div className="flex min-h-full flex-col bg-bloom-canvas">
       <ClientePwaInstallBanner bodaId={id} />
@@ -212,12 +216,14 @@ export default async function ClienteBodaPage({ params }: PageProps) {
         <ClienteProveedoresSection
           contratados={contratados}
           pagosByProveedor={pagosByProveedor}
+          copPorUsd={copPorUsd}
         />
         <ClienteProveedoresEvaluacionSection proveedores={enEvaluacion} />
         <ClientePaymentOverview
           totalContratado={totalContratado}
           totalPagado={totalPagado}
           saldoPendiente={saldoPendiente}
+          copPorUsd={copPorUsd}
         />
         <ClienteProveedoresSugeridosSection
           bodaId={id}
