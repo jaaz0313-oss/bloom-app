@@ -29,7 +29,8 @@ export async function GET(_request: Request, { params }: RouteContext) {
       context.boda.nombre_pareja,
     );
 
-    return new NextResponse(new Uint8Array(excelBytes), {
+    // Uint8Array.from evita el mismatch TS Uint8Array<ArrayBufferLike> vs BodyInit
+    return new NextResponse(Uint8Array.from(excelBytes), {
       headers: {
         "Content-Type":
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

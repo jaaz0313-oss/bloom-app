@@ -9,6 +9,9 @@
   --bloom-accent: #7d6b5a;
   --bloom-accent-hover: #6a5a4b;
   --bloom-success: #5c7a6b;
+  /* Fuentes vía CSS (evita next/font/google → módulo interno de Turbopack en build) */
+  --font-dm-sans: "DM Sans", system-ui, sans-serif;
+  --font-cormorant: "Cormorant Garamond", Georgia, "Times New Roman", serif;
 }
 
 @theme inline {
@@ -27,5 +30,5 @@
 body {
   background: var(--bloom-canvas);
   color: var(--bloom-ink);
-  font-family: var(--font-dm-sans), system-ui, sans-serif;
+  font-family: var(--font-dm-sans);
 }

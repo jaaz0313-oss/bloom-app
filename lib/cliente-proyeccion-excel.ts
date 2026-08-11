@@ -26,7 +26,7 @@ export function buildClienteProyeccionExcelFilename(nombrePareja: string): strin
 
 export function generateClienteProyeccionExcel(
   context: ClienteProyeccionContext,
-): Buffer {
+): Uint8Array {
   const {
     boda,
     proveedores,
@@ -90,7 +90,9 @@ export function generateClienteProyeccionExcel(
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Proyección");
 
-  return Buffer.from(
-    XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer,
-  );
+  const buffer = XLSX.write(workbook, {
+    type: "buffer",
+    bookType: "xlsx",
+  }) as Buffer;
+  return new Uint8Array(buffer);
 }
