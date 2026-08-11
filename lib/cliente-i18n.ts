@@ -363,6 +363,16 @@ export type ClienteUiCopy = {
   downloadQuoteError: string;
   downloadProjectionError: string;
   languageToggleLabel: string;
+  budgetEstimateTitle: string;
+  budgetEstimateSubtitle: string;
+  budgetEstimateNote: string;
+  budgetCategory: string;
+  budgetStatus: string;
+  budgetValue: string;
+  budgetTotal: string;
+  budgetStatusContracted: string;
+  budgetStatusEvaluation: string;
+  budgetStatusEstimated: string;
   pwaInstallBannerIos: string;
   pwaInstallBannerAndroid: string;
   pwaInstallBannerOther: string;
@@ -512,6 +522,17 @@ const UI_ES: ClienteUiCopy = {
   downloadQuoteError: "No se pudo descargar la cotización.",
   downloadProjectionError: "No se pudo descargar la proyección.",
   languageToggleLabel: "Idioma",
+  budgetEstimateTitle: "Presupuesto total estimado",
+  budgetEstimateSubtitle: "Proyección de inversión por categoría",
+  budgetEstimateNote:
+    "Los valores estimados son aproximados y pueden variar",
+  budgetCategory: "Categoría",
+  budgetStatus: "Estado",
+  budgetValue: "Valor",
+  budgetTotal: "Total general",
+  budgetStatusContracted: "Contratado",
+  budgetStatusEvaluation: "En evaluación",
+  budgetStatusEstimated: "Estimado",
   pwaInstallBannerIos:
     "Para acceder fácilmente: toca el botón compartir (□↑) en Safari y selecciona 'Añadir a pantalla de inicio' 🌸",
   pwaInstallBannerAndroid:
@@ -692,6 +713,16 @@ const UI_EN: ClienteUiCopy = {
   downloadQuoteError: "Could not download the quote.",
   downloadProjectionError: "Could not download the projection.",
   languageToggleLabel: "Language",
+  budgetEstimateTitle: "Estimated total budget",
+  budgetEstimateSubtitle: "Investment projection by category",
+  budgetEstimateNote: "Estimated amounts are approximate and may change",
+  budgetCategory: "Category",
+  budgetStatus: "Status",
+  budgetValue: "Amount",
+  budgetTotal: "Grand total",
+  budgetStatusContracted: "Contracted",
+  budgetStatusEvaluation: "Under evaluation",
+  budgetStatusEstimated: "Estimated",
   pwaInstallBannerIos:
     "For easy access: tap the share button (□↑) in Safari and select 'Add to Home Screen' 🌸",
   pwaInstallBannerAndroid:

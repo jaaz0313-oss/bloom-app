@@ -11,12 +11,14 @@ import { ClientePageFooter } from "@/app/components/cliente/ClientePageFooter";
 import { ClientePageHeader } from "@/app/components/cliente/ClientePageHeader";
 import { ClienteHelpGuide } from "@/app/components/cliente/ClienteHelpGuide";
 import { ClientePaymentOverview } from "@/app/components/cliente/ClientePaymentOverview";
+import { ClientePresupuestoEstimadoSection } from "@/app/components/cliente/ClientePresupuestoEstimadoSection";
 import { ClienteProveedoresEvaluacionSection } from "@/app/components/cliente/ClienteProveedoresEvaluacionSection";
 import { ClienteProveedoresSection } from "@/app/components/cliente/ClienteProveedoresSection";
 import { ClienteProximosPagos } from "@/app/components/cliente/ClienteProximosPagos";
 import { ClienteSeatingPlanSection } from "@/app/components/cliente/ClienteSeatingPlanSection";
 import type { CronogramaItemRow } from "@/app/data/cronograma";
 import type { DetallesCelebracionRow } from "@/app/data/detalles-celebracion";
+import type { PresupuestoEstimadoCategoriaRow } from "@/app/data/presupuesto-estimado";
 import { fetchProveedoresSugeridosForBoda } from "@/app/data/proveedores-sugeridos";
 import { sortTastingsBySchedule, type TastingRow } from "@/app/data/tastings";
 import type { BodaRow } from "@/app/data/weddings";
@@ -174,6 +176,19 @@ export default async function ClienteBodaPage({ params }: PageProps) {
 
   const mostrarUsdCliente = Boolean(bodaRow.mostrar_usd_cliente);
   const permitirExcelCliente = Boolean(bodaRow.permitir_excel_cliente);
+  const mostrarPresupuestoEstimado = Boolean(
+    bodaRow.mostrar_presupuesto_estimado_cliente,
+  );
+
+  let presupuestoEstimados: PresupuestoEstimadoCategoriaRow[] = [];
+  if (mostrarPresupuestoEstimado) {
+    const { data: estimadosData } = await supabase
+      .from("presupuesto_estimado_categorias")
+      .select("*")
+      .eq("boda_id", id);
+    presupuestoEstimados = (estimadosData ??
+      []) as PresupuestoEstimadoCategoriaRow[];
+  }
 
   const showDownloadBar =
     cotizacionDisponible ||
@@ -232,6 +247,14 @@ export default async function ClienteBodaPage({ params }: PageProps) {
           saldoPendiente={saldoPendiente}
           copPorUsd={copPorUsd}
         />
+        {mostrarPresupuestoEstimado && (
+          <ClientePresupuestoEstimadoSection
+            providers={proveedoresVisibles}
+            cronogramaItems={cronogramaItems}
+            estimados={presupuestoEstimados}
+            copPorUsd={copPorUsd}
+          />
+        )}
         <ClienteProveedoresSugeridosSection
           bodaId={id}
           initialProveedores={proveedoresSugeridos}

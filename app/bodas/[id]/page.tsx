@@ -15,9 +15,11 @@ import { AutoSyncCronograma } from "@/app/components/bodas/AutoSyncCronograma";
 import type { CitaRow } from "@/app/data/citas";
 import type { BriefBodaRow } from "@/app/data/brief-boda";
 import type { ContratoRow } from "@/app/data/contratos";
+import type { CronogramaItemRow } from "@/app/data/cronograma";
 import type { NotaBodaRow } from "@/app/data/notas-boda";
 import { fetchNotasReunionForBoda } from "@/app/data/notas-reunion";
 import type { DetallesCelebracionRow } from "@/app/data/detalles-celebracion";
+import type { PresupuestoEstimadoCategoriaRow } from "@/app/data/presupuesto-estimado";
 import { fetchProveedoresSugeridosForBoda } from "@/app/data/proveedores-sugeridos";
 import { sortTastingsBySchedule, type TastingRow } from "@/app/data/tastings";
 import type { BodaRow } from "@/app/data/weddings";
@@ -154,10 +156,21 @@ export default async function BodaDetailPage({ params, searchParams }: PageProps
 
   const contrato = (contratoData as ContratoRow | null) ?? null;
 
-  const { count: cronogramaCount } = await supabase
+  const { data: cronogramaItemsData } = await supabase
     .from("cronograma_items")
-    .select("*", { count: "exact", head: true })
+    .select("*")
+    .eq("boda_id", id)
+    .order("fecha_limite", { ascending: true });
+
+  const cronogramaItems = (cronogramaItemsData ?? []) as CronogramaItemRow[];
+
+  const { data: presupuestoEstimadosData } = await supabase
+    .from("presupuesto_estimado_categorias")
+    .select("*")
     .eq("boda_id", id);
+
+  const presupuestoEstimados = (presupuestoEstimadosData ??
+    []) as PresupuestoEstimadoCategoriaRow[];
 
   const { data: equipoData, error: equipoError } = await supabase
     .from("user_profiles")
@@ -224,7 +237,7 @@ export default async function BodaDetailPage({ params, searchParams }: PageProps
     lugar_venue: bodaRow.lugar_venue,
   };
 
-  const hasCronograma = (cronogramaCount ?? 0) > 0;
+  const hasCronograma = cronogramaItems.length > 0;
 
   return (
     <div className="min-h-full bg-bloom-canvas font-sans">
@@ -331,6 +344,8 @@ export default async function BodaDetailPage({ params, searchParams }: PageProps
           highlightProveedorId={highlightProveedorId}
           canManageDrive={canManageDrive}
           driveFolderUrl={driveFolderUrl}
+          cronogramaItems={cronogramaItems}
+          presupuestoEstimados={presupuestoEstimados}
         />
 
         {hasPermission(user.rol, "weddings.delete") && (

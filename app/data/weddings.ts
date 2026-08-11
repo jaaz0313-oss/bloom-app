@@ -33,6 +33,7 @@ export type BodaRow = {
   seating_plan_link: string | null;
   mostrar_usd_cliente?: boolean | null;
   permitir_excel_cliente?: boolean | null;
+  mostrar_presupuesto_estimado_cliente?: boolean | null;
   honorarios: number | null;
   anticipo_honorarios: number | null;
   lugar_venue: string | null;

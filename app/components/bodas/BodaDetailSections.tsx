@@ -12,6 +12,7 @@ import { ContratoSection } from "@/app/components/bodas/ContratoSection";
 import { DetallesCelebracionSection } from "@/app/components/bodas/DetallesCelebracionSection";
 import { NotasInternas } from "@/app/components/bodas/NotasInternas";
 import { PaymentProjection } from "@/app/components/bodas/PaymentProjection";
+import { PresupuestoEstimadoSection } from "@/app/components/bodas/PresupuestoEstimadoSection";
 import { ProveedoresSugeridosSection } from "@/app/components/bodas/ProveedoresSugeridosSection";
 import { TastingsSection } from "@/app/components/bodas/TastingsSection";
 import { ProviderList } from "@/app/components/bodas/ProviderList";
@@ -20,6 +21,7 @@ import { CitasSection } from "@/app/components/citas/CitasSection";
 import type { CitaRow } from "@/app/data/citas";
 import type { BriefBodaRow } from "@/app/data/brief-boda";
 import type { ContratoRow } from "@/app/data/contratos";
+import type { CronogramaItemRow } from "@/app/data/cronograma";
 import {
   hasDetallesCelebracionContent,
   type DetallesCelebracionRow,
@@ -30,6 +32,7 @@ import {
   type NotaReunionRow,
 } from "@/app/data/notas-reunion";
 import type { PagoRow } from "@/app/data/pagos";
+import type { PresupuestoEstimadoCategoriaRow } from "@/app/data/presupuesto-estimado";
 import type { ProveedorSugeridoWithSelection } from "@/app/data/proveedores-sugeridos";
 import {
   computePaymentProjection,
@@ -38,7 +41,12 @@ import {
 } from "@/app/data/providers";
 import type { TastingRow } from "@/app/data/tastings";
 import type { BodaRow } from "@/app/data/weddings";
-import { canManageBodaEstado, hasPermission, type UserRole } from "@/lib/auth/roles";
+import {
+  canManageBodaEstado,
+  canManageClientePortalFlags,
+  hasPermission,
+  type UserRole,
+} from "@/lib/auth/roles";
 import type { EquipoUsuarioMencion } from "@/lib/notas-menciones";
 import type {
   CitaLookupBoda,
@@ -85,6 +93,8 @@ type BodaDetailSectionsProps = {
   highlightProveedorId?: string | null;
   canManageDrive?: boolean;
   driveFolderUrl?: string | null;
+  cronogramaItems?: CronogramaItemRow[];
+  presupuestoEstimados?: PresupuestoEstimadoCategoriaRow[];
 };
 
 function sortProveedores(list: ProveedorRow[]): ProveedorRow[] {
@@ -181,6 +191,8 @@ export function BodaDetailSections({
   highlightProveedorId = null,
   canManageDrive = false,
   driveFolderUrl = null,
+  cronogramaItems = [],
+  presupuestoEstimados = [],
 }: BodaDetailSectionsProps) {
   const [liveProviders, setLiveProviders] = useState(providers);
   const [livePagosByProveedor, setLivePagosByProveedor] =
@@ -337,6 +349,7 @@ export function BodaDetailSections({
     depositos.length > 0 ||
     liveProviders.length > 0;
   const canManageSugeridos = canManageProveedoresSugeridos(role);
+  const canManagePresupuesto = canManageClientePortalFlags(role);
 
   return (
     <div className="mt-8 space-y-4">
@@ -555,6 +568,27 @@ export function BodaDetailSections({
           />
         </div>
       </BodaAccordionSection>
+
+      {canManagePresupuesto && (
+        <BodaAccordionSection
+          title="Presupuesto estimado"
+          defaultOpen={false}
+          hasContent={
+            cronogramaItems.length > 0 || presupuestoEstimados.length > 0
+          }
+        >
+          <PresupuestoEstimadoSection
+            embedded
+            bodaId={bodaId}
+            providers={liveProviders}
+            cronogramaItems={cronogramaItems}
+            initialEstimados={presupuestoEstimados}
+            mostrarAlCliente={Boolean(
+              boda.mostrar_presupuesto_estimado_cliente,
+            )}
+          />
+        </BodaAccordionSection>
+      )}
 
       <BodaAccordionSection
         title="Proyección de pagos"
