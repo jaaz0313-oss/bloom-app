@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Copy } from "lucide-react";
 import type { DirectorioProveedorRow } from "@/app/data/directorio";
 import { ProviderComisionFields } from "@/app/components/bodas/ProviderComisionFields";
 import { PROVIDER_CATEGORIES } from "@/lib/provider-categories";
@@ -10,6 +11,8 @@ import {
   canEditDirectorio,
   type UserRole,
 } from "@/lib/auth/roles";
+import { copyTextToClipboard } from "@/lib/copy-to-clipboard";
+import { buildDirectorioProveedorClipboardText } from "@/lib/directorio-proveedor-clipboard";
 import { supabase } from "@/lib/supabase";
 import {
   formatInputCurrency,
@@ -129,9 +132,21 @@ export function DirectorioPageClient({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rowUpdatingId, setRowUpdatingId] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
     new Set(),
   );
+
+  useEffect(() => {
+    if (!copiedId) return;
+    const timeout = window.setTimeout(() => setCopiedId(null), 2000);
+    return () => window.clearTimeout(timeout);
+  }, [copiedId]);
+
+  function copyProviderInfo(row: DirectorioProveedorRow) {
+    const ok = copyTextToClipboard(buildDirectorioProveedorClipboardText(row));
+    if (ok) setCopiedId(row.id);
+  }
 
   const searchTerm = query.trim().toLowerCase();
 
@@ -460,29 +475,35 @@ export function DirectorioPageClient({
                                 {row.telefono || "Sin teléfono"}
                               </p>
                             </div>
-                            {canEdit || canDeactivate ? (
-                              <div className="flex shrink-0 flex-wrap items-center gap-2">
-                                {canEdit && (
-                                  <button
-                                    type="button"
-                                    onClick={() => openEditModal(row)}
-                                    className="rounded-full border border-bloom-border bg-bloom-surface px-3 py-1.5 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-border"
-                                  >
-                                    Editar
-                                  </button>
-                                )}
-                                {canDeactivate && (
-                                  <button
-                                    type="button"
-                                    onClick={() => toggleActive(row)}
-                                    disabled={rowUpdatingId === row.id}
-                                    className="rounded-full border border-bloom-border bg-bloom-surface px-3 py-1.5 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-border disabled:opacity-60"
-                                  >
-                                    {row.activo ? "Desactivar" : "Activar"}
-                                  </button>
-                                )}
-                              </div>
-                            ) : null}
+                            <div className="flex shrink-0 flex-wrap items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => copyProviderInfo(row)}
+                                className="inline-flex items-center gap-1.5 rounded-full border border-bloom-border bg-bloom-surface px-3 py-1.5 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-border"
+                              >
+                                <Copy className="h-3.5 w-3.5" aria-hidden />
+                                {copiedId === row.id ? "¡Copiado!" : "Copiar info"}
+                              </button>
+                              {canEdit && (
+                                <button
+                                  type="button"
+                                  onClick={() => openEditModal(row)}
+                                  className="rounded-full border border-bloom-border bg-bloom-surface px-3 py-1.5 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-border"
+                                >
+                                  Editar
+                                </button>
+                              )}
+                              {canDeactivate && (
+                                <button
+                                  type="button"
+                                  onClick={() => toggleActive(row)}
+                                  disabled={rowUpdatingId === row.id}
+                                  className="rounded-full border border-bloom-border bg-bloom-surface px-3 py-1.5 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-border disabled:opacity-60"
+                                >
+                                  {row.activo ? "Desactivar" : "Activar"}
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </li>
                       ))}
