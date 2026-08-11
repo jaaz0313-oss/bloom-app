@@ -26,6 +26,7 @@ import { supabase } from "@/lib/supabase";
 import { syncBodaProveedoresContratados } from "@/lib/sync-boda";
 import { marcarHitoCronogramaPorProveedorContratado } from "@/lib/cronograma";
 import { syncTastingNotasReunionToProveedor } from "@/lib/tasting-notas-reunion";
+import type { DirectorioProveedorRow } from "@/app/data/directorio";
 import type { PagoRow } from "@/app/data/pagos";
 import type { NotaReunionRow } from "@/app/data/notas-reunion";
 import { hasPermission, type UserRole } from "@/lib/auth/roles";
@@ -85,6 +86,13 @@ const cotizacionPrimerContactoButtonClass =
 
 const cotizacionPostReunionButtonClass =
   "inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-green-500 text-green-700 hover:bg-green-50 transition-colors disabled:opacity-60";
+
+/** Nombre vacío o placeholder de cotización importada ("Por definir - Fotografía"). */
+function isNombreProveedorPlaceholder(nombre: string | null | undefined): boolean {
+  const trimmed = nombre?.trim() ?? "";
+  if (!trimmed) return true;
+  return /^por definir(\s*-|$)/i.test(trimmed);
+}
 
 function CotizacionWhatsAppButtons({
   markPrimerAsRequested,
@@ -566,12 +574,35 @@ export function ProviderCard({
     depositoReembolsable: string;
   };
 
+  type EditDirectorioLookup = Pick<
+    DirectorioProveedorRow,
+    | "id"
+    | "nombre"
+    | "categoria"
+    | "telefono"
+    | "email"
+    | "direccion"
+    | "banco"
+    | "tipo_cuenta"
+    | "numero_cuenta"
+    | "titular"
+    | "documento_nit"
+    | "notas"
+  >;
+
   const [editOpen, setEditOpen] = useState(false);
   const [editSubmitting, setEditSubmitting] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [contratadoConfirmOpen, setContratadoConfirmOpen] = useState(false);
+  const [editDirectoryQuery, setEditDirectoryQuery] = useState("");
+  const [editDirectoryResults, setEditDirectoryResults] = useState<
+    EditDirectorioLookup[]
+  >([]);
+  const [editDirectorySearchedQuery, setEditDirectorySearchedQuery] = useState<
+    string | null
+  >(null);
   const [editForm, setEditForm] = useState<EditFormState>({
     nombre: provider.nombre,
     categoria: provider.categoria,
@@ -602,40 +633,130 @@ export function ProviderCard({
         : "",
   });
 
+  function buildEditFormFromProvider(row: ProveedorRow): EditFormState {
+    return {
+      nombre: isNombreProveedorPlaceholder(row.nombre) ? "" : (row.nombre ?? ""),
+      categoria: row.categoria ?? "",
+      descripcionServicio: row.descripcion_servicio ?? "",
+      valorTotal:
+        row.valor_total != null && row.valor_total > 0
+          ? formatInputCurrencyFromNumber(row.valor_total)
+          : "",
+      anticipo: formatInputCurrencyFromNumber(row.anticipo ?? 0),
+      fechaSaldo: row.fecha_saldo ?? "",
+      banco: row.banco ?? "",
+      numeroCuenta: row.numero_cuenta ?? "",
+      tipoCuenta: row.tipo_cuenta ?? "",
+      titularCuenta: row.titular_cuenta ?? "",
+      documentoNit: row.documento_nit ?? "",
+      telefono: row.telefono ?? "",
+      email: row.email ?? "",
+      direccion: row.direccion ?? "",
+      linkPago: row.link_pago ?? "",
+      notas: row.notas ?? "",
+      daComision: row.da_comision ?? false,
+      porcentajeComision: String(
+        row.porcentaje_comision != null ? row.porcentaje_comision : 10,
+      ),
+      depositoReembolsable:
+        getDepositoReembolsableMonto(row) > 0
+          ? formatInputCurrencyFromNumber(getDepositoReembolsableMonto(row))
+          : "",
+    };
+  }
+
   useEffect(() => {
     if (!editOpen) return;
 
-    // Precarga con los valores actuales del proveedor.
-    setEditForm({
-      nombre: provider.nombre ?? "",
-      categoria: provider.categoria ?? "",
-      descripcionServicio: provider.descripcion_servicio ?? "",
-      valorTotal:
-        provider.valor_total != null && provider.valor_total > 0
-          ? formatInputCurrencyFromNumber(provider.valor_total)
-          : "",
-      anticipo: formatInputCurrencyFromNumber(provider.anticipo ?? 0),
-      fechaSaldo: provider.fecha_saldo ?? "",
-      banco: provider.banco ?? "",
-      numeroCuenta: provider.numero_cuenta ?? "",
-      tipoCuenta: provider.tipo_cuenta ?? "",
-      titularCuenta: provider.titular_cuenta ?? "",
-      documentoNit: provider.documento_nit ?? "",
-      telefono: provider.telefono ?? "",
-      email: provider.email ?? "",
-      direccion: provider.direccion ?? "",
-      linkPago: provider.link_pago ?? "",
-      notas: provider.notas ?? "",
-      daComision: provider.da_comision ?? false,
-      porcentajeComision: String(
-        provider.porcentaje_comision != null ? provider.porcentaje_comision : 10,
-      ),
-      depositoReembolsable:
-        getDepositoReembolsableMonto(provider) > 0
-          ? formatInputCurrencyFromNumber(getDepositoReembolsableMonto(provider))
-          : "",
-    });
-  }, [editOpen, provider]);
+    // Solo precargar al abrir el modal (no en cada refresh del prop).
+    setEditForm(buildEditFormFromProvider(provider));
+    setEditError(null);
+    setEditDirectoryQuery("");
+    setEditDirectoryResults([]);
+    setEditDirectorySearchedQuery(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al abrir
+  }, [editOpen]);
+
+  useEffect(() => {
+    if (!editOpen || !supabase || editSubmitting) return;
+
+    const query = editDirectoryQuery.trim();
+    if (query.length < 2) {
+      setEditDirectoryResults([]);
+      setEditDirectorySearchedQuery(null);
+      return;
+    }
+
+    let cancelled = false;
+    const timeout = window.setTimeout(async () => {
+      const categoria = editForm.categoria.trim();
+      const selectCols =
+        "id,nombre,categoria,telefono,email,direccion,banco,tipo_cuenta,numero_cuenta,titular,documento_nit,notas";
+
+      // Buscar en todo el directorio (sin exigir categoría) para no ocultar resultados.
+      const { data, error: lookupError } = await supabase
+        .from("directorio_proveedores")
+        .select(selectCols)
+        .eq("activo", true)
+        .ilike("nombre", `%${query}%`)
+        .order("nombre", { ascending: true })
+        .limit(12);
+
+      if (cancelled) return;
+
+      if (lookupError) {
+        setEditDirectoryResults([]);
+        setEditDirectorySearchedQuery(query);
+        return;
+      }
+
+      const allResults = (data ?? []) as EditDirectorioLookup[];
+      const sameCategory = categoria
+        ? allResults.filter(
+            (row) =>
+              row.categoria.trim().toLowerCase() === categoria.toLowerCase(),
+          )
+        : [];
+      // Mostrar primero los de la misma categoría; si no hay, todos.
+      const results =
+        sameCategory.length > 0 ? sameCategory : allResults;
+
+      if (!cancelled) {
+        setEditDirectoryResults(results);
+        setEditDirectorySearchedQuery(query);
+      }
+    }, 250);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+    };
+  }, [
+    editDirectoryQuery,
+    editForm.categoria,
+    editOpen,
+    editSubmitting,
+  ]);
+
+  function applyDirectorioToEditForm(row: EditDirectorioLookup) {
+    setEditForm((s) => ({
+      ...s,
+      nombre: row.nombre ?? "",
+      categoria: row.categoria?.trim() || s.categoria,
+      telefono: row.telefono ?? "",
+      email: row.email ?? "",
+      direccion: row.direccion ?? "",
+      banco: row.banco ?? "",
+      tipoCuenta: row.tipo_cuenta ?? "",
+      numeroCuenta: row.numero_cuenta ?? "",
+      titularCuenta: row.titular ?? "",
+      documentoNit: row.documento_nit ?? "",
+      notas: row.notas?.trim() ? row.notas : s.notas,
+    }));
+    setEditDirectoryQuery(row.nombre);
+    setEditDirectoryResults([]);
+    setEditDirectorySearchedQuery(null);
+  }
 
   useEffect(() => {
     if (!deleteOpen) return;
@@ -661,7 +782,6 @@ export function ProviderCard({
       return;
     }
 
-    const nombre = editForm.nombre.trim();
     const categoria = editForm.categoria.trim();
     const descripcionServicio = editForm.descripcionServicio.trim();
     const notas = editForm.notas.trim();
@@ -680,8 +800,11 @@ export function ProviderCard({
     const direccion = editForm.direccion.trim() || null;
     const linkPago = editForm.linkPago.trim() || null;
 
-    if (!nombre) return setEditError("Ingresa el nombre del proveedor.");
     if (!categoria) return setEditError("Ingresa la categoría.");
+
+    // Nombre opcional al editar: si viene vacío, conservar placeholder por categoría.
+    const nombre =
+      editForm.nombre.trim() || `Por definir - ${categoria}`;
     if (!Number.isFinite(valorTotal) || valorTotal < 0) {
       return setEditError("Ingresa un valor total válido (>= 0).");
     }
@@ -1734,6 +1857,48 @@ export function ProviderCard({
             </div>
 
             <form className="mt-5 space-y-4" onSubmit={handleEditSave}>
+              <Field label="Buscar en directorio">
+                <div className="space-y-2">
+                  <input
+                    type="search"
+                    className={inputClass}
+                    value={editDirectoryQuery}
+                    onChange={(e) => setEditDirectoryQuery(e.target.value)}
+                    placeholder="Escribe al menos 2 letras para buscar…"
+                    disabled={editSubmitting}
+                    autoComplete="off"
+                  />
+                  {editDirectoryResults.length > 0 && (
+                    <ul className="overflow-hidden rounded-xl border border-bloom-border bg-bloom-canvas shadow-sm">
+                      {editDirectoryResults.map((row) => (
+                        <li key={row.id}>
+                          <button
+                            type="button"
+                            onClick={() => applyDirectorioToEditForm(row)}
+                            className="flex w-full flex-col items-start px-3 py-2.5 text-left text-sm transition-colors hover:bg-bloom-surface"
+                            disabled={editSubmitting}
+                          >
+                            <span className="font-medium text-bloom-ink">
+                              {row.nombre}
+                            </span>
+                            <span className="text-xs text-bloom-muted">
+                              {row.categoria}
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {editDirectorySearchedQuery &&
+                    editDirectoryResults.length === 0 && (
+                      <p className="text-xs text-bloom-muted">
+                        Sin resultados para &quot;{editDirectorySearchedQuery}
+                        &quot;. Puedes escribir el nombre manualmente abajo.
+                      </p>
+                    )}
+                </div>
+              </Field>
+
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field label="Nombre">
                   <input
@@ -1745,8 +1910,7 @@ export function ProviderCard({
                         nombre: e.target.value,
                       }))
                     }
-                    placeholder="Ej: Fotografía Luna"
-                    required
+                    placeholder="Opcional — o selecciona del directorio"
                     disabled={editSubmitting}
                   />
                 </Field>
