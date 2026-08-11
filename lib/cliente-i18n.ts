@@ -338,6 +338,13 @@ export type ClienteUiCopy = {
   providersEvaluationSubtitle: (count: number) => string;
   providersEvaluationBadge: string;
   providersEvaluationQuotedValue: string;
+  approveProviderButton: string;
+  approveProviderConfirm: (nombre: string, categoria: string) => string;
+  approveProviderConfirmButton: string;
+  approveProviderCancel: string;
+  approveProviderSubmitting: string;
+  approveProviderPendingTeam: string;
+  approveProviderError: string;
   noCostBadge: string;
   sharedPriceWith: (categories: string) => string;
   contractedValue: string;
@@ -497,6 +504,14 @@ const UI_ES: ClienteUiCopy = {
       : `${count} proveedores en evaluación`,
   providersEvaluationBadge: "En evaluación",
   providersEvaluationQuotedValue: "Valor cotizado",
+  approveProviderButton: "Aprobar proveedor",
+  approveProviderConfirm: (nombre, categoria) =>
+    `¿Confirmas que quieres aprobar a ${nombre} para ${categoria}?`,
+  approveProviderConfirmButton: "Sí, aprobar",
+  approveProviderCancel: "Cancelar",
+  approveProviderSubmitting: "Aprobando…",
+  approveProviderPendingTeam: "✅ Aprobado - pendiente de confirmación del equipo",
+  approveProviderError: "No se pudo registrar la aprobación. Intenta de nuevo.",
   noCostBadge: "Sin costo",
   sharedPriceWith: (categories) => `Precio compartido con ${categories}`,
   contractedValue: "Valor contratado",
@@ -688,6 +703,14 @@ const UI_EN: ClienteUiCopy = {
       : `${count} vendors under evaluation`,
   providersEvaluationBadge: "Under evaluation",
   providersEvaluationQuotedValue: "Quoted amount",
+  approveProviderButton: "Approve provider",
+  approveProviderConfirm: (nombre, categoria) =>
+    `Do you confirm you want to approve ${nombre} for ${categoria}?`,
+  approveProviderConfirmButton: "Yes, approve",
+  approveProviderCancel: "Cancel",
+  approveProviderSubmitting: "Approving…",
+  approveProviderPendingTeam: "✅ Approved — pending team confirmation",
+  approveProviderError: "Could not save the approval. Please try again.",
   noCostBadge: "No cost",
   sharedPriceWith: (categories) => `Shared price with ${categories}`,
   contractedValue: "Contracted amount",

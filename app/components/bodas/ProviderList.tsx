@@ -46,6 +46,8 @@ type ProviderListProps = {
   highlightProveedorId?: string | null;
   driveFolderUrl?: string | null;
   onProviderUpdated?: (updated: ProveedorRow) => void;
+  /** IDs de proveedores con aprobación pendiente del cliente. */
+  aprobadoPorClienteIds?: string[];
 };
 
 function compareProvidersByOrden(a: ProveedorRow, b: ProveedorRow): number {
@@ -79,8 +81,13 @@ export function ProviderList({
   highlightProveedorId = null,
   driveFolderUrl = null,
   onProviderUpdated,
+  aprobadoPorClienteIds = [],
 }: ProviderListProps) {
   const canReorder = hasPermission(role, "providers.manage");
+  const aprobadoPorClienteSet = useMemo(
+    () => new Set(aprobadoPorClienteIds),
+    [aprobadoPorClienteIds],
+  );
   const sortedFromProps = useMemo(
     () => sortVisibleProviders(providers),
     [providers],
@@ -210,6 +217,7 @@ export function ProviderList({
           role={role}
           driveFolderUrl={driveFolderUrl}
           onProviderUpdated={handleProviderUpdated}
+          aprobadoPorCliente={aprobadoPorClienteSet.has(provider.id)}
         />
       </li>
     );
@@ -261,6 +269,7 @@ export function ProviderList({
             compareBar={compareBar}
             driveFolderUrl={driveFolderUrl}
             onProviderUpdated={handleProviderUpdated}
+            aprobadoPorCliente={aprobadoPorClienteSet.has(provider.id)}
           />
         );
       }
@@ -419,6 +428,7 @@ type SortableProviderItemProps = {
   compareBar: ReactNode;
   driveFolderUrl?: string | null;
   onProviderUpdated?: (updated: ProveedorRow) => void;
+  aprobadoPorCliente?: boolean;
 };
 
 function SortableProviderItem({
@@ -436,6 +446,7 @@ function SortableProviderItem({
   compareBar,
   driveFolderUrl = null,
   onProviderUpdated,
+  aprobadoPorCliente = false,
 }: SortableProviderItemProps) {
   const {
     attributes,
@@ -486,6 +497,7 @@ function SortableProviderItem({
         dragHandle={dragHandle}
         driveFolderUrl={driveFolderUrl}
         onProviderUpdated={onProviderUpdated}
+        aprobadoPorCliente={aprobadoPorCliente}
       />
     </li>
   );

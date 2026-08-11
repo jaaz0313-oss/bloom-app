@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { ClienteAccordionSection } from "@/app/components/cliente/ClienteAccordionSection";
 import { useClienteLocale } from "@/app/components/cliente/ClienteLocaleProvider";
 import {
@@ -14,20 +14,71 @@ import { formatCurrency } from "@/lib/format";
 import { appendUsdApprox } from "@/lib/tasa-cambio";
 
 type ClienteProveedoresEvaluacionSectionProps = {
+  bodaId: string;
   proveedores: ProveedorRow[];
+  approvedProveedorIds?: string[];
   copPorUsd?: number | null;
 };
 
 export function ClienteProveedoresEvaluacionSection({
+  bodaId,
   proveedores,
+  approvedProveedorIds = [],
   copPorUsd = null,
 }: ClienteProveedoresEvaluacionSectionProps) {
   const { locale, t } = useClienteLocale();
+  const [approvedIds, setApprovedIds] = useState(
+    () => new Set(approvedProveedorIds),
+  );
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [submittingId, setSubmittingId] = useState<string | null>(null);
+  const [errorById, setErrorById] = useState<Record<string, string>>({});
 
   const proveedoresOrdenados = useMemo(
     () => sortProveedoresContiguosPorGrupo(proveedores),
     [proveedores],
   );
+
+  async function approveProvider(provider: ProveedorRow) {
+    if (submittingId) return;
+
+    setSubmittingId(provider.id);
+    setErrorById((prev) => {
+      const next = { ...prev };
+      delete next[provider.id];
+      return next;
+    });
+
+    try {
+      const response = await fetch(`/api/cliente/${bodaId}/aprobar-proveedor`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ proveedorId: provider.id }),
+      });
+
+      const payload = (await response.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+
+      if (!response.ok) {
+        setErrorById((prev) => ({
+          ...prev,
+          [provider.id]: payload?.error ?? t.approveProviderError,
+        }));
+        return;
+      }
+
+      setApprovedIds((prev) => new Set(prev).add(provider.id));
+      setConfirmingId(null);
+    } catch {
+      setErrorById((prev) => ({
+        ...prev,
+        [provider.id]: t.approveProviderError,
+      }));
+    } finally {
+      setSubmittingId(null);
+    }
+  }
 
   if (proveedoresOrdenados.length === 0) {
     return null;
@@ -94,6 +145,9 @@ export function ClienteProveedoresEvaluacionSection({
 
           const descripcion = provider.descripcion_servicio?.trim();
           const montoCotizado = Number(provider.monto_cotizado ?? 0);
+          const isApproved = approvedIds.has(provider.id);
+          const isConfirming = confirmingId === provider.id;
+          const isSubmitting = submittingId === provider.id;
 
           return (
             <li
@@ -139,6 +193,56 @@ export function ClienteProveedoresEvaluacionSection({
                   </p>
                 </div>
               ) : null}
+
+              <div className="mt-4 border-t border-bloom-border/60 pt-3">
+                {isApproved ? (
+                  <p className="text-sm font-medium text-emerald-800">
+                    {t.approveProviderPendingTeam}
+                  </p>
+                ) : isConfirming ? (
+                  <div className="space-y-3 rounded-xl border border-bloom-border bg-bloom-surface px-4 py-3">
+                    <p className="text-sm text-bloom-ink">
+                      {t.approveProviderConfirm(
+                        provider.nombre,
+                        categoriaLabel,
+                      )}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => approveProvider(provider)}
+                        disabled={isSubmitting}
+                        className="inline-flex items-center justify-center rounded-full bg-emerald-600 px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-60"
+                      >
+                        {isSubmitting
+                          ? t.approveProviderSubmitting
+                          : t.approveProviderConfirmButton}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmingId(null)}
+                        disabled={isSubmitting}
+                        className="inline-flex items-center justify-center rounded-full border border-bloom-border bg-bloom-surface px-4 py-2 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-canvas disabled:opacity-60"
+                      >
+                        {t.approveProviderCancel}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmingId(provider.id)}
+                    className="inline-flex items-center justify-center rounded-full bg-bloom-accent px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-bloom-accent-hover"
+                  >
+                    {t.approveProviderButton}
+                  </button>
+                )}
+                {errorById[provider.id] ? (
+                  <p className="mt-2 text-xs text-red-700" role="alert">
+                    {errorById[provider.id]}
+                  </p>
+                ) : null}
+              </div>
             </li>
           );
         })}

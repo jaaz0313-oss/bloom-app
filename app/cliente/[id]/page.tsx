@@ -16,6 +16,7 @@ import { ClienteProveedoresEvaluacionSection } from "@/app/components/cliente/Cl
 import { ClienteProveedoresSection } from "@/app/components/cliente/ClienteProveedoresSection";
 import { ClienteProximosPagos } from "@/app/components/cliente/ClienteProximosPagos";
 import { ClienteSeatingPlanSection } from "@/app/components/cliente/ClienteSeatingPlanSection";
+import type { AprobacionClienteRow } from "@/app/data/aprobaciones-cliente";
 import type { CronogramaItemRow } from "@/app/data/cronograma";
 import type { DetallesCelebracionRow } from "@/app/data/detalles-celebracion";
 import type { PresupuestoEstimadoCategoriaRow } from "@/app/data/presupuesto-estimado";
@@ -121,6 +122,25 @@ export default async function ClienteBodaPage({ params }: PageProps) {
   const enEvaluacion = proveedoresVisibles.filter(
     (provider) => provider.estado === "en_negociacion",
   );
+
+  const enEvaluacionIds = enEvaluacion.map((provider) => provider.id);
+  let approvedProveedorIds: string[] = [];
+  if (enEvaluacionIds.length > 0) {
+    const { data: aprobacionesData } = await supabase
+      .from("aprobaciones_cliente")
+      .select("proveedor_id, estado")
+      .eq("boda_id", id)
+      .eq("estado", "pendiente")
+      .in("proveedor_id", enEvaluacionIds);
+
+    approvedProveedorIds = (
+      (aprobacionesData ?? []) as Pick<
+        AprobacionClienteRow,
+        "proveedor_id" | "estado"
+      >[]
+    ).map((row) => row.proveedor_id);
+  }
+
   const proveedoresCronograma = (proveedoresCronogramaData ??
     []) as ClienteCronogramaProveedor[];
   const cronogramaItems = (cronogramaData ?? []) as CronogramaItemRow[];
@@ -238,7 +258,9 @@ export default async function ClienteBodaPage({ params }: PageProps) {
           copPorUsd={copPorUsd}
         />
         <ClienteProveedoresEvaluacionSection
+          bodaId={id}
           proveedores={enEvaluacion}
+          approvedProveedorIds={approvedProveedorIds}
           copPorUsd={copPorUsd}
         />
         <ClientePaymentOverview

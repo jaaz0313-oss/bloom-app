@@ -95,6 +95,7 @@ type BodaDetailSectionsProps = {
   driveFolderUrl?: string | null;
   cronogramaItems?: CronogramaItemRow[];
   presupuestoEstimados?: PresupuestoEstimadoCategoriaRow[];
+  aprobadoPorClienteIds?: string[];
 };
 
 function sortProveedores(list: ProveedorRow[]): ProveedorRow[] {
@@ -193,6 +194,7 @@ export function BodaDetailSections({
   driveFolderUrl = null,
   cronogramaItems = [],
   presupuestoEstimados = [],
+  aprobadoPorClienteIds = [],
 }: BodaDetailSectionsProps) {
   const [liveProviders, setLiveProviders] = useState(providers);
   const [livePagosByProveedor, setLivePagosByProveedor] =
@@ -551,6 +553,7 @@ export function BodaDetailSections({
             whatsappGrupoLink={boda.whatsapp_grupo_link}
             highlightProveedorId={highlightProveedorId}
             driveFolderUrl={driveFolderUrl}
+            aprobadoPorClienteIds={aprobadoPorClienteIds}
             onProviderUpdated={(updated) => {
               console.log("[BodaDetail] onProviderUpdated", {
                 id: updated.id,

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CronogramaAlertsSection } from "./components/CronogramaAlertsSection";
+import { AprobacionesClienteAlertsSection } from "./components/AprobacionesClienteAlertsSection";
 import { BodaInactivityAlertsSection } from "./components/BodaInactivityAlertsSection";
 import { LeadAlertsSection } from "./components/LeadAlertsSection";
 import { LeadsBoard } from "./components/LeadsBoard";
@@ -10,6 +11,7 @@ import { DashboardHeader } from "./components/DashboardHeader";
 import { ExportarDatosButton } from "./components/ExportarDatosButton";
 import { DashboardWeddingsRealtime } from "./components/DashboardWeddingsRealtime";
 import { NewWeddingModalButton } from "./components/NewWeddingModalButton";
+import type { AprobacionClientePendienteAlert } from "./data/aprobaciones-cliente";
 import { buildBodaInactivityAlerts, fetchBodaLastActivityMap } from "./data/boda-alerts";
 import { buildCronogramaAlerts } from "./data/cronograma-alerts";
 import { buildLeadInactivityAlerts } from "./data/lead-alerts";
@@ -30,7 +32,7 @@ import { mapBodaToWedding, buildProviderCountsByBoda, type BodaRow } from "./dat
 import { MisTareasPendientesSection } from "./components/tareas/MisTareasPendientesSection";
 import { requireAuthUser } from "@/lib/auth/user-profiles";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
-import { canViewLeads, hasPermission } from "@/lib/auth/roles";
+import { canManageClientePortalFlags, canViewLeads, hasPermission } from "@/lib/auth/roles";
 import { isBodaActiva, isBodaFinalizada } from "@/lib/boda-estado";
 import { redirect } from "next/navigation";
 
@@ -69,6 +71,7 @@ export default async function Home({ searchParams }: HomeProps) {
   let leadInactivityAlerts: ReturnType<typeof buildLeadInactivityAlerts> = [];
   let bodaInactivityAlerts: ReturnType<typeof buildBodaInactivityAlerts> = [];
   let tastingPaymentAlerts: ReturnType<typeof buildTastingPaymentAlerts> = [];
+  let aprobacionesClienteAlerts: AprobacionClientePendienteAlert[] = [];
   let citasHoy: CitaRow[] = [];
   let misTareas: TareaRow[] = [];
   let tareasCompletadasRecientes: TareaRow[] = [];
@@ -324,6 +327,54 @@ export default async function Home({ searchParams }: HomeProps) {
     );
   }
 
+  if (canManageClientePortalFlags(user.rol)) {
+    const { data: aprobacionesData, error: aprobacionesError } = await supabase
+      .from("aprobaciones_cliente")
+      .select(
+        "id, boda_id, proveedor_id, created_at, estado, proveedores(nombre, categoria), bodas(nombre_pareja, estado)",
+      )
+      .eq("estado", "pendiente")
+      .order("created_at", { ascending: false });
+
+    if (aprobacionesError) {
+      console.error(aprobacionesError);
+    } else {
+      aprobacionesClienteAlerts = (
+        (aprobacionesData ?? []) as Array<{
+          id: string;
+          boda_id: string;
+          proveedor_id: string;
+          created_at: string;
+          proveedores:
+            | { nombre: string; categoria: string }
+            | { nombre: string; categoria: string }[]
+            | null;
+          bodas:
+            | { nombre_pareja: string; estado: string | null }
+            | { nombre_pareja: string; estado: string | null }[]
+            | null;
+        }>
+      )
+        .map((row) => {
+          const proveedor = Array.isArray(row.proveedores)
+            ? row.proveedores[0]
+            : row.proveedores;
+          const boda = Array.isArray(row.bodas) ? row.bodas[0] : row.bodas;
+          if (!proveedor || !boda || !isBodaActiva(boda.estado)) return null;
+          return {
+            id: row.id,
+            bodaId: row.boda_id,
+            proveedorId: row.proveedor_id,
+            nombrePareja: boda.nombre_pareja,
+            proveedorNombre: proveedor.nombre,
+            categoria: proveedor.categoria,
+            createdAt: row.created_at,
+          } satisfies AprobacionClientePendienteAlert;
+        })
+        .filter((row): row is AprobacionClientePendienteAlert => row != null);
+    }
+  }
+
   // Nombres de leads solo para citas del día (sin exponer el módulo de leads).
   if (!showLeads) {
     const leadIdsForCitas = [
@@ -419,6 +470,9 @@ export default async function Home({ searchParams }: HomeProps) {
           alerts={paymentAlerts}
           canSendWhatsApp={hasPermission(user.rol, "whatsapp.send")}
         />
+        {canManageClientePortalFlags(user.rol) && (
+          <AprobacionesClienteAlertsSection alerts={aprobacionesClienteAlerts} />
+        )}
         <TastingPaymentAlertsSection alerts={tastingPaymentAlerts} />
         <CronogramaAlertsSection alerts={cronogramaAlerts} />
         <BodaInactivityAlertsSection alerts={bodaInactivityAlerts} />

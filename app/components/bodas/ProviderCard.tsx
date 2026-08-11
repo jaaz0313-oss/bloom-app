@@ -70,6 +70,8 @@ type ProviderCardProps = {
   driveFolderUrl?: string | null;
   /** Actualiza el estado local del listado tras editar (p. ej. valor total en el encabezado). */
   onProviderUpdated?: (updated: ProveedorRow) => void;
+  /** Aprobación pendiente del cliente (aún no confirmada por el equipo). */
+  aprobadoPorCliente?: boolean;
 };
 
 export type ProviderDragHandleProps = {
@@ -134,6 +136,7 @@ export function ProviderCard({
   dragHandle,
   driveFolderUrl = null,
   onProviderUpdated,
+  aprobadoPorCliente = false,
 }: ProviderCardProps) {
   const router = useRouter();
   const panelId = useId();
@@ -1123,6 +1126,12 @@ export function ProviderCard({
                 </span>
                 <span className="flex shrink-0 items-center gap-2">
                   <ProviderEstadoBadge provider={provider} />
+                  {aprobadoPorCliente &&
+                  provider.estado === "en_negociacion" ? (
+                    <span className="inline-flex rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
+                      ✅ Aprobado por cliente
+                    </span>
+                  ) : null}
                   {sinCosto ? (
                     <span className="inline-flex rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-medium text-sky-800">
                       Sin costo

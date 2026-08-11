@@ -20,6 +20,7 @@ import type { NotaBodaRow } from "@/app/data/notas-boda";
 import { fetchNotasReunionForBoda } from "@/app/data/notas-reunion";
 import type { DetallesCelebracionRow } from "@/app/data/detalles-celebracion";
 import type { PresupuestoEstimadoCategoriaRow } from "@/app/data/presupuesto-estimado";
+import type { AprobacionClienteRow } from "@/app/data/aprobaciones-cliente";
 import { fetchProveedoresSugeridosForBoda } from "@/app/data/proveedores-sugeridos";
 import { sortTastingsBySchedule, type TastingRow } from "@/app/data/tastings";
 import type { BodaRow } from "@/app/data/weddings";
@@ -171,6 +172,19 @@ export default async function BodaDetailPage({ params, searchParams }: PageProps
 
   const presupuestoEstimados = (presupuestoEstimadosData ??
     []) as PresupuestoEstimadoCategoriaRow[];
+
+  const { data: aprobacionesPendientesData } = await supabase
+    .from("aprobaciones_cliente")
+    .select("proveedor_id")
+    .eq("boda_id", id)
+    .eq("estado", "pendiente");
+
+  const aprobadoPorClienteIds = (
+    (aprobacionesPendientesData ?? []) as Pick<
+      AprobacionClienteRow,
+      "proveedor_id"
+    >[]
+  ).map((row) => row.proveedor_id);
 
   const { data: equipoData, error: equipoError } = await supabase
     .from("user_profiles")
@@ -346,6 +360,7 @@ export default async function BodaDetailPage({ params, searchParams }: PageProps
           driveFolderUrl={driveFolderUrl}
           cronogramaItems={cronogramaItems}
           presupuestoEstimados={presupuestoEstimados}
+          aprobadoPorClienteIds={aprobadoPorClienteIds}
         />
 
         {hasPermission(user.rol, "weddings.delete") && (
