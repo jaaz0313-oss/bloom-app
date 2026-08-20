@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import { NotaMarkdownToolbar } from "@/app/components/bodas/NotaMarkdownToolbar";
 import type { EquipoUsuarioMencion } from "@/lib/notas-menciones";
 import { filterEquipoForMentionQuery } from "@/lib/notas-menciones";
 
@@ -108,6 +109,12 @@ export function MentionTextarea({
 
   return (
     <div className="relative">
+      <NotaMarkdownToolbar
+        textareaRef={textareaRef}
+        value={value}
+        onChange={onChange}
+        disabled={disabled}
+      />
       <textarea
         ref={textareaRef}
         id={id}

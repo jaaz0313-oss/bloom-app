@@ -7,6 +7,8 @@ import {
   type TastingProveedorSelection,
 } from "@/app/components/bodas/TastingProveedorPicker";
 import { SubirFotosTastingDriveButton } from "@/app/components/bodas/SubirFotosTastingDriveButton";
+import { FormattedNotaTextarea } from "@/app/components/bodas/FormattedNotaTextarea";
+import { NotaMarkdown } from "@/app/components/bodas/NotaMarkdown";
 import {
   normalizeTastingRow,
   sortTastingsBySchedule,
@@ -911,12 +913,12 @@ export function TastingsSection({
           </div>
 
           <Field label="Notas">
-            <textarea
+            <FormattedNotaTextarea
               rows={3}
               className={textareaClass}
               value={form.notas}
-              onChange={(e) =>
-                setForm((current) => ({ ...current, notas: e.target.value }))
+              onChange={(notas) =>
+                setForm((current) => ({ ...current, notas }))
               }
               disabled={submitting}
               placeholder="Notas internas del equipo…"
@@ -1114,9 +1116,12 @@ export function TastingsSection({
               )}
 
               {canView && tasting.notas && (
-                <p className="mt-3 whitespace-pre-wrap text-sm text-bloom-muted">
-                  {tasting.notas}
-                </p>
+                <div className="mt-3 text-bloom-muted">
+                  <NotaMarkdown
+                    text={tasting.notas}
+                    className="text-bloom-muted"
+                  />
+                </div>
               )}
 
               {canManage && (
@@ -1165,9 +1170,9 @@ export function TastingsSection({
                         <p className="text-xs text-bloom-muted">
                           {formatDateTimeStable(nota.fecha)} · {nota.autor}
                         </p>
-                        <p className="mt-1 whitespace-pre-wrap text-sm text-bloom-ink">
-                          {nota.texto}
-                        </p>
+                        <div className="mt-1">
+                          <NotaMarkdown text={nota.texto} />
+                        </div>
                       </li>
                     ))}
                   </ul>
@@ -1179,10 +1184,11 @@ export function TastingsSection({
                   <label className="block text-sm font-medium text-bloom-ink">
                     Nueva nota
                   </label>
-                  <textarea
+                  <FormattedNotaTextarea
                     className={`${textareaClass} min-h-[96px]`}
+                    rows={4}
                     value={notaDraft}
-                    onChange={(e) => setNotaDraft(e.target.value)}
+                    onChange={setNotaDraft}
                     placeholder="Escribe lo que conversaron en esta cita…"
                     disabled={notaSavingId === tasting.id}
                     autoFocus

@@ -8,6 +8,8 @@ import { formatDateTimeStable } from "@/lib/format";
 import type { UserRole } from "@/lib/auth/roles";
 import { supabase } from "@/lib/supabase";
 import { AUDITORIA_ACCIONES, logAuditoria } from "@/lib/auditoria";
+import { FormattedNotaTextarea } from "@/app/components/bodas/FormattedNotaTextarea";
+import { NotaMarkdown } from "@/app/components/bodas/NotaMarkdown";
 
 type ProviderNotasReunionProps = {
   bodaId: string;
@@ -292,13 +294,11 @@ export function ProviderNotasReunion({
           </Field>
 
           <Field label="Resumen">
-            <textarea
+            <FormattedNotaTextarea
               rows={4}
               className={textareaClass}
               value={form.resumen}
-              onChange={(e) =>
-                setForm((s) => ({ ...s, resumen: e.target.value }))
-              }
+              onChange={(resumen) => setForm((s) => ({ ...s, resumen }))}
               placeholder="Puntos tratados, acuerdos y próximos pasos…"
               disabled={submitting}
               required
@@ -356,11 +356,11 @@ export function ProviderNotasReunion({
 
                     {isEditing ? (
                       <div className="mt-2 space-y-3">
-                        <textarea
+                        <FormattedNotaTextarea
                           rows={4}
                           className={textareaClass}
                           value={editResumen}
-                          onChange={(e) => setEditResumen(e.target.value)}
+                          onChange={setEditResumen}
                           disabled={editSubmitting}
                           autoFocus
                         />
@@ -384,9 +384,9 @@ export function ProviderNotasReunion({
                         </div>
                       </div>
                     ) : (
-                      <p className="mt-2 whitespace-pre-wrap text-sm text-bloom-ink">
-                        {nota.resumen}
-                      </p>
+                      <div className="mt-2">
+                        <NotaMarkdown text={nota.resumen} />
+                      </div>
                     )}
 
                     <p className="mt-2 text-xs text-bloom-muted">

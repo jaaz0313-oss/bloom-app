@@ -19,6 +19,7 @@ import {
 } from "@/lib/notas-menciones";
 import { supabase } from "@/lib/supabase";
 import { MentionTextarea } from "./MentionTextarea";
+import { NotaMarkdown } from "./NotaMarkdown";
 
 type NotasInternasProps = {
   bodaId: string;
@@ -467,13 +468,11 @@ export function NotasInternas({
                           </span>
                         ) : null}
                       </div>
-                      <p
-                        className={`whitespace-pre-wrap text-sm text-bloom-ink ${
-                          nota.origen === "proveedor" ? "mt-1.5" : ""
-                        }`}
+                      <div
+                        className={nota.origen === "proveedor" ? "mt-1.5" : ""}
                       >
-                        {nota.contenido}
-                      </p>
+                        <NotaMarkdown text={nota.contenido} />
+                      </div>
                       <div className="mt-2 space-y-0.5 text-xs text-bloom-muted">
                         <p>
                           {nota.created_by_nombre?.trim() || "Equipo"}
