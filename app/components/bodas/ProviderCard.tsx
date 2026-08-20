@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { DraggableAttributes } from "@dnd-kit/core";
 import type { SyntheticListenerMap } from "@dnd-kit/core/dist/hooks/utilities";
-import { FileText, StickyNote } from "lucide-react";
+import { CircleDollarSign, FileText, StickyNote } from "lucide-react";
 import {
   getProviderSaldoPendienteConPagos,
   getProveedorGrupoCategoriasCompaneras,
@@ -221,7 +221,7 @@ export function ProviderCard({
   );
   const [notasLocal, setNotasLocal] = useState(provider.notas ?? "");
   const [editingInlineField, setEditingInlineField] = useState<
-    "descripcion_servicio" | "notas" | null
+    "descripcion_servicio" | "notas" | "valor_total" | null
   >(null);
   const [inlineDraft, setInlineDraft] = useState("");
   const [inlineSaving, setInlineSaving] = useState(false);
@@ -330,14 +330,25 @@ export function ProviderCard({
       return a.categoria.localeCompare(b.categoria, "es");
     });
 
-  function startInlineEdit(field: "descripcion_servicio" | "notas") {
+  function startInlineEdit(
+    field: "descripcion_servicio" | "notas" | "valor_total",
+  ) {
     if (!canManage || inlineSaving) return;
     setEditingInlineField(field);
-    setInlineDraft(
-      field === "descripcion_servicio"
-        ? descripcionServicioLocal
-        : notasLocal,
-    );
+    if (field === "descripcion_servicio") {
+      setInlineDraft(descripcionServicioLocal);
+    } else if (field === "notas") {
+      setInlineDraft(notasLocal);
+    } else {
+      const current = Number(
+        (showValorCotizado ? valorCotizadoMostrar : provider.valor_total) ?? 0,
+      );
+      setInlineDraft(
+        Number.isFinite(current) && current > 0
+          ? formatInputCurrencyFromNumber(current)
+          : "",
+      );
+    }
     setInlineError(null);
   }
 
@@ -348,7 +359,7 @@ export function ProviderCard({
   }
 
   async function handleSaveInlineField(
-    field: "descripcion_servicio" | "notas",
+    field: "descripcion_servicio" | "notas" | "valor_total",
   ) {
     if (!canManage) {
       setInlineError("No tienes permisos para editar proveedores.");
@@ -359,11 +370,64 @@ export function ProviderCard({
       return;
     }
 
-    const trimmed = inlineDraft.trim();
     setInlineSaving(true);
     setInlineError(null);
 
     try {
+      if (field === "valor_total") {
+        const valor = parseProveedorValorInput(inlineDraft);
+        if (!Number.isFinite(valor) || valor < 0) {
+          setInlineError("Ingresa un valor válido (>= 0).");
+          return;
+        }
+        if (valor === 0 && provider.anticipo > 0) {
+          setInlineError(
+            "Si el valor total está pendiente, el anticipo debe ser 0.",
+          );
+          return;
+        }
+        if (valor > 0 && provider.anticipo > valor) {
+          setInlineError(
+            "El anticipo no puede ser mayor que el valor total.",
+          );
+          return;
+        }
+
+        const valorGuardar = Math.round(valor);
+        const montoCotizadoGuardar =
+          provider.estado === "en_negociacion" ? valorGuardar : undefined;
+
+        const { error: updateError } = await supabase
+          .from("proveedores")
+          .update({
+            valor_total: valorGuardar,
+            ...(montoCotizadoGuardar !== undefined
+              ? { monto_cotizado: montoCotizadoGuardar }
+              : {}),
+          })
+          .eq("id", provider.id);
+
+        if (updateError) {
+          setInlineError(updateError.message);
+          return;
+        }
+
+        const updatedProvider: ProveedorRow = {
+          ...provider,
+          valor_total: valorGuardar,
+          ...(montoCotizadoGuardar !== undefined
+            ? { monto_cotizado: montoCotizadoGuardar }
+            : {}),
+        };
+        pendingValorTotalRef.current = valorGuardar;
+        setProvider(updatedProvider);
+        onProviderUpdated?.(updatedProvider);
+        setEditingInlineField(null);
+        router.refresh();
+        return;
+      }
+
+      const trimmed = inlineDraft.trim();
       const { error: updateError } = await supabase
         .from("proveedores")
         .update({ [field]: trimmed || null })
@@ -1401,6 +1465,33 @@ export function ProviderCard({
                 onCancel={cancelInlineEdit}
                 onSave={() => handleSaveInlineField("notas")}
               />
+              {!sinCosto && !esSecundarioGrupo ? (
+                <ProviderInlineCurrencyField
+                  label={
+                    showValorCotizado ? "Valor cotizado" : "Valor total"
+                  }
+                  value={
+                    showValorCotizado
+                      ? (valorCotizadoMostrar ?? 0)
+                      : provider.valor_total
+                  }
+                  editing={editingInlineField === "valor_total"}
+                  draft={inlineDraft}
+                  saving={inlineSaving}
+                  error={
+                    editingInlineField === "valor_total" ? inlineError : null
+                  }
+                  disabled={
+                    updating || editSubmitting || deleting || inlineSaving
+                  }
+                  onStartEdit={() => startInlineEdit("valor_total")}
+                  onDraftChange={(next) =>
+                    setInlineDraft(formatInputCurrency(next))
+                  }
+                  onCancel={cancelInlineEdit}
+                  onSave={() => handleSaveInlineField("valor_total")}
+                />
+              ) : null}
             </div>
           ) : null}
 
@@ -2504,6 +2595,104 @@ function ProviderInlineTextField({
           className="block w-full rounded-lg border border-dashed border-bloom-border/80 px-1.5 py-1 text-left text-sm text-bloom-muted transition-colors hover:border-bloom-border hover:bg-bloom-canvas/70 hover:text-bloom-ink disabled:opacity-60"
         >
           {emptyLabel}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function ProviderInlineCurrencyField({
+  label,
+  value,
+  editing,
+  draft,
+  saving,
+  error,
+  disabled,
+  onStartEdit,
+  onDraftChange,
+  onCancel,
+  onSave,
+}: {
+  label: string;
+  value: number | null | undefined;
+  editing: boolean;
+  draft: string;
+  saving: boolean;
+  error: string | null;
+  disabled: boolean;
+  onStartEdit: () => void;
+  onDraftChange: (value: string) => void;
+  onCancel: () => void;
+  onSave: () => void;
+}) {
+  const hasValue = hasProveedorValorDefinido(value);
+  const display = formatProveedorValorTotal(value);
+
+  return (
+    <div className="space-y-1.5">
+      <p className="inline-flex items-center gap-1.5 text-xs text-bloom-muted">
+        <CircleDollarSign className="h-3.5 w-3.5 shrink-0" aria-hidden />
+        <span>{label}</span>
+      </p>
+
+      {editing ? (
+        <div className="space-y-2">
+          <input
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            className={inputClass}
+            value={draft}
+            onChange={(e) => onDraftChange(e.target.value)}
+            placeholder="Pendiente de definir"
+            autoFocus
+            disabled={saving}
+            aria-label={label}
+          />
+          {error ? (
+            <p className="text-xs text-red-700" role="alert">
+              {error}
+            </p>
+          ) : null}
+          <div className="flex flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={saving}
+              className="rounded-full border border-bloom-border bg-bloom-surface px-3 py-1 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-canvas disabled:opacity-60"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={onSave}
+              disabled={saving}
+              className="rounded-full bg-bloom-accent px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-bloom-accent-hover disabled:opacity-60"
+            >
+              {saving ? "Guardando…" : "Guardar"}
+            </button>
+          </div>
+        </div>
+      ) : hasValue ? (
+        <button
+          type="button"
+          onClick={onStartEdit}
+          disabled={disabled}
+          aria-label={`Editar ${label.toLowerCase()}`}
+          className="block w-full rounded-lg border border-transparent px-1.5 py-1 text-left transition-colors hover:border-bloom-border/70 hover:bg-bloom-canvas/70 disabled:opacity-60"
+        >
+          <span className="text-sm font-medium text-bloom-ink">{display}</span>
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={onStartEdit}
+          disabled={disabled}
+          aria-label={`Agregar ${label.toLowerCase()}`}
+          className="block w-full rounded-lg border border-dashed border-bloom-border/80 px-1.5 py-1 text-left text-sm text-bloom-muted transition-colors hover:border-bloom-border hover:bg-bloom-canvas/70 hover:text-bloom-ink disabled:opacity-60"
+        >
+          {display}
         </button>
       )}
     </div>
