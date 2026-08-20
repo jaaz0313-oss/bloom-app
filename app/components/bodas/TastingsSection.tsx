@@ -568,46 +568,18 @@ export function TastingsSection({
 
     const fecha = new Date().toISOString();
     const autor = currentUserNombre.trim() || "Sin autor";
-    let notaReunionId: string | null = null;
 
     try {
-      if (tasting.proveedor_id) {
-        const { data, error: insertError } = await supabase
-          .from("notas_reunion")
-          .insert({
-            boda_id: bodaId,
-            proveedor_id: tasting.proveedor_id,
-            fecha,
-            con_quien: getTastingDisplayTitle(tasting),
-            resumen: texto,
-            creado_por: currentUserId,
-            creado_por_nombre: autor,
-          })
-          .select("id")
-          .single();
-
-        if (insertError) {
-          setNotaError(insertError.message);
-          return;
-        }
-
-        notaReunionId = (data as { id: string }).id;
-
-        await logAuditoria({
-          accion: AUDITORIA_ACCIONES.NOTA_REUNION_AGREGADA,
-          entidad: "nota_reunion",
-          entidadId: notaReunionId,
-          bodaNombre,
-          detalle: `${getTastingDisplayTitle(tasting)} · ${texto.slice(0, 120)}${texto.length > 120 ? "…" : ""}`,
-        });
-      }
-
+      // tasting.proveedor_id referencia directorio_proveedores, no proveedores.
+      // notas_reunion.proveedor_id exige un id de proveedores de la boda, así que
+      // aquí solo persistimos en tastings.notas_reunion (jsonb). La copia a
+      // notas_reunion ocurre al contratar vía syncTastingNotasReunionToProveedor.
       const nextEntries = appendTastingNotaReunion(tasting.notas_reunion, {
         texto,
         fecha,
         autor,
         autorId: currentUserId,
-        notaReunionId,
+        notaReunionId: null,
       });
 
       const { data: updatedData, error: updateError } = await supabase
