@@ -114,6 +114,17 @@ export function appendTastingNotaReunion(
   ];
 }
 
+export function updateTastingNotaReunion(
+  raw: unknown,
+  notaId: string,
+  texto: string,
+): TastingNotaReunionEntry[] {
+  const trimmed = texto.trim();
+  return parseTastingNotasReunion(raw).map((entry) =>
+    entry.id === notaId ? { ...entry, texto: trimmed } : entry,
+  );
+}
+
 /**
  * Copia notas guardadas en citas (tastings.notas_reunion) hacia
  * `notas_reunion` del proveedor al pasar a contratado.

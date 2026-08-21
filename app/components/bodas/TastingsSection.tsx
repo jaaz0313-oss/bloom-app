@@ -34,6 +34,8 @@ import {
   appendTastingNotaReunion,
   parseTastingNotasReunion,
   serializeTastingNotasReunion,
+  updateTastingNotaReunion,
+  type TastingNotaReunionEntry,
 } from "@/lib/tasting-notas-reunion";
 import {
   checkTastingScheduleConflict,
@@ -183,6 +185,9 @@ export function TastingsSection({
   const [notaDraft, setNotaDraft] = useState("");
   const [notaSavingId, setNotaSavingId] = useState<string | null>(null);
   const [notaError, setNotaError] = useState<string | null>(null);
+  const [editingNotaKey, setEditingNotaKey] = useState<string | null>(null);
+  const [editNotaDraft, setEditNotaDraft] = useState("");
+  const [editNotaSaving, setEditNotaSaving] = useState(false);
 
   useEffect(() => {
     setTastings(sortTastingsBySchedule(initialTastings.map(normalizeTastingRow)));
@@ -547,6 +552,8 @@ export function TastingsSection({
     if (!canManage) return;
     setNotaError(null);
     setNotaDraft("");
+    setEditingNotaKey(null);
+    setEditNotaDraft("");
     setNotaOpenId(tastingId);
   }
 
@@ -554,6 +561,92 @@ export function TastingsSection({
     setNotaOpenId(null);
     setNotaDraft("");
     setNotaError(null);
+  }
+
+  function notaEditKey(tastingId: string, notaId: string) {
+    return `${tastingId}:${notaId}`;
+  }
+
+  function startEditNota(tastingId: string, nota: TastingNotaReunionEntry) {
+    if (!canManage) return;
+    setNotaError(null);
+    setNotaOpenId(null);
+    setEditingNotaKey(notaEditKey(tastingId, nota.id));
+    setEditNotaDraft(nota.texto);
+  }
+
+  function cancelEditNota() {
+    if (editNotaSaving) return;
+    setEditingNotaKey(null);
+    setEditNotaDraft("");
+    setNotaError(null);
+  }
+
+  async function handleSaveEditNota(
+    tasting: TastingRow,
+    nota: TastingNotaReunionEntry,
+  ) {
+    if (!canManage || !supabase) return;
+
+    const texto = editNotaDraft.trim();
+    if (!texto) {
+      setNotaError("La nota no puede quedar vacía.");
+      return;
+    }
+
+    setEditNotaSaving(true);
+    setNotaError(null);
+
+    try {
+      const nextEntries = updateTastingNotaReunion(
+        tasting.notas_reunion,
+        nota.id,
+        texto,
+      );
+
+      const { data: updatedData, error: updateError } = await supabase
+        .from("tastings")
+        .update({
+          notas_reunion: serializeTastingNotasReunion(nextEntries),
+        })
+        .eq("id", tasting.id)
+        .select("*")
+        .single();
+
+      if (updateError) {
+        setNotaError(updateError.message);
+        return;
+      }
+
+      if (nota.notaReunionId) {
+        const { error: syncError } = await supabase
+          .from("notas_reunion")
+          .update({ resumen: texto })
+          .eq("id", nota.notaReunionId);
+        if (syncError) {
+          console.error(
+            "[TastingsSection] No se pudo sincronizar notas_reunion:",
+            syncError.message,
+          );
+        }
+      }
+
+      const updated = normalizeTastingRow(updatedData as TastingRow);
+      setTastings((current) =>
+        sortTastingsBySchedule(
+          current.map((item) => (item.id === updated.id ? updated : item)),
+        ),
+      );
+      setEditingNotaKey(null);
+      setEditNotaDraft("");
+      router.refresh();
+    } catch (err) {
+      setNotaError(
+        err instanceof Error ? err.message : "No se pudo guardar la nota.",
+      );
+    } finally {
+      setEditNotaSaving(false);
+    }
   }
 
   async function handleSaveNota(tasting: TastingRow) {
@@ -1162,19 +1255,80 @@ export function TastingsSection({
                 if (notasReunion.length === 0) return null;
                 return (
                   <ul className="mt-4 space-y-2 border-t border-bloom-border/70 pt-3">
-                    {notasReunion.map((nota) => (
-                      <li
-                        key={nota.id}
-                        className="rounded-xl border border-bloom-border/70 bg-bloom-surface/70 px-3 py-2.5"
-                      >
-                        <p className="text-xs text-bloom-muted">
-                          {formatDateTimeStable(nota.fecha)} · {nota.autor}
-                        </p>
-                        <div className="mt-1">
-                          <NotaMarkdown text={nota.texto} />
-                        </div>
-                      </li>
-                    ))}
+                    {notasReunion.map((nota) => {
+                      const isEditing =
+                        editingNotaKey === notaEditKey(tasting.id, nota.id);
+                      return (
+                        <li
+                          key={nota.id}
+                          className="rounded-xl border border-bloom-border/70 bg-bloom-surface/70 px-3 py-2.5"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="text-xs text-bloom-muted">
+                              {formatDateTimeStable(nota.fecha)} · {nota.autor}
+                            </p>
+                            {canManage && !isEditing ? (
+                              <button
+                                type="button"
+                                onClick={() => startEditNota(tasting.id, nota)}
+                                aria-label="Editar nota"
+                                title="Editar nota"
+                                disabled={
+                                  deletingId === tasting.id ||
+                                  notaSavingId === tasting.id ||
+                                  editNotaSaving
+                                }
+                                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-bloom-muted transition-colors hover:bg-bloom-border hover:text-bloom-ink disabled:opacity-50"
+                              >
+                                <PencilIcon />
+                              </button>
+                            ) : null}
+                          </div>
+
+                          {isEditing ? (
+                            <div className="mt-2 space-y-3">
+                              <FormattedNotaTextarea
+                                className={`${textareaClass} min-h-[96px]`}
+                                rows={4}
+                                value={editNotaDraft}
+                                onChange={setEditNotaDraft}
+                                disabled={editNotaSaving}
+                                autoFocus
+                              />
+                              {notaError && editingNotaKey === notaEditKey(tasting.id, nota.id) ? (
+                                <p className="text-sm text-red-700" role="alert">
+                                  {notaError}
+                                </p>
+                              ) : null}
+                              <div className="flex justify-end gap-2">
+                                <button
+                                  type="button"
+                                  onClick={cancelEditNota}
+                                  disabled={editNotaSaving}
+                                  className="rounded-full border border-bloom-border px-4 py-2 text-sm font-medium text-bloom-ink hover:bg-bloom-canvas disabled:opacity-60"
+                                >
+                                  Cancelar
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    void handleSaveEditNota(tasting, nota)
+                                  }
+                                  disabled={editNotaSaving}
+                                  className="rounded-full bg-bloom-accent px-4 py-2 text-sm font-medium text-white hover:bg-bloom-accent-hover disabled:opacity-60"
+                                >
+                                  {editNotaSaving ? "Guardando…" : "Guardar"}
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="mt-1">
+                              <NotaMarkdown text={nota.texto} />
+                            </div>
+                          )}
+                        </li>
+                      );
+                    })}
                   </ul>
                 );
               })()}
