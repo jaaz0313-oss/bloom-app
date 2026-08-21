@@ -87,6 +87,43 @@ const inputClass =
 
 const textareaClass = `${inputClass} resize-y min-h-[72px]`;
 
+const NOTA_PREVIEW_MAX_CHARS = 80;
+
+function plainNotaText(texto: string): string {
+  return texto
+    .replace(/\r\n/g, "\n")
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/\*(.+?)\*/g, "$1")
+    .replace(/^##\s+/gm, "")
+    .replace(/^-\s+/gm, "");
+}
+
+function getNotaPreview(texto: string, max = NOTA_PREVIEW_MAX_CHARS): {
+  preview: string;
+  truncated: boolean;
+} {
+  const normalized = plainNotaText(texto).trim();
+  if (!normalized) return { preview: "", truncated: false };
+
+  const firstLineBreak = normalized.indexOf("\n");
+  const firstLine =
+    firstLineBreak === -1 ? normalized : normalized.slice(0, firstLineBreak);
+  const hasMoreLines = firstLineBreak !== -1;
+
+  if (firstLine.length > max) {
+    return {
+      preview: `${firstLine.slice(0, max).trimEnd()}…`,
+      truncated: true,
+    };
+  }
+
+  if (hasMoreLines) {
+    return { preview: `${firstLine}…`, truncated: true };
+  }
+
+  return { preview: firstLine, truncated: false };
+}
+
 function emptyForm(): FormState {
   return {
     tipoCita: "tasting",
@@ -188,6 +225,9 @@ export function TastingsSection({
   const [editingNotaKey, setEditingNotaKey] = useState<string | null>(null);
   const [editNotaDraft, setEditNotaDraft] = useState("");
   const [editNotaSaving, setEditNotaSaving] = useState(false);
+  const [notasExpandedIds, setNotasExpandedIds] = useState<Set<string>>(
+    () => new Set(),
+  );
 
   useEffect(() => {
     setTastings(sortTastingsBySchedule(initialTastings.map(normalizeTastingRow)));
@@ -571,8 +611,23 @@ export function TastingsSection({
     if (!canManage) return;
     setNotaError(null);
     setNotaOpenId(null);
+    setNotasExpandedIds((current) => {
+      if (current.has(tastingId)) return current;
+      const next = new Set(current);
+      next.add(tastingId);
+      return next;
+    });
     setEditingNotaKey(notaEditKey(tastingId, nota.id));
     setEditNotaDraft(nota.texto);
+  }
+
+  function toggleNotasExpanded(tastingId: string) {
+    setNotasExpandedIds((current) => {
+      const next = new Set(current);
+      if (next.has(tastingId)) next.delete(tastingId);
+      else next.add(tastingId);
+      return next;
+    });
   }
 
   function cancelEditNota() {
@@ -1253,83 +1308,168 @@ export function TastingsSection({
                   tasting.notas_reunion,
                 );
                 if (notasReunion.length === 0) return null;
-                return (
-                  <ul className="mt-4 space-y-2 border-t border-bloom-border/70 pt-3">
-                    {notasReunion.map((nota) => {
-                      const isEditing =
-                        editingNotaKey === notaEditKey(tasting.id, nota.id);
-                      return (
-                        <li
-                          key={nota.id}
-                          className="rounded-xl border border-bloom-border/70 bg-bloom-surface/70 px-3 py-2.5"
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <p className="text-xs text-bloom-muted">
-                              {formatDateTimeStable(nota.fecha)} · {nota.autor}
-                            </p>
-                            {canManage && !isEditing ? (
-                              <button
-                                type="button"
-                                onClick={() => startEditNota(tasting.id, nota)}
-                                aria-label="Editar nota"
-                                title="Editar nota"
-                                disabled={
-                                  deletingId === tasting.id ||
-                                  notaSavingId === tasting.id ||
-                                  editNotaSaving
-                                }
-                                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-bloom-muted transition-colors hover:bg-bloom-border hover:text-bloom-ink disabled:opacity-50"
-                              >
-                                <PencilIcon />
-                              </button>
-                            ) : null}
-                          </div>
 
-                          {isEditing ? (
-                            <div className="mt-2 space-y-3">
-                              <FormattedNotaTextarea
-                                className={`${textareaClass} min-h-[96px]`}
-                                rows={4}
-                                value={editNotaDraft}
-                                onChange={setEditNotaDraft}
-                                disabled={editNotaSaving}
-                                autoFocus
-                              />
-                              {notaError && editingNotaKey === notaEditKey(tasting.id, nota.id) ? (
-                                <p className="text-sm text-red-700" role="alert">
-                                  {notaError}
-                                </p>
-                              ) : null}
-                              <div className="flex justify-end gap-2">
-                                <button
-                                  type="button"
-                                  onClick={cancelEditNota}
-                                  disabled={editNotaSaving}
-                                  className="rounded-full border border-bloom-border px-4 py-2 text-sm font-medium text-bloom-ink hover:bg-bloom-canvas disabled:opacity-60"
-                                >
-                                  Cancelar
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    void handleSaveEditNota(tasting, nota)
-                                  }
-                                  disabled={editNotaSaving}
-                                  className="rounded-full bg-bloom-accent px-4 py-2 text-sm font-medium text-white hover:bg-bloom-accent-hover disabled:opacity-60"
-                                >
-                                  {editNotaSaving ? "Guardando…" : "Guardar"}
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="mt-1">
-                              <NotaMarkdown text={nota.texto} />
-                            </div>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ul>
+                const expanded = notasExpandedIds.has(tasting.id);
+                const countLabel =
+                  notasReunion.length === 1
+                    ? "1 nota"
+                    : `${notasReunion.length} notas`;
+                const firstPreview = getNotaPreview(notasReunion[0].texto);
+                const needsExpand =
+                  notasReunion.length > 1 || firstPreview.truncated;
+
+                return (
+                  <div className="mt-4 border-t border-bloom-border/70 pt-3">
+                    {!expanded ? (
+                      <div className="rounded-xl border border-bloom-border/70 bg-bloom-surface/70 px-3 py-2.5">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-medium text-bloom-muted">
+                              {countLabel}
+                            </p>
+                            {notasReunion.length === 1 ? (
+                              <p className="mt-1 text-sm leading-relaxed text-bloom-ink">
+                                {firstPreview.preview}
+                              </p>
+                            ) : (
+                              <p className="mt-1 text-sm leading-relaxed text-bloom-muted">
+                                {firstPreview.preview}
+                              </p>
+                            )}
+                          </div>
+                          {canManage && notasReunion.length === 1 ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                startEditNota(tasting.id, notasReunion[0])
+                              }
+                              aria-label="Editar nota"
+                              title="Editar nota"
+                              disabled={
+                                deletingId === tasting.id ||
+                                notaSavingId === tasting.id ||
+                                editNotaSaving
+                              }
+                              className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-bloom-muted transition-colors hover:bg-bloom-border hover:text-bloom-ink disabled:opacity-50"
+                            >
+                              <PencilIcon />
+                            </button>
+                          ) : null}
+                        </div>
+                        {needsExpand ? (
+                          <button
+                            type="button"
+                            onClick={() => toggleNotasExpanded(tasting.id)}
+                            className="mt-2 text-xs font-medium text-bloom-accent transition-colors hover:text-bloom-accent-hover"
+                          >
+                            Ver más
+                          </button>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-xs font-medium text-bloom-muted">
+                            {countLabel}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => toggleNotasExpanded(tasting.id)}
+                            className="text-xs font-medium text-bloom-accent transition-colors hover:text-bloom-accent-hover"
+                          >
+                            Ver menos
+                          </button>
+                        </div>
+                        <ul className="space-y-2">
+                          {notasReunion.map((nota) => {
+                            const isEditing =
+                              editingNotaKey ===
+                              notaEditKey(tasting.id, nota.id);
+                            return (
+                              <li
+                                key={nota.id}
+                                className="rounded-xl border border-bloom-border/70 bg-bloom-surface/70 px-3 py-2.5"
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <p className="text-xs text-bloom-muted">
+                                    {formatDateTimeStable(nota.fecha)} ·{" "}
+                                    {nota.autor}
+                                  </p>
+                                  {canManage && !isEditing ? (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        startEditNota(tasting.id, nota)
+                                      }
+                                      aria-label="Editar nota"
+                                      title="Editar nota"
+                                      disabled={
+                                        deletingId === tasting.id ||
+                                        notaSavingId === tasting.id ||
+                                        editNotaSaving
+                                      }
+                                      className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-bloom-muted transition-colors hover:bg-bloom-border hover:text-bloom-ink disabled:opacity-50"
+                                    >
+                                      <PencilIcon />
+                                    </button>
+                                  ) : null}
+                                </div>
+
+                                {isEditing ? (
+                                  <div className="mt-2 space-y-3">
+                                    <FormattedNotaTextarea
+                                      className={`${textareaClass} min-h-[96px]`}
+                                      rows={4}
+                                      value={editNotaDraft}
+                                      onChange={setEditNotaDraft}
+                                      disabled={editNotaSaving}
+                                      autoFocus
+                                    />
+                                    {notaError &&
+                                    editingNotaKey ===
+                                      notaEditKey(tasting.id, nota.id) ? (
+                                      <p
+                                        className="text-sm text-red-700"
+                                        role="alert"
+                                      >
+                                        {notaError}
+                                      </p>
+                                    ) : null}
+                                    <div className="flex justify-end gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={cancelEditNota}
+                                        disabled={editNotaSaving}
+                                        className="rounded-full border border-bloom-border px-4 py-2 text-sm font-medium text-bloom-ink hover:bg-bloom-canvas disabled:opacity-60"
+                                      >
+                                        Cancelar
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          void handleSaveEditNota(tasting, nota)
+                                        }
+                                        disabled={editNotaSaving}
+                                        className="rounded-full bg-bloom-accent px-4 py-2 text-sm font-medium text-white hover:bg-bloom-accent-hover disabled:opacity-60"
+                                      >
+                                        {editNotaSaving
+                                          ? "Guardando…"
+                                          : "Guardar"}
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="mt-1">
+                                    <NotaMarkdown text={nota.texto} />
+                                  </div>
+                                )}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
                 );
               })()}
 
