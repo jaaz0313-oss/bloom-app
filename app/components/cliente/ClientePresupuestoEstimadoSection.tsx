@@ -3,11 +3,9 @@
 import { useMemo } from "react";
 import { ClienteAccordionSection } from "@/app/components/cliente/ClienteAccordionSection";
 import { useClienteLocale } from "@/app/components/cliente/ClienteLocaleProvider";
-import type { CronogramaItemRow } from "@/app/data/cronograma";
 import {
-  buildPresupuestoEstimadoLineas,
-  collectPresupuestoCategorias,
-  sumPresupuestoEstimadoTotal,
+  buildPresupuestoTotalLineas,
+  sumPresupuestoTotalEstimado,
   type PresupuestoEstimadoCategoriaRow,
 } from "@/app/data/presupuesto-estimado";
 import type { ProveedorRow } from "@/app/data/providers";
@@ -17,34 +15,24 @@ import { appendUsdApprox } from "@/lib/tasa-cambio";
 
 type ClientePresupuestoEstimadoSectionProps = {
   providers: ProveedorRow[];
-  cronogramaItems: CronogramaItemRow[];
   estimados: PresupuestoEstimadoCategoriaRow[];
   copPorUsd?: number | null;
 };
 
 export function ClientePresupuestoEstimadoSection({
   providers,
-  cronogramaItems,
   estimados,
   copPorUsd = null,
 }: ClientePresupuestoEstimadoSectionProps) {
   const { locale, t } = useClienteLocale();
 
-  const lineas = useMemo(() => {
-    const { categorias, personalizadasKeys } = collectPresupuestoCategorias(
-      cronogramaItems,
-      estimados,
-    );
-    return buildPresupuestoEstimadoLineas(
-      categorias,
-      providers,
-      estimados,
-      personalizadasKeys,
-    );
-  }, [cronogramaItems, providers, estimados]);
+  const lineas = useMemo(
+    () => buildPresupuestoTotalLineas(providers, estimados),
+    [providers, estimados],
+  );
 
   const total = useMemo(
-    () => sumPresupuestoEstimadoTotal(lineas),
+    () => sumPresupuestoTotalEstimado(lineas),
     [lineas],
   );
 
@@ -75,17 +63,19 @@ export function ClientePresupuestoEstimadoSection({
           </thead>
           <tbody className="divide-y divide-bloom-border/60">
             {lineas.map((line) => (
-              <tr key={line.categoria}>
+              <tr key={`${line.estado}-${line.categoria}`}>
                 <td className="px-4 py-3">
                   <p className="font-medium text-bloom-ink">
                     {getClienteCronogramaCategoriaLabel(line.categoria, locale)}
                   </p>
-                  {line.incluidoEn ? (
+                  {line.proveedorNombre ? (
                     <p className="mt-0.5 text-xs text-bloom-muted">
-                      {t.includedInProvider(line.incluidoEn)}
+                      {line.proveedorNombre}
                     </p>
                   ) : null}
-                  {line.notas?.trim() ? (
+                  {line.estado === "estimado" &&
+                  line.mostrarNotaCliente &&
+                  line.notas?.trim() ? (
                     <p className="mt-0.5 text-xs text-bloom-muted">
                       {line.notas.trim()}
                     </p>
@@ -95,15 +85,13 @@ export function ClientePresupuestoEstimadoSection({
                   {estadoLabel[line.estado]}
                 </td>
                 <td className="px-4 py-3 text-right font-medium text-bloom-ink">
-                  {line.incluidoEn
-                    ? t.includedInProvider(line.incluidoEn)
-                    : line.valor > 0
-                      ? appendUsdApprox(
-                          formatCurrency(line.valor),
-                          line.valor,
-                          copPorUsd,
-                        )
-                      : t.toBeConfirmed}
+                  {line.valor > 0
+                    ? appendUsdApprox(
+                        formatCurrency(line.valor),
+                        line.valor,
+                        copPorUsd,
+                      )
+                    : t.toBeConfirmed}
                 </td>
               </tr>
             ))}

@@ -14,6 +14,7 @@ export type PresupuestoEstimadoCategoriaRow = {
   notas: string | null;
   incluido_en_proveedor_id?: string | null;
   orden?: number | null;
+  mostrar_nota_cliente?: boolean | null;
   created_at: string;
   updated_at: string;
 };
@@ -41,6 +42,59 @@ export type PresupuestoCategoriaLinea = {
 
 function categoryKey(categoria: string): string {
   return normalizeProviderCategory(categoria).trim().toLowerCase();
+}
+
+/**
+ * Una fila por categoría: prioriza valor > 0 y, en empate, la más reciente.
+ */
+export function dedupePresupuestoEstimadosByCategoria(
+  estimados: PresupuestoEstimadoCategoriaRow[],
+): PresupuestoEstimadoCategoriaRow[] {
+  const byKey = new Map<string, PresupuestoEstimadoCategoriaRow>();
+
+  const rank = (row: PresupuestoEstimadoCategoriaRow) => {
+    const valor = Number(row.valor_estimado ?? 0);
+    const hasValor = Number.isFinite(valor) && valor > 0 ? 1 : 0;
+    const updated = Date.parse(row.updated_at || row.created_at || "") || 0;
+    return { hasValor, updated };
+  };
+
+  for (const row of estimados) {
+    const key = categoryKey(row.categoria);
+    if (!key) continue;
+    const current = byKey.get(key);
+    if (!current) {
+      byKey.set(key, row);
+      continue;
+    }
+    const nextRank = rank(row);
+    const currentRank = rank(current);
+    if (
+      nextRank.hasValor > currentRank.hasValor ||
+      (nextRank.hasValor === currentRank.hasValor &&
+        nextRank.updated > currentRank.updated)
+    ) {
+      byKey.set(key, row);
+    }
+  }
+
+  return Array.from(byKey.values()).sort((a, b) => {
+    const ao = a.orden ?? Number.MAX_SAFE_INTEGER;
+    const bo = b.orden ?? Number.MAX_SAFE_INTEGER;
+    if (ao !== bo) return ao - bo;
+    return a.categoria.localeCompare(b.categoria, "es");
+  });
+}
+
+/** IDs a borrar al eliminar un ítem (incluye duplicados de la misma categoría). */
+export function getPresupuestoEstimadoIdsForCategoria(
+  estimados: PresupuestoEstimadoCategoriaRow[],
+  categoria: string,
+): string[] {
+  const key = categoryKey(categoria);
+  return estimados
+    .filter((row) => categoryKey(row.categoria) === key)
+    .map((row) => row.id);
 }
 
 /** Categorías del cronograma (descripcion ≈ categoría de proveedor), únicas y en orden. */
@@ -333,4 +387,109 @@ export function sumPresupuestoPorEstado(
     estimado,
     total: contratado + enEvaluacion + estimado,
   };
+}
+
+export type PresupuestoTotalLinea = {
+  categoria: string;
+  estado: PresupuestoCategoriaEstado;
+  valor: number;
+  notas: string | null;
+  mostrarNotaCliente: boolean;
+  estimadoId: string | null;
+  proveedorNombre: string | null;
+};
+
+/**
+ * Desglose del total estimado sin duplicar categorías:
+ * contratado > en evaluación > ítem estimado.
+ */
+export function buildPresupuestoTotalLineas(
+  providers: ProveedorRow[],
+  estimados: PresupuestoEstimadoCategoriaRow[],
+): PresupuestoTotalLinea[] {
+  const active = providers.filter((p) => p.estado !== "descartado");
+  const coveredKeys = new Set<string>();
+  const lines: PresupuestoTotalLinea[] = [];
+  const estimadosUnicos = dedupePresupuestoEstimadosByCategoria(estimados);
+
+  const byCategoria = new Map<string, ProveedorRow[]>();
+  for (const provider of active) {
+    const key = categoryKey(provider.categoria);
+    const list = byCategoria.get(key) ?? [];
+    list.push(provider);
+    byCategoria.set(key, list);
+  }
+
+  for (const [key, list] of byCategoria) {
+    const contratados = list.filter((p) => p.estado === "contratado");
+    const enEvaluacion = list.filter((p) => p.estado === "en_negociacion");
+
+    if (contratados.length > 0) {
+      const provider = pickPreferredProvider(contratados, active)!;
+      const isPrimary = isProveedorGrupoPrimario(active, provider);
+      if (!isPrimary && provider.grupo_id) {
+        coveredKeys.add(key);
+        continue;
+      }
+      coveredKeys.add(key);
+      lines.push({
+        categoria: normalizeProviderCategory(provider.categoria),
+        estado: "contratado",
+        valor: valorContratado(provider),
+        notas: null,
+        mostrarNotaCliente: false,
+        estimadoId: null,
+        proveedorNombre: provider.nombre,
+      });
+      continue;
+    }
+
+    if (enEvaluacion.length > 0) {
+      const provider = pickPreferredProvider(enEvaluacion, active)!;
+      const isPrimary = isProveedorGrupoPrimario(active, provider);
+      if (!isPrimary && provider.grupo_id) {
+        coveredKeys.add(key);
+        continue;
+      }
+      coveredKeys.add(key);
+      lines.push({
+        categoria: normalizeProviderCategory(provider.categoria),
+        estado: "en_evaluacion",
+        valor: valorCotizado(provider),
+        notas: null,
+        mostrarNotaCliente: false,
+        estimadoId: null,
+        proveedorNombre: provider.nombre,
+      });
+    }
+  }
+
+  const estimadosSorted = estimadosUnicos;
+
+  for (const row of estimadosSorted) {
+    const key = categoryKey(row.categoria);
+    if (coveredKeys.has(key)) continue;
+    if (row.incluido_en_proveedor_id) continue;
+    const valor = Number(row.valor_estimado ?? 0);
+    lines.push({
+      categoria: normalizeProviderCategory(row.categoria) || row.categoria,
+      estado: "estimado",
+      valor: Number.isFinite(valor) && valor > 0 ? Math.round(valor) : 0,
+      notas: row.notas,
+      mostrarNotaCliente: Boolean(row.mostrar_nota_cliente),
+      estimadoId: row.id,
+      proveedorNombre: null,
+    });
+  }
+
+  return lines;
+}
+
+export function sumPresupuestoTotalEstimado(
+  lineas: PresupuestoTotalLinea[],
+): number {
+  return lineas.reduce(
+    (sum, line) => sum + (line.valor > 0 ? line.valor : 0),
+    0,
+  );
 }

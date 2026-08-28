@@ -12,16 +12,15 @@ import { ContratoSection } from "@/app/components/bodas/ContratoSection";
 import { DetallesCelebracionSection } from "@/app/components/bodas/DetallesCelebracionSection";
 import { NotasInternas } from "@/app/components/bodas/NotasInternas";
 import { PaymentProjection } from "@/app/components/bodas/PaymentProjection";
-import { PresupuestoEstimadoSection } from "@/app/components/bodas/PresupuestoEstimadoSection";
 import { ProveedoresSugeridosSection } from "@/app/components/bodas/ProveedoresSugeridosSection";
 import { TastingsSection } from "@/app/components/bodas/TastingsSection";
 import { ProviderList } from "@/app/components/bodas/ProviderList";
+import { AddEstimadoItemModalButton } from "@/app/components/bodas/AddEstimadoItemModalButton";
 import { CronogramaContratacion } from "@/app/components/CronogramaContratacion";
 import { CitasSection } from "@/app/components/citas/CitasSection";
 import type { CitaRow } from "@/app/data/citas";
 import type { BriefBodaRow } from "@/app/data/brief-boda";
 import type { ContratoRow } from "@/app/data/contratos";
-import type { CronogramaItemRow } from "@/app/data/cronograma";
 import {
   hasDetallesCelebracionContent,
   type DetallesCelebracionRow,
@@ -47,6 +46,7 @@ import {
   hasPermission,
   type UserRole,
 } from "@/lib/auth/roles";
+import { supabase } from "@/lib/supabase";
 import type { EquipoUsuarioMencion } from "@/lib/notas-menciones";
 import type {
   CitaLookupBoda,
@@ -93,7 +93,6 @@ type BodaDetailSectionsProps = {
   highlightProveedorId?: string | null;
   canManageDrive?: boolean;
   driveFolderUrl?: string | null;
-  cronogramaItems?: CronogramaItemRow[];
   presupuestoEstimados?: PresupuestoEstimadoCategoriaRow[];
   aprobadoPorClienteIds?: string[];
 };
@@ -192,7 +191,6 @@ export function BodaDetailSections({
   highlightProveedorId = null,
   canManageDrive = false,
   driveFolderUrl = null,
-  cronogramaItems = [],
   presupuestoEstimados = [],
   aprobadoPorClienteIds = [],
 }: BodaDetailSectionsProps) {
@@ -201,6 +199,15 @@ export function BodaDetailSections({
     useState(pagosByProveedor);
   const [liveNotas, setLiveNotas] = useState(notas);
   const [liveHasCronograma, setLiveHasCronograma] = useState(hasCronograma);
+  const [liveEstimados, setLiveEstimados] = useState(presupuestoEstimados);
+  const [mostrarPresupuestoCliente, setMostrarPresupuestoCliente] = useState(
+    Boolean(boda.mostrar_presupuesto_estimado_cliente),
+  );
+  const [togglingPresupuestoCliente, setTogglingPresupuestoCliente] =
+    useState(false);
+  const [presupuestoToggleError, setPresupuestoToggleError] = useState<
+    string | null
+  >(null);
 
   const providerIdsRef = useRef(new Set(providers.map((p) => p.id)));
 
@@ -208,6 +215,42 @@ export function BodaDetailSections({
     setLiveProviders(providers);
     providerIdsRef.current = new Set(providers.map((p) => p.id));
   }, [providers]);
+
+  useEffect(() => {
+    setLiveEstimados(presupuestoEstimados);
+  }, [presupuestoEstimados]);
+
+  useEffect(() => {
+    setMostrarPresupuestoCliente(
+      Boolean(boda.mostrar_presupuesto_estimado_cliente),
+    );
+  }, [boda.mostrar_presupuesto_estimado_cliente]);
+
+  async function toggleMostrarPresupuestoCliente(next: boolean) {
+    if (
+      !supabase ||
+      !canManageClientePortalFlags(role) ||
+      togglingPresupuestoCliente
+    ) {
+      return;
+    }
+    const previous = mostrarPresupuestoCliente;
+    setMostrarPresupuestoCliente(next);
+    setTogglingPresupuestoCliente(true);
+    setPresupuestoToggleError(null);
+    try {
+      const { error } = await supabase
+        .from("bodas")
+        .update({ mostrar_presupuesto_estimado_cliente: next })
+        .eq("id", bodaId);
+      if (error) {
+        setMostrarPresupuestoCliente(previous);
+        setPresupuestoToggleError(error.message);
+      }
+    } finally {
+      setTogglingPresupuestoCliente(false);
+    }
+  }
 
   useEffect(() => {
     setLivePagosByProveedor(pagosByProveedor);
@@ -515,28 +558,83 @@ export function BodaDetailSections({
         sectionKey={BODA_SECTION_PROVEEDORES}
         openSection={openSection}
         defaultOpen
-        hasContent={liveProviders.length > 0}
+        hasContent={liveProviders.length > 0 || liveEstimados.length > 0}
       >
         <div className="space-y-5">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <p className="text-sm text-bloom-muted">
-              {liveProviders.length}{" "}
-              {liveProviders.length === 1 ? "proveedor" : "proveedores"}{" "}
-              registrados
-            </p>
-            {hasPermission(role, "providers.manage") && (
-              <AddProviderModalButton
-                bodaId={bodaId}
-                bodaNombre={boda.nombre_pareja}
-                role={role}
-                currentUserId={currentUserId}
-                currentUserNombre={plannerName}
-                driveFolderUrl={driveFolderUrl}
-              />
-            )}
+            <div className="space-y-2">
+              <p className="text-sm text-bloom-muted">
+                {liveProviders.length}{" "}
+                {liveProviders.length === 1 ? "proveedor" : "proveedores"}{" "}
+                registrados
+                {liveEstimados.length > 0
+                  ? ` · ${liveEstimados.length} ${
+                      liveEstimados.length === 1
+                        ? "ítem estimado"
+                        : "ítems estimados"
+                    }`
+                  : ""}
+              </p>
+              {canManagePresupuesto ? (
+                <label className="inline-flex cursor-pointer items-center gap-2.5 rounded-full border border-bloom-border bg-bloom-canvas/50 px-3 py-2 text-sm text-bloom-ink">
+                  <span
+                    className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
+                      mostrarPresupuestoCliente
+                        ? "bg-bloom-accent"
+                        : "bg-bloom-border"
+                    } ${togglingPresupuestoCliente ? "opacity-60" : ""}`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                        mostrarPresupuestoCliente
+                          ? "translate-x-4"
+                          : "translate-x-0.5"
+                      }`}
+                    />
+                    <input
+                      type="checkbox"
+                      className="sr-only"
+                      checked={mostrarPresupuestoCliente}
+                      disabled={togglingPresupuestoCliente}
+                      onChange={(e) =>
+                        void toggleMostrarPresupuestoCliente(e.target.checked)
+                      }
+                    />
+                  </span>
+                  Mostrar total estimado al cliente
+                </label>
+              ) : null}
+              {presupuestoToggleError ? (
+                <p className="text-sm text-red-700" role="alert">
+                  {presupuestoToggleError}
+                </p>
+              ) : null}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {hasPermission(role, "providers.manage") ? (
+                <AddEstimadoItemModalButton
+                  bodaId={bodaId}
+                  existingEstimados={liveEstimados}
+                  onCreated={(row) =>
+                    setLiveEstimados((prev) => [...prev, row])
+                  }
+                />
+              ) : null}
+              {hasPermission(role, "providers.manage") ? (
+                <AddProviderModalButton
+                  bodaId={bodaId}
+                  bodaNombre={boda.nombre_pareja}
+                  role={role}
+                  currentUserId={currentUserId}
+                  currentUserNombre={plannerName}
+                  driveFolderUrl={driveFolderUrl}
+                />
+              ) : null}
+            </div>
           </div>
           <ProviderList
             providers={liveProviders}
+            estimados={liveEstimados}
             bodaId={bodaId}
             boda={{
               nombrePareja: boda.nombre_pareja,
@@ -554,6 +652,9 @@ export function BodaDetailSections({
             highlightProveedorId={highlightProveedorId}
             driveFolderUrl={driveFolderUrl}
             aprobadoPorClienteIds={aprobadoPorClienteIds}
+            onEstimadoDeleted={(id) =>
+              setLiveEstimados((prev) => prev.filter((row) => row.id !== id))
+            }
             onProviderUpdated={(updated) => {
               console.log("[BodaDetail] onProviderUpdated", {
                 id: updated.id,
@@ -571,28 +672,6 @@ export function BodaDetailSections({
           />
         </div>
       </BodaAccordionSection>
-
-      {canManagePresupuesto && (
-        <BodaAccordionSection
-          title="Presupuesto estimado"
-          defaultOpen={false}
-          hasContent={
-            cronogramaItems.length > 0 || presupuestoEstimados.length > 0
-          }
-        >
-          <PresupuestoEstimadoSection
-            embedded
-            bodaId={bodaId}
-            role={role}
-            providers={liveProviders}
-            cronogramaItems={cronogramaItems}
-            initialEstimados={presupuestoEstimados}
-            mostrarAlCliente={Boolean(
-              boda.mostrar_presupuesto_estimado_cliente,
-            )}
-          />
-        </BodaAccordionSection>
-      )}
 
       <BodaAccordionSection
         title="Proyección de pagos"

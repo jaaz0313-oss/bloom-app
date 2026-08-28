@@ -358,7 +358,6 @@ export default async function BodaDetailPage({ params, searchParams }: PageProps
           highlightProveedorId={highlightProveedorId}
           canManageDrive={canManageDrive}
           driveFolderUrl={driveFolderUrl}
-          cronogramaItems={cronogramaItems}
           presupuestoEstimados={presupuestoEstimados}
           aprobadoPorClienteIds={aprobadoPorClienteIds}
         />

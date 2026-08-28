@@ -272,7 +272,6 @@ export default async function ClienteBodaPage({ params }: PageProps) {
         {mostrarPresupuestoEstimado && (
           <ClientePresupuestoEstimadoSection
             providers={proveedoresVisibles}
-            cronogramaItems={cronogramaItems}
             estimados={presupuestoEstimados}
             copPorUsd={copPorUsd}
           />

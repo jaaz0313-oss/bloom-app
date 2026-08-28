@@ -21,20 +21,32 @@ import { CSS } from "@dnd-kit/utilities";
 import type { NotaReunionRow } from "@/app/data/notas-reunion";
 import type { PagoRow } from "@/app/data/pagos";
 import {
+  buildPresupuestoTotalLineas,
+  dedupePresupuestoEstimadosByCategoria,
+  sumPresupuestoTotalEstimado,
+  type PresupuestoEstimadoCategoriaRow,
+} from "@/app/data/presupuesto-estimado";
+import {
   dedupeProveedoresPorGrupo,
   isProveedorSinCosto,
   hasProveedorValorDefinido,
   type ProveedorRow,
 } from "@/app/data/providers";
-import { hasPermission, type UserRole } from "@/lib/auth/roles";
+import {
+  canManageClientePortalFlags,
+  hasPermission,
+  type UserRole,
+} from "@/lib/auth/roles";
 import { persistProviderOrden } from "@/lib/provider-orden";
 import type { CotizacionBodaContext } from "@/lib/proveedor-cotizacion";
 import { formatCurrency } from "@/lib/format";
 import { CompararCotizacionesBar } from "./CompararCotizacionesBar";
+import { EstimadoItemCard } from "./EstimadoItemCard";
 import { ProviderCard, type ProviderDragHandleProps } from "./ProviderCard";
 
 type ProviderListProps = {
   providers: ProveedorRow[];
+  estimados?: PresupuestoEstimadoCategoriaRow[];
   bodaId: string;
   boda: CotizacionBodaContext;
   plannerName: string;
@@ -46,6 +58,7 @@ type ProviderListProps = {
   highlightProveedorId?: string | null;
   driveFolderUrl?: string | null;
   onProviderUpdated?: (updated: ProveedorRow) => void;
+  onEstimadoDeleted?: (id: string) => void;
   /** IDs de proveedores con aprobación pendiente del cliente. */
   aprobadoPorClienteIds?: string[];
 };
@@ -70,6 +83,7 @@ function sortVisibleProviders(providers: ProveedorRow[]): ProveedorRow[] {
 
 export function ProviderList({
   providers,
+  estimados = [],
   bodaId,
   boda,
   plannerName,
@@ -81,9 +95,15 @@ export function ProviderList({
   highlightProveedorId = null,
   driveFolderUrl = null,
   onProviderUpdated,
+  onEstimadoDeleted,
   aprobadoPorClienteIds = [],
 }: ProviderListProps) {
   const canReorder = hasPermission(role, "providers.manage");
+  const canDeleteEstimado = canManageClientePortalFlags(role);
+  const estimadosUnicos = useMemo(
+    () => dedupePresupuestoEstimadosByCategoria(estimados),
+    [estimados],
+  );
   const aprobadoPorClienteSet = useMemo(
     () => new Set(aprobadoPorClienteIds),
     [aprobadoPorClienteIds],
@@ -184,11 +204,45 @@ export function ProviderList({
     }
   }
 
-  if (providers.length === 0) {
+  if (providers.length === 0 && estimados.length === 0) {
     return (
       <p className="rounded-2xl border border-dashed border-bloom-border bg-bloom-surface px-5 py-8 text-center text-sm text-bloom-muted">
         Aún no hay proveedores registrados para esta boda.
       </p>
+    );
+  }
+
+  function renderEstimadosList() {
+    if (estimadosUnicos.length === 0) return null;
+    return (
+      <div className="space-y-3 border-t border-bloom-border/70 pt-4">
+        <p className="text-xs font-medium uppercase tracking-wide text-bloom-muted">
+          Ítems estimados
+        </p>
+        <ul className="space-y-3">
+          {estimadosUnicos.map((item) => (
+            <li key={item.id}>
+              <EstimadoItemCard
+                item={item}
+                allEstimados={estimados}
+                canDelete={canDeleteEstimado}
+                onDeleted={(ids) => {
+                  for (const id of ids) onEstimadoDeleted?.(id);
+                }}
+              />
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
+
+  if (providers.length === 0) {
+    return (
+      <div className="space-y-4">
+        <ProviderListSummary providers={[]} estimados={estimadosUnicos} />
+        {renderEstimadosList()}
+      </div>
     );
   }
 
@@ -357,55 +411,73 @@ export function ProviderList({
         })
       )}
 
-      <ProviderListSummary providers={sortedFromProps} />
+      <ProviderListSummary
+        providers={sortedFromProps}
+        estimados={estimadosUnicos}
+      />
+
+      {renderEstimadosList()}
     </div>
   );
 }
 
-function ProviderListSummary({ providers }: { providers: ProveedorRow[] }) {
+function ProviderListSummary({
+  providers,
+  estimados,
+}: {
+  providers: ProveedorRow[];
+  estimados: PresupuestoEstimadoCategoriaRow[];
+}) {
+  const lineas = buildPresupuestoTotalLineas(providers, estimados);
+  const totalEstimado = sumPresupuestoTotalEstimado(lineas);
+
   const conCosto = dedupeProveedoresPorGrupo(
     providers.filter((provider) => !isProveedorSinCosto(provider)),
-  );
-  const hasValor = conCosto.some((provider) => provider.valor_total > 0);
-  if (!hasValor) return null;
-
-  const totalProyectado = conCosto.reduce(
-    (sum, provider) =>
-      sum +
-      (hasProveedorValorDefinido(provider.valor_total) ? provider.valor_total : 0),
-    0,
   );
   const totalContratado = conCosto
     .filter((provider) => provider.estado === "contratado")
     .reduce(
       (sum, provider) =>
         sum +
-        (hasProveedorValorDefinido(provider.valor_total) ? provider.valor_total : 0),
+        (hasProveedorValorDefinido(provider.valor_total)
+          ? provider.valor_total
+          : 0),
       0,
     );
-  const pendientePorContratar = totalProyectado - totalContratado;
+
+  if (totalEstimado <= 0 && totalContratado <= 0) return null;
+
+  const contratadoLines = lineas.filter((l) => l.estado === "contratado");
+  const evaluacionLines = lineas.filter((l) => l.estado === "en_evaluacion");
+  const estimadoLines = lineas.filter((l) => l.estado === "estimado");
+  const sumEstado = (list: typeof lineas) =>
+    list.reduce((sum, line) => sum + (line.valor > 0 ? line.valor : 0), 0);
 
   return (
     <div className="border-t border-bloom-border/70 pt-4">
-      <dl className="grid gap-3 text-sm sm:grid-cols-3">
+      <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
         <div>
-          <dt className="text-bloom-muted">
-            Total proyectado (cotización inicial)
-          </dt>
-          <dd className="mt-0.5 font-medium text-bloom-ink">
-            {formatCurrency(totalProyectado)}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-bloom-muted">Total contratado</dt>
+          <dt className="text-bloom-muted">Contratados</dt>
           <dd className="mt-0.5 font-medium text-bloom-success">
-            {formatCurrency(totalContratado)}
+            {formatCurrency(sumEstado(contratadoLines))}
           </dd>
         </div>
         <div>
-          <dt className="text-bloom-muted">Pendiente por contratar</dt>
+          <dt className="text-bloom-muted">En evaluación</dt>
           <dd className="mt-0.5 font-medium text-bloom-ink">
-            {formatCurrency(pendientePorContratar)}
+            {formatCurrency(sumEstado(evaluacionLines))}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-bloom-muted">Ítems estimados</dt>
+          <dd className="mt-0.5 font-medium text-bloom-ink">
+            {formatCurrency(sumEstado(estimadoLines))}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-bloom-muted">Total estimado</dt>
+          <dd className="mt-0.5 font-display text-lg text-bloom-ink">
+            {formatCurrency(totalEstimado)}
           </dd>
         </div>
       </dl>
