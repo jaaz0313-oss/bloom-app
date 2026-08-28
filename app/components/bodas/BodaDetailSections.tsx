@@ -583,6 +583,7 @@ export function BodaDetailSections({
           <PresupuestoEstimadoSection
             embedded
             bodaId={bodaId}
+            role={role}
             providers={liveProviders}
             cronogramaItems={cronogramaItems}
             initialEstimados={presupuestoEstimados}

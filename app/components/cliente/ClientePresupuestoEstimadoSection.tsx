@@ -6,7 +6,7 @@ import { useClienteLocale } from "@/app/components/cliente/ClienteLocaleProvider
 import type { CronogramaItemRow } from "@/app/data/cronograma";
 import {
   buildPresupuestoEstimadoLineas,
-  getCategoriasPresupuestoFromCronograma,
+  collectPresupuestoCategorias,
   sumPresupuestoEstimadoTotal,
   type PresupuestoEstimadoCategoriaRow,
 } from "@/app/data/presupuesto-estimado";
@@ -31,8 +31,16 @@ export function ClientePresupuestoEstimadoSection({
   const { locale, t } = useClienteLocale();
 
   const lineas = useMemo(() => {
-    const categorias = getCategoriasPresupuestoFromCronograma(cronogramaItems);
-    return buildPresupuestoEstimadoLineas(categorias, providers, estimados);
+    const { categorias, personalizadasKeys } = collectPresupuestoCategorias(
+      cronogramaItems,
+      estimados,
+    );
+    return buildPresupuestoEstimadoLineas(
+      categorias,
+      providers,
+      estimados,
+      personalizadasKeys,
+    );
   }, [cronogramaItems, providers, estimados]);
 
   const total = useMemo(
@@ -77,13 +85,18 @@ export function ClientePresupuestoEstimadoSection({
                       {t.includedInProvider(line.incluidoEn)}
                     </p>
                   ) : null}
+                  {line.notas?.trim() ? (
+                    <p className="mt-0.5 text-xs text-bloom-muted">
+                      {line.notas.trim()}
+                    </p>
+                  ) : null}
                 </td>
                 <td className="px-4 py-3 text-bloom-muted">
                   {estadoLabel[line.estado]}
                 </td>
                 <td className="px-4 py-3 text-right font-medium text-bloom-ink">
                   {line.incluidoEn
-                    ? "—"
+                    ? t.includedInProvider(line.incluidoEn)
                     : line.valor > 0
                       ? appendUsdApprox(
                           formatCurrency(line.valor),

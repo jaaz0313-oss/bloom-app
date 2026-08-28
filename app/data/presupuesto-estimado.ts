@@ -12,6 +12,7 @@ export type PresupuestoEstimadoCategoriaRow = {
   categoria: string;
   valor_estimado: number | null;
   notas: string | null;
+  incluido_en_proveedor_id?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -32,6 +33,9 @@ export type PresupuestoCategoriaLinea = {
   notas: string | null;
   proveedorNombre: string | null;
   incluidoEn: string | null;
+  incluidoEnProveedorId: string | null;
+  /** Categoría creada a mano (no viene del cronograma). */
+  esPersonalizado: boolean;
 };
 
 function categoryKey(categoria: string): string {
@@ -62,6 +66,31 @@ export function getCategoriasPresupuestoFromCronograma(
   }
 
   return result;
+}
+
+/**
+ * Categorías del cronograma + estimados personalizados que no están en el cronograma.
+ */
+export function collectPresupuestoCategorias(
+  cronogramaItems: CronogramaItemRow[],
+  estimados: PresupuestoEstimadoCategoriaRow[],
+): { categorias: string[]; personalizadasKeys: Set<string> } {
+  const categorias = getCategoriasPresupuestoFromCronograma(cronogramaItems);
+  const keys = new Set(categorias.map(categoryKey));
+  const personalizadasKeys = new Set<string>();
+
+  for (const row of estimados) {
+    const raw = row.categoria?.trim() || "";
+    if (!raw) continue;
+    const label = normalizeProviderCategory(raw) || raw;
+    const key = categoryKey(label);
+    if (keys.has(key)) continue;
+    keys.add(key);
+    personalizadasKeys.add(key);
+    categorias.push(label);
+  }
+
+  return { categorias, personalizadasKeys };
 }
 
 function providersForCategoria(
@@ -103,14 +132,24 @@ function pickPreferredProvider(
   );
 }
 
+function resolveIncluidoProveedor(
+  estimado: PresupuestoEstimadoCategoriaRow | null,
+  activeProviders: ProveedorRow[],
+): ProveedorRow | null {
+  const id = estimado?.incluido_en_proveedor_id?.trim() || null;
+  if (!id) return null;
+  return activeProviders.find((p) => p.id === id) ?? null;
+}
+
 /**
- * Arma una línea por categoría del cronograma:
+ * Arma una línea por categoría del cronograma (+ personalizadas):
  * contratado > en evaluación > estimado editable.
  */
 export function buildPresupuestoEstimadoLineas(
   categorias: string[],
   providers: ProveedorRow[],
   estimados: PresupuestoEstimadoCategoriaRow[],
+  personalizadasKeys: Set<string> = new Set(),
 ): PresupuestoCategoriaLinea[] {
   const estimadosByKey = new Map<string, PresupuestoEstimadoCategoriaRow>();
   for (const row of estimados) {
@@ -124,6 +163,11 @@ export function buildPresupuestoEstimadoLineas(
     const contratados = matching.filter((p) => p.estado === "contratado");
     const enEvaluacion = matching.filter((p) => p.estado === "en_negociacion");
     const estimado = estimadosByKey.get(categoryKey(categoria)) ?? null;
+    const esPersonalizado = personalizadasKeys.has(categoryKey(categoria));
+    const incluidoProvider = resolveIncluidoProveedor(
+      estimado,
+      activeProviders,
+    );
 
     if (contratados.length > 0) {
       const provider = pickPreferredProvider(contratados, activeProviders)!;
@@ -145,6 +189,8 @@ export function buildPresupuestoEstimadoLineas(
           notas: estimado?.notas ?? null,
           proveedorNombre: provider.nombre,
           incluidoEn: primary.nombre,
+          incluidoEnProveedorId: primary.id,
+          esPersonalizado,
         };
       }
       return {
@@ -157,6 +203,8 @@ export function buildPresupuestoEstimadoLineas(
         notas: estimado?.notas ?? null,
         proveedorNombre: provider.nombre,
         incluidoEn: null,
+        incluidoEnProveedorId: null,
+        esPersonalizado,
       };
     }
 
@@ -180,6 +228,8 @@ export function buildPresupuestoEstimadoLineas(
           notas: estimado?.notas ?? null,
           proveedorNombre: provider.nombre,
           incluidoEn: primary.nombre,
+          incluidoEnProveedorId: primary.id,
+          esPersonalizado,
         };
       }
       return {
@@ -192,6 +242,24 @@ export function buildPresupuestoEstimadoLineas(
         notas: estimado?.notas ?? null,
         proveedorNombre: provider.nombre,
         incluidoEn: null,
+        incluidoEnProveedorId: null,
+        esPersonalizado,
+      };
+    }
+
+    if (incluidoProvider) {
+      return {
+        categoria,
+        estado: "estimado" as const,
+        valor: 0,
+        cuentaEnTotal: false,
+        editable: true,
+        estimadoId: estimado?.id ?? null,
+        notas: estimado?.notas ?? null,
+        proveedorNombre: null,
+        incluidoEn: incluidoProvider.nombre,
+        incluidoEnProveedorId: incluidoProvider.id,
+        esPersonalizado,
       };
     }
 
@@ -206,6 +274,8 @@ export function buildPresupuestoEstimadoLineas(
       notas: estimado?.notas ?? null,
       proveedorNombre: null,
       incluidoEn: null,
+      incluidoEnProveedorId: null,
+      esPersonalizado,
     };
   });
 }
