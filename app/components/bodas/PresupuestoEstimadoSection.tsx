@@ -2,7 +2,24 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2 } from "lucide-react";
+import { GripVertical, Trash2 } from "lucide-react";
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import type { CronogramaItemRow } from "@/app/data/cronograma";
 import {
   buildPresupuestoEstimadoLineas,
@@ -22,6 +39,7 @@ import {
   formatInputCurrencyFromNumber,
   parseInputCurrency,
 } from "@/lib/format";
+import { persistPresupuestoEstimadoOrden } from "@/lib/presupuesto-estimado-orden";
 import { supabase } from "@/lib/supabase";
 
 type PresupuestoEstimadoSectionProps = {
@@ -86,6 +104,13 @@ export function PresupuestoEstimadoSection({
   >(null);
   const [descDraft, setDescDraft] = useState("");
   const [savingDesc, setSavingDesc] = useState(false);
+  const [orderedCategorias, setOrderedCategorias] = useState<string[]>([]);
+  const [isSavingOrder, setIsSavingOrder] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
     setEstimados(initialEstimados);
@@ -100,15 +125,19 @@ export function PresupuestoEstimadoSection({
     [cronogramaItems, estimados],
   );
 
+  useEffect(() => {
+    setOrderedCategorias(categorias);
+  }, [categorias]);
+
   const lineas = useMemo(
     () =>
       buildPresupuestoEstimadoLineas(
-        categorias,
+        orderedCategorias.length > 0 ? orderedCategorias : categorias,
         providers,
         estimados,
         personalizadasKeys,
       ),
-    [categorias, providers, estimados, personalizadasKeys],
+    [orderedCategorias, categorias, providers, estimados, personalizadasKeys],
   );
 
   const totals = useMemo(() => sumPresupuestoPorEstado(lineas), [lineas]);
@@ -122,14 +151,84 @@ export function PresupuestoEstimadoSection({
     [providers],
   );
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 6 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+
   useEffect(() => {
     const next: Record<string, string> = {};
     for (const line of lineas) {
+      // Valor 0 debe seguir siendo editable y mostrarse en el input.
       if (!line.editable || line.incluidoEnProveedorId) continue;
-      next[line.categoria] = formatInputCurrencyFromNumber(line.valor || null);
+      next[line.categoria] = formatInputCurrencyFromNumber(line.valor);
     }
-    setDraftValues(next);
+    setDraftValues((prev) => {
+      // Conservar lo que el usuario está escribiendo si la categoría no cambió de valor.
+      const merged: Record<string, string> = { ...next };
+      for (const line of lineas) {
+        if (!line.editable || line.incluidoEnProveedorId) continue;
+        const prevDraft = prev[line.categoria];
+        if (prevDraft == null) continue;
+        const prevAmount = parseInputCurrency(prevDraft);
+        if (prevAmount === line.valor) {
+          merged[line.categoria] = prevDraft;
+        }
+      }
+      return merged;
+    });
   }, [lineas]);
+
+  async function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const current =
+      orderedCategorias.length > 0 ? orderedCategorias : categorias;
+    const oldIndex = current.findIndex((item) => item === active.id);
+    const newIndex = current.findIndex((item) => item === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+
+    const next = arrayMove(current, oldIndex, newIndex);
+    setOrderedCategorias(next);
+    setError(null);
+    setIsSavingOrder(true);
+
+    const existingByCategoriaKey = new Map(
+      estimados.map((row) => [
+        row.categoria.trim().toLowerCase(),
+        { id: row.id, categoria: row.categoria },
+      ]),
+    );
+
+    const result = await persistPresupuestoEstimadoOrden({
+      bodaId,
+      categorias: next,
+      existingByCategoriaKey,
+    });
+
+    setIsSavingOrder(false);
+
+    if (!result.ok) {
+      setError(result.message);
+      setOrderedCategorias(categorias);
+      return;
+    }
+
+    setEstimados((prev) => {
+      const byId = new Map(prev.map((row) => [row.id, row]));
+      for (const raw of result.rows) {
+        const row = raw as PresupuestoEstimadoCategoriaRow;
+        byId.set(row.id, { ...byId.get(row.id), ...row });
+      }
+      return Array.from(byId.values());
+    });
+    router.refresh();
+  }
 
   function findEstimado(
     categoria: string,
@@ -335,6 +434,15 @@ export function PresupuestoEstimadoSection({
     setAddSubmitting(true);
     setError(null);
 
+    const nextOrden =
+      Math.max(
+        -1,
+        ...estimados.map((row) =>
+          Number.isFinite(Number(row.orden)) ? Number(row.orden) : -1,
+        ),
+        categorias.length - 1,
+      ) + 1;
+
     try {
       const { data, error: insertError } = await supabase
         .from("presupuesto_estimado_categorias")
@@ -343,6 +451,7 @@ export function PresupuestoEstimadoSection({
           categoria,
           valor_estimado: Math.round(amount),
           notas: addForm.descripcion.trim() || null,
+          orden: nextOrden,
         })
         .select("*")
         .single();
@@ -511,227 +620,130 @@ export function PresupuestoEstimadoSection({
       ) : (
         <>
           <div className="overflow-x-auto rounded-xl border border-bloom-border">
-            <table className="min-w-full text-left text-sm">
-              <thead className="bg-bloom-canvas/80 text-xs uppercase tracking-wide text-bloom-muted">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Categoría</th>
-                  <th className="px-4 py-3 font-medium">Estado</th>
-                  <th className="px-4 py-3 font-medium">Valor</th>
-                  <th className="px-4 py-3 font-medium">
-                    <span className="sr-only">Acciones</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-bloom-border/70 bg-bloom-surface">
-                {lineas.map((line) => {
-                  const isIncluidoManual = Boolean(
-                    line.editable && line.incluidoEnProveedorId,
-                  );
-                  const busy =
-                    savingCategoria === line.categoria ||
-                    deletingId === line.estimadoId;
-
-                  return (
+            {isMounted ? (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={(event) => void handleDragEnd(event)}
+              >
+                <table className="min-w-full text-left text-sm">
+                  <thead className="bg-bloom-canvas/80 text-xs uppercase tracking-wide text-bloom-muted">
+                    <tr>
+                      <th className="w-10 px-2 py-3 font-medium">
+                        <span className="sr-only">Reordenar</span>
+                      </th>
+                      <th className="px-4 py-3 font-medium">Categoría</th>
+                      <th className="px-4 py-3 font-medium">Estado</th>
+                      <th className="px-4 py-3 font-medium">Valor</th>
+                      <th className="px-4 py-3 font-medium">
+                        <span className="sr-only">Acciones</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <SortableContext
+                    items={lineas.map((line) => line.categoria)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <tbody className="divide-y divide-bloom-border/70 bg-bloom-surface">
+                      {lineas.map((line) => (
+                        <SortablePresupuestoRow
+                          key={line.categoria}
+                          line={line}
+                          draftValue={draftValues[line.categoria] ?? ""}
+                          busy={
+                            savingCategoria === line.categoria ||
+                            deletingId === line.estimadoId ||
+                            isSavingOrder
+                          }
+                          canDelete={canDelete}
+                          savingCategoria={savingCategoria}
+                          savingDesc={savingDesc}
+                          editingDescCategoria={editingDescCategoria}
+                          descDraft={descDraft}
+                          proveedoresActivos={proveedoresActivos}
+                          onDraftChange={(value) =>
+                            setDraftValues((prev) => ({
+                              ...prev,
+                              [line.categoria]: value,
+                            }))
+                          }
+                          onSaveValor={() =>
+                            void saveEstimado(
+                              line.categoria,
+                              draftValues[line.categoria] ?? "",
+                            )
+                          }
+                          onStartEditDesc={() => {
+                            setEditingDescCategoria(line.categoria);
+                            setDescDraft(line.notas ?? "");
+                          }}
+                          onCancelEditDesc={() => {
+                            setEditingDescCategoria(null);
+                            setDescDraft("");
+                          }}
+                          onDescDraftChange={setDescDraft}
+                          onSaveDesc={() =>
+                            void saveDescripcion(line.categoria)
+                          }
+                          onToggleIncluido={(checked, proveedorId) =>
+                            void toggleIncluido(line, checked, proveedorId)
+                          }
+                          onDelete={() => void handleDelete(line)}
+                        />
+                      ))}
+                    </tbody>
+                  </SortableContext>
+                </table>
+              </DndContext>
+            ) : (
+              <table className="min-w-full text-left text-sm">
+                <thead className="bg-bloom-canvas/80 text-xs uppercase tracking-wide text-bloom-muted">
+                  <tr>
+                    <th className="w-10 px-2 py-3 font-medium">
+                      <span className="sr-only">Reordenar</span>
+                    </th>
+                    <th className="px-4 py-3 font-medium">Categoría</th>
+                    <th className="px-4 py-3 font-medium">Estado</th>
+                    <th className="px-4 py-3 font-medium">Valor</th>
+                    <th className="px-4 py-3 font-medium">
+                      <span className="sr-only">Acciones</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-bloom-border/70 bg-bloom-surface">
+                  {lineas.map((line) => (
                     <tr key={line.categoria}>
-                      <td className="px-4 py-3 align-top">
-                        <p className="font-medium text-bloom-ink">
-                          {line.categoria}
-                          {line.esPersonalizado ? (
-                            <span className="ml-2 inline-flex rounded-full bg-bloom-canvas px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-bloom-muted">
-                              Personalizado
-                            </span>
-                          ) : null}
-                        </p>
-                        {line.incluidoEn && !line.editable ? (
-                          <p className="mt-0.5 text-xs text-bloom-muted">
-                            Incluido en {line.incluidoEn}
-                          </p>
-                        ) : line.proveedorNombre ? (
-                          <p className="mt-0.5 text-xs text-bloom-muted">
-                            {line.proveedorNombre}
-                          </p>
-                        ) : null}
-
-                        {line.editable ? (
-                          <div className="mt-2 space-y-2">
-                            {editingDescCategoria === line.categoria ? (
-                              <div className="space-y-1.5">
-                                <input
-                                  className={inputClass}
-                                  value={descDraft}
-                                  onChange={(e) => setDescDraft(e.target.value)}
-                                  placeholder="Descripción…"
-                                  disabled={savingDesc}
-                                  autoFocus
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
-                                      e.preventDefault();
-                                      void saveDescripcion(line.categoria);
-                                    }
-                                    if (e.key === "Escape") {
-                                      setEditingDescCategoria(null);
-                                      setDescDraft("");
-                                    }
-                                  }}
-                                />
-                                <div className="flex gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setEditingDescCategoria(null);
-                                      setDescDraft("");
-                                    }}
-                                    disabled={savingDesc}
-                                    className="text-xs font-medium text-bloom-muted hover:text-bloom-ink disabled:opacity-60"
-                                  >
-                                    Cancelar
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      void saveDescripcion(line.categoria)
-                                    }
-                                    disabled={savingDesc}
-                                    className="text-xs font-medium text-bloom-accent hover:text-bloom-accent-hover disabled:opacity-60"
-                                  >
-                                    {savingDesc ? "Guardando…" : "Guardar"}
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setEditingDescCategoria(line.categoria);
-                                  setDescDraft(line.notas ?? "");
-                                }}
-                                className="block max-w-xs text-left text-xs text-bloom-muted transition-colors hover:text-bloom-ink"
-                              >
-                                {line.notas?.trim()
-                                  ? line.notas.trim()
-                                  : "Agregar descripción…"}
-                              </button>
-                            )}
-
-                            <label className="flex flex-wrap items-center gap-2 text-xs text-bloom-ink">
-                              <input
-                                type="checkbox"
-                                className="h-3.5 w-3.5 rounded border-bloom-border text-bloom-accent focus:ring-bloom-accent/30"
-                                checked={isIncluidoManual}
-                                disabled={busy || proveedoresActivos.length === 0}
-                                onChange={(e) =>
-                                  void toggleIncluido(line, e.target.checked)
-                                }
-                              />
-                              Incluido en otro proveedor
-                            </label>
-                            {isIncluidoManual ? (
-                              <select
-                                className={`${inputClass} max-w-xs`}
-                                value={line.incluidoEnProveedorId ?? ""}
-                                disabled={busy}
-                                onChange={(e) =>
-                                  void toggleIncluido(
-                                    line,
-                                    true,
-                                    e.target.value,
-                                  )
-                                }
-                              >
-                                {proveedoresActivos.map((p) => (
-                                  <option key={p.id} value={p.id}>
-                                    {p.nombre}
-                                    {p.categoria ? ` (${p.categoria})` : ""}
-                                  </option>
-                                ))}
-                              </select>
-                            ) : null}
-                          </div>
-                        ) : line.notas?.trim() ? (
-                          <p className="mt-1 max-w-xs text-xs text-bloom-muted">
-                            {line.notas.trim()}
-                          </p>
-                        ) : null}
+                      <td className="px-2 py-3" />
+                      <td className="px-4 py-3 font-medium text-bloom-ink">
+                        {line.categoria}
                       </td>
-                      <td className="px-4 py-3 align-top">
+                      <td className="px-4 py-3">
                         <span
                           className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${ESTADO_CLASS[line.estado]}`}
                         >
                           {ESTADO_LABEL[line.estado]}
                         </span>
                       </td>
-                      <td className="px-4 py-3 align-top">
-                        {line.editable && isIncluidoManual ? (
-                          <span className="text-sm font-medium text-bloom-ink">
-                            Incluido en {line.incluidoEn}
-                          </span>
-                        ) : line.editable ? (
-                          <div className="flex flex-wrap items-center gap-2">
-                            <input
-                              className="w-36 rounded-lg border border-bloom-border bg-white px-3 py-1.5 text-sm text-bloom-ink outline-none focus:border-bloom-accent"
-                              inputMode="numeric"
-                              value={draftValues[line.categoria] ?? ""}
-                              disabled={busy}
-                              onChange={(e) => {
-                                const formatted = formatInputCurrency(
-                                  e.target.value,
-                                );
-                                setDraftValues((prev) => ({
-                                  ...prev,
-                                  [line.categoria]: formatted,
-                                }));
-                              }}
-                              onBlur={() =>
-                                saveEstimado(
-                                  line.categoria,
-                                  draftValues[line.categoria] ?? "",
-                                )
-                              }
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") {
-                                  e.currentTarget.blur();
-                                }
-                              }}
-                              placeholder="0"
-                            />
-                            {savingCategoria === line.categoria ? (
-                              <span className="text-xs text-bloom-muted">
-                                Guardando…
-                              </span>
-                            ) : null}
-                          </div>
-                        ) : line.incluidoEn ? (
-                          <span className="text-sm text-bloom-muted">
-                            Incluido en {line.incluidoEn}
-                          </span>
-                        ) : (
-                          <span className="font-medium text-bloom-ink">
-                            {line.valor > 0
+                      <td className="px-4 py-3">
+                        {line.editable
+                          ? draftValues[line.categoria] || "0"
+                          : line.incluidoEn
+                            ? `Incluido en ${line.incluidoEn}`
+                            : line.valor > 0
                               ? formatCurrency(line.valor)
                               : "Por definir"}
-                          </span>
-                        )}
                       </td>
-                      <td className="px-4 py-3 align-top">
-                        {canDelete && line.estimadoId ? (
-                          <button
-                            type="button"
-                            onClick={() => void handleDelete(line)}
-                            disabled={busy}
-                            aria-label={`Eliminar ${line.categoria}`}
-                            title="Eliminar ítem"
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-full text-bloom-muted transition-colors hover:bg-red-50 hover:text-red-700 disabled:opacity-50"
-                          >
-                            <Trash2 className="h-4 w-4" aria-hidden />
-                          </button>
-                        ) : null}
-                      </td>
+                      <td />
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
+
+          {isSavingOrder ? (
+            <p className="text-xs text-bloom-muted">Guardando orden…</p>
+          ) : null}
 
           <div className="grid gap-3 rounded-xl border border-bloom-border bg-bloom-canvas/50 p-4 sm:grid-cols-4">
             <TotalChip label="Contratados" value={totals.contratado} />
@@ -778,5 +790,242 @@ function TotalChip({
         {formatCurrency(value)}
       </p>
     </div>
+  );
+}
+
+function SortablePresupuestoRow({
+  line,
+  draftValue,
+  busy,
+  canDelete,
+  savingCategoria,
+  savingDesc,
+  editingDescCategoria,
+  descDraft,
+  proveedoresActivos,
+  onDraftChange,
+  onSaveValor,
+  onStartEditDesc,
+  onCancelEditDesc,
+  onDescDraftChange,
+  onSaveDesc,
+  onToggleIncluido,
+  onDelete,
+}: {
+  line: PresupuestoCategoriaLinea;
+  draftValue: string;
+  busy: boolean;
+  canDelete: boolean;
+  savingCategoria: string | null;
+  savingDesc: boolean;
+  editingDescCategoria: string | null;
+  descDraft: string;
+  proveedoresActivos: ProveedorRow[];
+  onDraftChange: (value: string) => void;
+  onSaveValor: () => void;
+  onStartEditDesc: () => void;
+  onCancelEditDesc: () => void;
+  onDescDraftChange: (value: string) => void;
+  onSaveDesc: () => void;
+  onToggleIncluido: (checked: boolean, proveedorId?: string) => void;
+  onDelete: () => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: line.categoria });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 2 : undefined,
+    opacity: isDragging ? 0.92 : undefined,
+    position: "relative" as const,
+  };
+
+  const isIncluidoManual = Boolean(
+    line.editable && line.incluidoEnProveedorId,
+  );
+
+  return (
+    <tr ref={setNodeRef} style={style} className="bg-bloom-surface">
+      <td className="px-2 py-3 align-top">
+        <button
+          type="button"
+          ref={setActivatorNodeRef}
+          {...attributes}
+          {...listeners}
+          className="inline-flex h-8 w-8 cursor-grab items-center justify-center rounded-lg text-bloom-muted transition-colors hover:bg-bloom-canvas hover:text-bloom-ink active:cursor-grabbing"
+          aria-label={`Reordenar ${line.categoria}`}
+          title="Arrastrar para reordenar"
+        >
+          <GripVertical className="h-4 w-4" aria-hidden />
+        </button>
+      </td>
+      <td className="px-4 py-3 align-top">
+        <p className="font-medium text-bloom-ink">
+          {line.categoria}
+          {line.esPersonalizado ? (
+            <span className="ml-2 inline-flex rounded-full bg-bloom-canvas px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-bloom-muted">
+              Personalizado
+            </span>
+          ) : null}
+        </p>
+        {line.incluidoEn && !line.editable ? (
+          <p className="mt-0.5 text-xs text-bloom-muted">
+            Incluido en {line.incluidoEn}
+          </p>
+        ) : line.proveedorNombre ? (
+          <p className="mt-0.5 text-xs text-bloom-muted">
+            {line.proveedorNombre}
+          </p>
+        ) : null}
+
+        {line.editable ? (
+          <div className="mt-2 space-y-2">
+            {editingDescCategoria === line.categoria ? (
+              <div className="space-y-1.5">
+                <input
+                  className={inputClass}
+                  value={descDraft}
+                  onChange={(e) => onDescDraftChange(e.target.value)}
+                  placeholder="Descripción…"
+                  disabled={savingDesc}
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      onSaveDesc();
+                    }
+                    if (e.key === "Escape") onCancelEditDesc();
+                  }}
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={onCancelEditDesc}
+                    disabled={savingDesc}
+                    className="text-xs font-medium text-bloom-muted hover:text-bloom-ink disabled:opacity-60"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onSaveDesc}
+                    disabled={savingDesc}
+                    className="text-xs font-medium text-bloom-accent hover:text-bloom-accent-hover disabled:opacity-60"
+                  >
+                    {savingDesc ? "Guardando…" : "Guardar"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={onStartEditDesc}
+                className="block max-w-xs text-left text-xs text-bloom-muted transition-colors hover:text-bloom-ink"
+              >
+                {line.notas?.trim()
+                  ? line.notas.trim()
+                  : "Agregar descripción…"}
+              </button>
+            )}
+
+            <label className="flex flex-wrap items-center gap-2 text-xs text-bloom-ink">
+              <input
+                type="checkbox"
+                className="h-3.5 w-3.5 rounded border-bloom-border text-bloom-accent focus:ring-bloom-accent/30"
+                checked={isIncluidoManual}
+                disabled={busy || proveedoresActivos.length === 0}
+                onChange={(e) => onToggleIncluido(e.target.checked)}
+              />
+              Incluido en otro proveedor
+            </label>
+            {isIncluidoManual ? (
+              <select
+                className={`${inputClass} max-w-xs`}
+                value={line.incluidoEnProveedorId ?? ""}
+                disabled={busy}
+                onChange={(e) => onToggleIncluido(true, e.target.value)}
+              >
+                {proveedoresActivos.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.nombre}
+                    {p.categoria ? ` (${p.categoria})` : ""}
+                  </option>
+                ))}
+              </select>
+            ) : null}
+          </div>
+        ) : line.notas?.trim() ? (
+          <p className="mt-1 max-w-xs text-xs text-bloom-muted">
+            {line.notas.trim()}
+          </p>
+        ) : null}
+      </td>
+      <td className="px-4 py-3 align-top">
+        <span
+          className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${ESTADO_CLASS[line.estado]}`}
+        >
+          {ESTADO_LABEL[line.estado]}
+        </span>
+      </td>
+      <td className="px-4 py-3 align-top">
+        {line.editable && isIncluidoManual ? (
+          <span className="text-sm font-medium text-bloom-ink">
+            Incluido en {line.incluidoEn}
+          </span>
+        ) : line.editable ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              className="w-36 rounded-lg border border-bloom-border bg-white px-3 py-1.5 text-sm text-bloom-ink outline-none focus:border-bloom-accent disabled:opacity-60"
+              inputMode="numeric"
+              value={draftValue}
+              disabled={busy}
+              onChange={(e) =>
+                onDraftChange(formatInputCurrency(e.target.value))
+              }
+              onBlur={onSaveValor}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.currentTarget.blur();
+                }
+              }}
+              placeholder="0"
+            />
+            {savingCategoria === line.categoria ? (
+              <span className="text-xs text-bloom-muted">Guardando…</span>
+            ) : null}
+          </div>
+        ) : line.incluidoEn ? (
+          <span className="text-sm text-bloom-muted">
+            Incluido en {line.incluidoEn}
+          </span>
+        ) : (
+          <span className="font-medium text-bloom-ink">
+            {line.valor > 0 ? formatCurrency(line.valor) : "Por definir"}
+          </span>
+        )}
+      </td>
+      <td className="px-4 py-3 align-top">
+        {canDelete && line.estimadoId ? (
+          <button
+            type="button"
+            onClick={onDelete}
+            disabled={busy}
+            aria-label={`Eliminar ${line.categoria}`}
+            title="Eliminar ítem"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full text-bloom-muted transition-colors hover:bg-red-50 hover:text-red-700 disabled:opacity-50"
+          >
+            <Trash2 className="h-4 w-4" aria-hidden />
+          </button>
+        ) : null}
+      </td>
+    </tr>
   );
 }

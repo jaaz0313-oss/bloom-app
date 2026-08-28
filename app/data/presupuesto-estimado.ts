@@ -13,6 +13,7 @@ export type PresupuestoEstimadoCategoriaRow = {
   valor_estimado: number | null;
   notas: string | null;
   incluido_en_proveedor_id?: string | null;
+  orden?: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -70,6 +71,7 @@ export function getCategoriasPresupuestoFromCronograma(
 
 /**
  * Categorías del cronograma + estimados personalizados que no están en el cronograma.
+ * Ordenadas por `orden` del estimado cuando existe.
  */
 export function collectPresupuestoCategorias(
   cronogramaItems: CronogramaItemRow[],
@@ -88,6 +90,25 @@ export function collectPresupuestoCategorias(
     keys.add(key);
     personalizadasKeys.add(key);
     categorias.push(label);
+  }
+
+  const ordenByKey = new Map<string, number>();
+  for (const row of estimados) {
+    const key = categoryKey(row.categoria);
+    const orden = Number(row.orden);
+    if (Number.isFinite(orden)) {
+      ordenByKey.set(key, orden);
+    }
+  }
+
+  const hasAnyOrden = ordenByKey.size > 0;
+  if (hasAnyOrden) {
+    categorias.sort((a, b) => {
+      const ao = ordenByKey.get(categoryKey(a)) ?? Number.MAX_SAFE_INTEGER;
+      const bo = ordenByKey.get(categoryKey(b)) ?? Number.MAX_SAFE_INTEGER;
+      if (ao !== bo) return ao - bo;
+      return a.localeCompare(b, "es");
+    });
   }
 
   return { categorias, personalizadasKeys };

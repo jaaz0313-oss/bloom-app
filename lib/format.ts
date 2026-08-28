@@ -39,7 +39,10 @@ export function formatInputCurrencyFromNumber(
   value: number | null | undefined,
 ): string {
   if (value == null || !Number.isFinite(Number(value))) return "";
-  return formatInputCurrency(String(Math.round(Number(value))));
+  const rounded = Math.round(Number(value));
+  // Conservar 0 explícito (evita tratarlo como vacío / falsy).
+  if (rounded === 0) return "0";
+  return formatInputCurrency(String(rounded));
 }
 
 export function formatValorProveedorPendiente(): string {
