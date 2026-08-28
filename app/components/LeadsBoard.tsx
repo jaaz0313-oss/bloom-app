@@ -599,6 +599,47 @@ export function LeadsBoard({
         return;
       }
 
+      // Wedding planner propio: siempre en la boda al convertir el lead.
+      const { data: existingCelestia, error: celestiaCheckError } = await supabase
+        .from("proveedores")
+        .select("id")
+        .eq("boda_id", nuevaBoda.id)
+        .ilike("nombre", "CELESTIA EVENTS")
+        .limit(1)
+        .maybeSingle();
+      if (celestiaCheckError) {
+        console.error(
+          "[convert] check CELESTIA EVENTS failed:",
+          celestiaCheckError,
+        );
+        showConvertError(lead.id, celestiaCheckError.message);
+        return;
+      }
+      if (!existingCelestia) {
+        const { error: celestiaInsertError } = await supabase
+          .from("proveedores")
+          .insert({
+            boda_id: nuevaBoda.id,
+            nombre: "CELESTIA EVENTS",
+            categoria: "Wedding Planner",
+            estado: "en_negociacion",
+            sin_costo: false,
+          });
+        if (celestiaInsertError) {
+          console.error(
+            "[convert] insert CELESTIA EVENTS failed:",
+            celestiaInsertError,
+          );
+          showConvertError(lead.id, celestiaInsertError.message);
+          return;
+        }
+        console.log("[convert] CELESTIA EVENTS provider created");
+      } else {
+        console.log(
+          "[convert] CELESTIA EVENTS already exists, skipping insert",
+        );
+      }
+
       await logAuditoria({
         accion: AUDITORIA_ACCIONES.LEAD_CONVERTIDO,
         entidad: "lead",
