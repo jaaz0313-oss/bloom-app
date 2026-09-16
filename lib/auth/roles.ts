@@ -96,3 +96,13 @@ export function canViewLeads(role: UserRole | string): boolean {
   const normalized = role?.trim().toLowerCase();
   return normalized === "admin" || normalized === "lider";
 }
+
+/** Recibos de pago: admin, líder y finanzas (Contrato sigue siendo admin/líder). */
+export function canViewRecibosPago(role: UserRole | string): boolean {
+  const normalized = role?.trim().toLowerCase();
+  return (
+    normalized === "admin" ||
+    normalized === "lider" ||
+    normalized === "finanzas"
+  );
+}

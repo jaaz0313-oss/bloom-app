@@ -88,6 +88,7 @@ type BodaDetailSectionsProps = {
   equipoCitas: CitaLookupEquipo[];
   canViewBrief: boolean;
   canViewContrato: boolean;
+  canViewRecibos: boolean;
   hasCronograma: boolean;
   hasClientInfo: boolean;
   hasBrief: boolean;
@@ -188,6 +189,7 @@ export function BodaDetailSections({
   equipoCitas,
   canViewBrief,
   canViewContrato,
+  canViewRecibos,
   hasCronograma,
   hasClientInfo,
   hasBrief,
@@ -409,7 +411,8 @@ export function BodaDetailSections({
         defaultOpen={false}
         hasContent={
           hasClientInfo ||
-          (canViewContrato && (hasContrato || hasRecibos))
+          (canViewContrato && hasContrato) ||
+          (canViewRecibos && hasRecibos)
         }
       >
         <ClientInfoSection
@@ -444,7 +447,7 @@ export function BodaDetailSections({
           </BodaCollapsiblePanel>
         )}
 
-        {canViewContrato && (
+        {canViewRecibos && (
           <BodaCollapsiblePanel
             variant="nested"
             title="Recibos de pago"

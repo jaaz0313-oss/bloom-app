@@ -40,6 +40,7 @@ import {
   isAdminRole,
   canManageBodaEstado,
   canManageClientePortalFlags,
+  canViewRecibosPago,
 } from "@/lib/auth/roles";
 import type { EquipoUsuarioMencion } from "@/lib/notas-menciones";
 
@@ -237,6 +238,7 @@ export default async function BodaDetailPage({ params, searchParams }: PageProps
 
   const canViewBrief = ["admin", "lider", "coordinadora"].includes(user.rol);
   const canViewContrato = user.rol === "admin" || user.rol === "lider";
+  const canViewRecibos = canViewRecibosPago(user.rol);
   const canManageDrive = canViewContrato;
 
   const { data: driveFolderData } = await supabase
@@ -362,6 +364,7 @@ export default async function BodaDetailPage({ params, searchParams }: PageProps
           equipoCitas={equipoCitas}
           canViewBrief={canViewBrief}
           canViewContrato={canViewContrato}
+          canViewRecibos={canViewRecibos}
           hasCronograma={hasCronograma}
           hasClientInfo={hasClientInfoContent(bodaRow)}
           hasBrief={hasBriefContent(brief)}
