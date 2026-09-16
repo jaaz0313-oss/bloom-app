@@ -1,5 +1,6 @@
 import type { BriefBodaRow } from "@/app/data/brief-boda";
 import type { ContratoRow } from "@/app/data/contratos";
+import type { ReciboPagoRow } from "@/app/data/recibos";
 import type { BodaRow } from "@/app/data/weddings";
 
 const BRIEF_META_KEYS = new Set(["id", "boda_id", "created_at", "updated_at"]);
@@ -42,4 +43,8 @@ export function hasContratoContent(
       boda.anticipo_honorarios !== null ||
       boda.lugar_venue?.trim(),
   );
+}
+
+export function hasRecibosContent(recibos: ReciboPagoRow[]): boolean {
+  return recibos.length > 0;
 }

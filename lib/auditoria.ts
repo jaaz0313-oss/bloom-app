@@ -23,6 +23,7 @@ export const AUDITORIA_ACCIONES = {
   DRIVE_CARPETA_CREADA: "Carpeta Drive creada",
   DRIVE_CARPETA_RECREADA: "Carpeta Drive recreada",
   CONTRATO_GENERADO: "Contrato generado",
+  RECIBO_GENERADO: "Recibo de pago generado",
   BRIEF_GUARDADO: "Brief guardado",
   NOTA_REUNION_AGREGADA: "Nota de reunión agregada",
   NOTA_REUNION_EDITADA: "Nota de reunión editada",

@@ -9,6 +9,7 @@ import {
 } from "@/app/components/bodas/BodaAccordionSection";
 import { ClientInfoSection } from "@/app/components/bodas/ClientInfoSection";
 import { ContratoSection } from "@/app/components/bodas/ContratoSection";
+import { ReciboSection } from "@/app/components/bodas/ReciboSection";
 import { DetallesCelebracionSection } from "@/app/components/bodas/DetallesCelebracionSection";
 import { NotasInternas } from "@/app/components/bodas/NotasInternas";
 import { PaymentProjection } from "@/app/components/bodas/PaymentProjection";
@@ -21,6 +22,7 @@ import { CitasSection } from "@/app/components/citas/CitasSection";
 import type { CitaRow } from "@/app/data/citas";
 import type { BriefBodaRow } from "@/app/data/brief-boda";
 import type { ContratoRow } from "@/app/data/contratos";
+import type { ReciboPagoRow } from "@/app/data/recibos";
 import {
   hasDetallesCelebracionContent,
   type DetallesCelebracionRow,
@@ -78,6 +80,7 @@ type BodaDetailSectionsProps = {
   detallesCelebracion: DetallesCelebracionRow | null;
   brief: BriefBodaRow | null;
   contrato: ContratoRow | null;
+  recibos: ReciboPagoRow[];
   citas: CitaRow[];
   bodasLookup: CitaLookupBoda[];
   leadsLookup: CitaLookupLead[];
@@ -89,6 +92,7 @@ type BodaDetailSectionsProps = {
   hasClientInfo: boolean;
   hasBrief: boolean;
   hasContrato: boolean;
+  hasRecibos: boolean;
   openSection?: string | null;
   highlightProveedorId?: string | null;
   canManageDrive?: boolean;
@@ -176,6 +180,7 @@ export function BodaDetailSections({
   detallesCelebracion,
   brief,
   contrato,
+  recibos,
   citas,
   bodasLookup,
   leadsLookup,
@@ -187,6 +192,7 @@ export function BodaDetailSections({
   hasClientInfo,
   hasBrief,
   hasContrato,
+  hasRecibos,
   openSection = null,
   highlightProveedorId = null,
   canManageDrive = false,
@@ -401,7 +407,10 @@ export function BodaDetailSections({
       <BodaAccordionSection
         title="Información de los clientes"
         defaultOpen={false}
-        hasContent={hasClientInfo || (canViewContrato && hasContrato)}
+        hasContent={
+          hasClientInfo ||
+          (canViewContrato && (hasContrato || hasRecibos))
+        }
       >
         <ClientInfoSection
           embedded
@@ -431,6 +440,28 @@ export function BodaDetailSections({
               bodaId={bodaId}
               boda={boda}
               initialContrato={contrato}
+            />
+          </BodaCollapsiblePanel>
+        )}
+
+        {canViewContrato && (
+          <BodaCollapsiblePanel
+            variant="nested"
+            title="Recibos de pago"
+            defaultOpen={false}
+            hasContent={hasRecibos}
+          >
+            <p className="mb-5 text-sm text-bloom-muted">
+              Historial de recibos de pago a Celestia (anticipo, pagos
+              intermedios, saldo).
+            </p>
+            <ReciboSection
+              embedded
+              bodaId={bodaId}
+              boda={boda}
+              initialRecibos={recibos}
+              currentUserNombre={plannerName}
+              defaultFirmante={contrato?.firmante ?? "novia"}
             />
           </BodaCollapsiblePanel>
         )}

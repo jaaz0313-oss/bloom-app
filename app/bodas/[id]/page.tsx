@@ -15,6 +15,7 @@ import { AutoSyncCronograma } from "@/app/components/bodas/AutoSyncCronograma";
 import type { CitaRow } from "@/app/data/citas";
 import type { BriefBodaRow } from "@/app/data/brief-boda";
 import type { ContratoRow } from "@/app/data/contratos";
+import type { ReciboPagoRow } from "@/app/data/recibos";
 import type { CronogramaItemRow } from "@/app/data/cronograma";
 import type { NotaBodaRow } from "@/app/data/notas-boda";
 import { fetchNotasReunionForBoda } from "@/app/data/notas-reunion";
@@ -30,6 +31,7 @@ import {
   hasBriefContent,
   hasClientInfoContent,
   hasContratoContent,
+  hasRecibosContent,
 } from "@/lib/boda-section-content";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 import { requireAuthUser } from "@/lib/auth/user-profiles";
@@ -156,6 +158,15 @@ export default async function BodaDetailPage({ params, searchParams }: PageProps
     .maybeSingle();
 
   const contrato = (contratoData as ContratoRow | null) ?? null;
+
+  const { data: recibosData } = await supabase
+    .from("recibos_pago")
+    .select("*")
+    .eq("boda_id", id)
+    .order("fecha", { ascending: false })
+    .order("created_at", { ascending: false });
+
+  const recibos = (recibosData ?? []) as ReciboPagoRow[];
 
   const { data: cronogramaItemsData } = await supabase
     .from("cronograma_items")
@@ -343,6 +354,7 @@ export default async function BodaDetailPage({ params, searchParams }: PageProps
           detallesCelebracion={detallesCelebracion}
           brief={brief}
           contrato={contrato}
+          recibos={recibos}
           citas={(citasData ?? []) as CitaRow[]}
           bodasLookup={bodasLookup ?? []}
           leadsLookup={leadsLookup ?? []}
@@ -354,6 +366,7 @@ export default async function BodaDetailPage({ params, searchParams }: PageProps
           hasClientInfo={hasClientInfoContent(bodaRow)}
           hasBrief={hasBriefContent(brief)}
           hasContrato={hasContratoContent(contrato, bodaRow)}
+          hasRecibos={hasRecibosContent(recibos)}
           openSection={openSection}
           highlightProveedorId={highlightProveedorId}
           canManageDrive={canManageDrive}
