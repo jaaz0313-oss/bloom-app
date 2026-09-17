@@ -43,6 +43,13 @@ import { formatCurrency } from "@/lib/format";
 import { CompararCotizacionesBar } from "./CompararCotizacionesBar";
 import { EstimadoItemCard } from "./EstimadoItemCard";
 import { ProviderCard, type ProviderDragHandleProps } from "./ProviderCard";
+import {
+  ProvidersTableView,
+  ProvidersViewToggle,
+  readStoredProvidersViewMode,
+  storeProvidersViewMode,
+  type ProvidersViewMode,
+} from "./ProvidersTableView";
 
 type ProviderListProps = {
   providers: ProveedorRow[];
@@ -117,6 +124,10 @@ export function ProviderList({
   const [reorderError, setReorderError] = useState<string | null>(null);
   const [isSavingOrder, setIsSavingOrder] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [viewMode, setViewMode] = useState<ProvidersViewMode>("cards");
+  const [tableEditProviderId, setTableEditProviderId] = useState<string | null>(
+    null,
+  );
 
   function handleProviderUpdated(updated: ProveedorRow) {
     console.log("[ProviderList] handleProviderUpdated", {
@@ -125,9 +136,11 @@ export function ProviderList({
       hasParentCallback: typeof onProviderUpdated === "function",
     });
     setOrderedList((prev) => {
-      const next = prev.map((item) =>
-        item.id === updated.id ? { ...item, ...updated } : item,
-      );
+      const next = prev
+        .map((item) =>
+          item.id === updated.id ? { ...item, ...updated } : item,
+        )
+        .filter((item) => item.estado !== "descartado");
       console.log(
         "[ProviderList] orderedList after update",
         next.find((item) => item.id === updated.id)?.valor_total,
@@ -140,6 +153,25 @@ export function ProviderList({
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  useEffect(() => {
+    setViewMode(readStoredProvidersViewMode());
+  }, []);
+
+  function handleViewModeChange(mode: ProvidersViewMode) {
+    setViewMode(mode);
+    storeProvidersViewMode(mode);
+    if (mode === "cards") {
+      setTableEditProviderId(null);
+    }
+  }
+
+  const tableEditProvider = tableEditProviderId
+    ? orderedList.find((p) => p.id === tableEditProviderId) ??
+      providers.find((p) => p.id === tableEditProviderId) ??
+      null
+    : null;
+
 
   useEffect(() => {
     console.log(
@@ -383,7 +415,56 @@ export function ProviderList({
         </p>
       )}
 
-      {showFlatList ? (
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <ProvidersViewToggle mode={viewMode} onChange={handleViewModeChange} />
+        {viewMode === "table" ? (
+          <p className="text-xs text-bloom-muted">
+            Edición rápida en celda · el lápiz abre el formulario completo
+          </p>
+        ) : null}
+      </div>
+
+      {viewMode === "table" ? (
+        <>
+          <ProvidersTableView
+            providers={orderedList}
+            bodaId={bodaId}
+            boda={boda}
+            plannerName={plannerName}
+            currentUserId={currentUserId}
+            role={role}
+            onProviderUpdated={handleProviderUpdated}
+            onRequestFullEdit={setTableEditProviderId}
+          />
+          {tableEditProvider ? (
+            <div className="pointer-events-none fixed left-0 top-0 z-50 h-0 w-0 overflow-visible">
+              <div className="pointer-events-auto">
+              <ProviderCard
+                provider={tableEditProvider}
+                allProviders={sortedFromProps}
+                bodaId={bodaId}
+                boda={boda}
+                plannerName={plannerName}
+                pagos={pagosByProveedor[tableEditProvider.id] ?? []}
+                pagosByProveedor={pagosByProveedor}
+                notasReunion={notasReunionByProveedor[tableEditProvider.id] ?? []}
+                currentUserId={currentUserId}
+                role={role}
+                driveFolderUrl={driveFolderUrl}
+                onProviderUpdated={handleProviderUpdated}
+                aprobadoPorCliente={aprobadoPorClienteSet.has(
+                  tableEditProvider.id,
+                )}
+                autoOpenEdit
+                onEditOpenChange={(open) => {
+                  if (!open) setTableEditProviderId(null);
+                }}
+              />
+              </div>
+            </div>
+          ) : null}
+        </>
+      ) : showFlatList ? (
         renderFlatList(orderedList, canReorder && isMounted)
       ) : (
         providersByCategoria.map(([categoria, categoriaProviders]) => {

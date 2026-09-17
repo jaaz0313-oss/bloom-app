@@ -17,6 +17,13 @@ import { syncTastingNotasReunionToProveedor } from "@/lib/tasting-notas-reunion"
 import { ProviderComisionFields } from "./ProviderComisionFields";
 import { AbrirCarpetaDriveButton } from "./AbrirCarpetaDriveButton";
 import { formatInputCurrency, parseInputCurrency } from "@/lib/format";
+import {
+  buildEspejoFromMetodoInput,
+  metodoPagoInputFromLegacyColumns,
+  replaceProveedorMetodosPago,
+  type ProveedorMetodoPagoInput,
+} from "@/app/data/proveedor-metodos-pago";
+import { ProveedorMetodosPagoEditor } from "./ProveedorMetodosPagoEditor";
 
 type FormState = {
   nombre: string;
@@ -28,11 +35,6 @@ type FormState = {
   medioPagoAnticipo: string;
   depositoReembolsable: string;
   fechaSaldo: string;
-  banco: string;
-  tipoCuenta: string;
-  numeroCuenta: string;
-  titular: string;
-  documentoNit: string;
   telefono: string;
   email: string;
   direccion: string;
@@ -52,11 +54,6 @@ const emptyForm: FormState = {
   medioPagoAnticipo: "",
   depositoReembolsable: "",
   fechaSaldo: "",
-  banco: "",
-  tipoCuenta: "",
-  numeroCuenta: "",
-  titular: "",
-  documentoNit: "",
   telefono: "",
   email: "",
   direccion: "",
@@ -161,6 +158,7 @@ export function AddProviderModalButton({
     null,
   );
   const [directorioSavedNotice, setDirectorioSavedNotice] = useState(false);
+  const [metodosPagoDraft, setMetodosPagoDraft] = useState<ProveedorMetodoPagoInput[]>([]);
 
   function resetDirectorySearch() {
     setDirectoryQuery("");
@@ -298,6 +296,7 @@ export function AddProviderModalButton({
     setEntryMode(null);
     setSelectedDirectorioId(null);
     resetDirectorySearch();
+    setMetodosPagoDraft([]);
     setError(null);
   }
 
@@ -380,16 +379,19 @@ export function AddProviderModalButton({
     setForm((current) => ({
       ...current,
       nombre: provider.nombre ?? current.nombre,
-      banco: provider.banco ?? "",
-      tipoCuenta: provider.tipo_cuenta ?? "",
-      numeroCuenta: provider.numero_cuenta ?? "",
-      titular: provider.titular ?? "",
-      documentoNit: provider.documento_nit ?? "",
       telefono: provider.telefono ?? "",
       email: provider.email ?? "",
       direccion: provider.direccion ?? "",
       notas: provider.notas ?? current.notas,
     }));
+    const metodoFromDir = metodoPagoInputFromLegacyColumns({
+      banco: provider.banco,
+      tipo_cuenta: provider.tipo_cuenta,
+      numero_cuenta: provider.numero_cuenta,
+      titular: provider.titular,
+      documento_nit: provider.documento_nit,
+    });
+    setMetodosPagoDraft(metodoFromDir ? [metodoFromDir] : []);
     setDirectoryQuery(provider.nombre);
     setDirectoryResults([]);
     setDirectorySearchedQuery(provider.nombre);
@@ -427,11 +429,14 @@ export function AddProviderModalButton({
     const anticipo = parseInputCurrency(form.anticipo);
     const depositoReembolsable = parseInputCurrency(form.depositoReembolsable);
     const medioPagoAnticipo = form.medioPagoAnticipo.trim() || null;
-    const banco = form.banco.trim();
-    const numeroCuenta = form.numeroCuenta.trim();
-    const titular = form.titular.trim();
-    const tipoCuenta = form.tipoCuenta.trim();
-    const documentoNit = form.documentoNit.trim();
+    const principalMetodo =
+      metodosPagoDraft.find((m) => m.es_principal) ?? metodosPagoDraft[0] ?? null;
+    const espejoMetodo = buildEspejoFromMetodoInput(principalMetodo);
+    const banco = espejoMetodo.banco?.trim() ?? "";
+    const numeroCuenta = espejoMetodo.numero_cuenta?.trim() ?? "";
+    const titular = espejoMetodo.titular_cuenta?.trim() ?? "";
+    const tipoCuenta = espejoMetodo.tipo_cuenta?.trim() ?? "";
+    const documentoNit = espejoMetodo.documento_nit?.trim() ?? "";
     const telefono = form.telefono.trim();
     const email = form.email.trim();
     const direccion = form.direccion.trim();
@@ -553,6 +558,19 @@ export function AddProviderModalButton({
         if (insertError) {
           setError(insertError.message);
           return;
+        }
+
+        if (esPrimarioGrupo && metodosPagoDraft.length > 0) {
+          const { error: metodosError } = await replaceProveedorMetodosPago(
+            supabase,
+            nuevoProveedor.id,
+            metodosPagoDraft,
+          );
+          if (metodosError) {
+            setError(
+              `Proveedor creado, pero no se pudieron guardar los métodos de pago: ${metodosError}`,
+            );
+          }
         }
 
         await logAuditoria({
@@ -1027,73 +1045,12 @@ export function AddProviderModalButton({
                     />
                   </Field>
 
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <Field label="Banco">
-                      <input
-                        className={inputClass}
-                        value={form.banco}
-                        onChange={(e) =>
-                          setForm((s) => ({ ...s, banco: e.target.value }))
-                        }
-                        placeholder="Ej: Bancolombia"
-                      />
-                    </Field>
-
-                    <Field label="Tipo de cuenta">
-                      <select
-                        className={inputClass}
-                        value={form.tipoCuenta}
-                        onChange={(e) =>
-                          setForm((s) => ({ ...s, tipoCuenta: e.target.value }))
-                        }
-                      >
-                        <option value="">Seleccionar</option>
-                        <option value="Ahorros">Ahorros</option>
-                        <option value="Corriente">Corriente</option>
-                      </select>
-                    </Field>
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <Field label="Número de cuenta">
-                      <input
-                        className={inputClass}
-                        value={form.numeroCuenta}
-                        onChange={(e) =>
-                          setForm((s) => ({
-                            ...s,
-                            numeroCuenta: e.target.value,
-                          }))
-                        }
-                        placeholder="Ej: 12345678901"
-                      />
-                    </Field>
-
-                    <Field label="Titular">
-                      <input
-                        className={inputClass}
-                        value={form.titular}
-                        onChange={(e) =>
-                          setForm((s) => ({ ...s, titular: e.target.value }))
-                        }
-                        placeholder="Ej: Juan Pérez"
-                      />
-                    </Field>
-                  </div>
-
-                  <Field label="Documento / NIT">
-                    <input
-                      className={inputClass}
-                      value={form.documentoNit}
-                      onChange={(e) =>
-                        setForm((s) => ({
-                          ...s,
-                          documentoNit: e.target.value,
-                        }))
-                      }
-                      placeholder="Ej: 900123456-7"
-                    />
-                  </Field>
+                  <ProveedorMetodosPagoEditor
+                    draftMethods={metodosPagoDraft}
+                    onDraftMethodsChange={setMetodosPagoDraft}
+                    disabled={submitting}
+                    inputClassName={inputClass}
+                  />
 
                   <Field label="Descripción del servicio / plan elegido">
                     <textarea

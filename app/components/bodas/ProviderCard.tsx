@@ -26,6 +26,8 @@ import { supabase } from "@/lib/supabase";
 import { syncBodaProveedoresContratados } from "@/lib/sync-boda";
 import { marcarHitoCronogramaPorProveedorContratado } from "@/lib/cronograma";
 import { syncTastingNotasReunionToProveedor } from "@/lib/tasting-notas-reunion";
+import { ProveedorMetodosPagoEditor } from "@/app/components/bodas/ProveedorMetodosPagoEditor";
+import type { ProveedorEspejoMetodoPago } from "@/app/data/proveedor-metodos-pago";
 import type { DirectorioProveedorRow } from "@/app/data/directorio";
 import type { PagoRow } from "@/app/data/pagos";
 import type { NotaReunionRow } from "@/app/data/notas-reunion";
@@ -73,6 +75,9 @@ type ProviderCardProps = {
   onProviderUpdated?: (updated: ProveedorRow) => void;
   /** Aprobación pendiente del cliente (aún no confirmada por el equipo). */
   aprobadoPorCliente?: boolean;
+  /** Abre el modal de edición al montar / cuando pasa a true (vista tabla). */
+  autoOpenEdit?: boolean;
+  onEditOpenChange?: (open: boolean) => void;
 };
 
 export type ProviderDragHandleProps = {
@@ -145,6 +150,8 @@ export function ProviderCard({
   driveFolderUrl = null,
   onProviderUpdated,
   aprobadoPorCliente = false,
+  autoOpenEdit = false,
+  onEditOpenChange,
 }: ProviderCardProps) {
   const router = useRouter();
   const panelId = useId();
@@ -623,11 +630,6 @@ export function ProviderCard({
     valorTotal: string;
     anticipo: string;
     fechaSaldo: string;
-    banco: string;
-    numeroCuenta: string;
-    tipoCuenta: string;
-    titularCuenta: string;
-    documentoNit: string;
     telefono: string;
     email: string;
     direccion: string;
@@ -678,11 +680,6 @@ export function ProviderCard({
         : "",
     anticipo: formatInputCurrencyFromNumber(provider.anticipo),
     fechaSaldo: provider.fecha_saldo ?? "",
-    banco: provider.banco ?? "",
-    numeroCuenta: provider.numero_cuenta ?? "",
-    tipoCuenta: provider.tipo_cuenta ?? "",
-    titularCuenta: provider.titular_cuenta ?? "",
-    documentoNit: provider.documento_nit ?? "",
     telefono: provider.telefono ?? "",
     email: provider.email ?? "",
     direccion: provider.direccion ?? "",
@@ -709,11 +706,6 @@ export function ProviderCard({
           : "",
       anticipo: formatInputCurrencyFromNumber(row.anticipo ?? 0),
       fechaSaldo: row.fecha_saldo ?? "",
-      banco: row.banco ?? "",
-      numeroCuenta: row.numero_cuenta ?? "",
-      tipoCuenta: row.tipo_cuenta ?? "",
-      titularCuenta: row.titular_cuenta ?? "",
-      documentoNit: row.documento_nit ?? "",
       telefono: row.telefono ?? "",
       email: row.email ?? "",
       direccion: row.direccion ?? "",
@@ -728,6 +720,24 @@ export function ProviderCard({
           ? formatInputCurrencyFromNumber(getDepositoReembolsableMonto(row))
           : "",
     };
+  }
+
+  useEffect(() => {
+    if (!autoOpenEdit) return;
+    setEditError(null);
+    setEditOpen(true);
+  }, [autoOpenEdit]);
+
+
+  function openEditModal() {
+    setEditError(null);
+    setEditOpen(true);
+    onEditOpenChange?.(true);
+  }
+
+  function closeEditModal() {
+    setEditOpen(false);
+    onEditOpenChange?.(false);
   }
 
   useEffect(() => {
@@ -836,11 +846,6 @@ export function ProviderCard({
       telefono: row.telefono ?? "",
       email: row.email ?? "",
       direccion: row.direccion ?? "",
-      banco: row.banco ?? "",
-      tipoCuenta: row.tipo_cuenta ?? "",
-      numeroCuenta: row.numero_cuenta ?? "",
-      titularCuenta: row.titular ?? "",
-      documentoNit: row.documento_nit ?? "",
       notas: row.notas?.trim() ? row.notas : s.notas,
     }));
     setEditDirectoryResults([]);
@@ -880,11 +885,6 @@ export function ProviderCard({
     const valorTotal = parseProveedorValorInput(editForm.valorTotal);
     const anticipo = parseInputCurrency(editForm.anticipo);
 
-    const banco = editForm.banco.trim() || null;
-    const numeroCuenta = editForm.numeroCuenta.trim() || null;
-    const tipoCuenta = editForm.tipoCuenta.trim() || null;
-    const titularCuenta = editForm.titularCuenta.trim() || null;
-    const documentoNit = editForm.documentoNit.trim() || null;
     const telefono = editForm.telefono.trim() || null;
     const email = editForm.email.trim() || null;
     const direccion = editForm.direccion.trim() || null;
@@ -958,11 +958,6 @@ export function ProviderCard({
             : {}),
           anticipo: anticipoGuardar,
           fecha_saldo: fechaSaldo,
-          banco,
-          numero_cuenta: numeroCuenta,
-          tipo_cuenta: tipoCuenta,
-          titular_cuenta: titularCuenta,
-          documento_nit: documentoNit,
           telefono,
           email,
           direccion,
@@ -994,11 +989,6 @@ export function ProviderCard({
           : {}),
         anticipo: anticipoGuardar,
         fecha_saldo: fechaSaldo,
-        banco,
-        numero_cuenta: numeroCuenta,
-        tipo_cuenta: tipoCuenta,
-        titular_cuenta: titularCuenta,
-        documento_nit: documentoNit,
         telefono,
         email,
         direccion,
@@ -1021,7 +1011,7 @@ export function ProviderCard({
       onProviderUpdated?.(updatedProvider);
       setDescripcionServicioLocal(descripcionServicio);
       setNotasLocal(notas);
-      setEditOpen(false);
+      closeEditModal();
       router.refresh();
     } finally {
       setEditSubmitting(false);
@@ -1744,8 +1734,7 @@ export function ProviderCard({
               <button
                 type="button"
                 onClick={() => {
-                  setEditError(null);
-                  setEditOpen(true);
+                  openEditModal();
                 }}
                 disabled={updating || editSubmitting}
                 className="mt-2 rounded-full border border-bloom-border bg-bloom-surface px-3 py-1 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-border disabled:opacity-60"
@@ -1760,8 +1749,7 @@ export function ProviderCard({
               <button
                 type="button"
                 onClick={() => {
-                  setEditError(null);
-                  setEditOpen(true);
+                  openEditModal();
                 }}
                 disabled={updating || editSubmitting || deleting}
                 className="rounded-full border border-bloom-border bg-bloom-canvas px-4 py-2 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-border disabled:opacity-60"
@@ -1949,7 +1937,7 @@ export function ProviderCard({
           aria-modal="true"
           aria-label="Editar proveedor"
           onClick={(e) => {
-            if (e.target === e.currentTarget) setEditOpen(false);
+            if (e.target === e.currentTarget) closeEditModal();
           }}
         >
           <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-bloom-border bg-bloom-surface p-6 shadow-lg">
@@ -1965,7 +1953,7 @@ export function ProviderCard({
               <button
                 type="button"
                 className="rounded-full p-2 text-bloom-muted transition-colors hover:bg-bloom-border hover:text-bloom-ink"
-                onClick={() => setEditOpen(false)}
+                onClick={() => closeEditModal()}
                 aria-label="Cerrar"
                 disabled={editSubmitting}
               >
@@ -2148,87 +2136,16 @@ export function ProviderCard({
                 </div>
               ) : null}
 
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="Banco">
-                  <input
-                    className={inputClass}
-                    value={editForm.banco}
-                    onChange={(e) =>
-                      setEditForm((s) => ({
-                        ...s,
-                        banco: e.target.value,
-                      }))
-                    }
-                    placeholder="Ej: Bancolombia"
-                    disabled={editSubmitting}
-                  />
-                </Field>
-                <Field label="Tipo de cuenta">
-                  <select
-                    className={inputClass}
-                    value={editForm.tipoCuenta}
-                    onChange={(e) =>
-                      setEditForm((s) => ({
-                        ...s,
-                        tipoCuenta: e.target.value,
-                      }))
-                    }
-                    disabled={editSubmitting}
-                  >
-                    <option value="">Seleccionar</option>
-                    <option value="Ahorros">Ahorros</option>
-                    <option value="Corriente">Corriente</option>
-                  </select>
-                </Field>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="Número de cuenta">
-                  <input
-                    className={inputClass}
-                    value={editForm.numeroCuenta}
-                    onChange={(e) =>
-                      setEditForm((s) => ({
-                        ...s,
-                        numeroCuenta: e.target.value,
-                      }))
-                    }
-                    placeholder="Ej: 12345678901"
-                    disabled={editSubmitting}
-                  />
-                </Field>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="Titular">
-                  <input
-                    className={inputClass}
-                    value={editForm.titularCuenta}
-                    onChange={(e) =>
-                      setEditForm((s) => ({
-                        ...s,
-                        titularCuenta: e.target.value,
-                      }))
-                    }
-                    placeholder="Ej: Juan Pérez"
-                    disabled={editSubmitting}
-                  />
-                </Field>
-                <Field label="Documento / NIT">
-                  <input
-                    className={inputClass}
-                    value={editForm.documentoNit}
-                    onChange={(e) =>
-                      setEditForm((s) => ({
-                        ...s,
-                        documentoNit: e.target.value,
-                      }))
-                    }
-                    placeholder="Ej: 900123456-7"
-                    disabled={editSubmitting}
-                  />
-                </Field>
-              </div>
+              <ProveedorMetodosPagoEditor
+                proveedorId={provider.id}
+                disabled={editSubmitting}
+                inputClassName={inputClass}
+                onEspejoSynced={(espejo: ProveedorEspejoMetodoPago) => {
+                  const updated = { ...provider, ...espejo };
+                  setProvider(updated);
+                  onProviderUpdated?.(updated);
+                }}
+              />
 
               <div className="space-y-3 rounded-xl border border-bloom-border bg-bloom-canvas/50 p-4">
                 <p className="text-xs font-medium uppercase tracking-wider text-bloom-muted">
@@ -2336,7 +2253,7 @@ export function ProviderCard({
                 <button
                   type="button"
                   className="rounded-full border border-bloom-border bg-bloom-surface px-5 py-2.5 text-sm font-medium text-bloom-ink transition-colors hover:bg-bloom-border disabled:opacity-60"
-                  onClick={() => setEditOpen(false)}
+                  onClick={() => closeEditModal()}
                   disabled={editSubmitting}
                 >
                   Cancelar
