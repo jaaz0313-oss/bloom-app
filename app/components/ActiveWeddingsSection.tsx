@@ -3,12 +3,18 @@
 import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import type { Wedding } from "@/app/data/weddings";
+import {
+  WeddingsByYearGroups,
+  groupWeddingsByYear,
+} from "@/app/components/WeddingsByYearGroups";
 import { WeddingCard } from "./WeddingCard";
 
 export type SearchableWedding = Wedding & {
   brideName: string | null;
   groomName: string | null;
 };
+
+const YEAR_OPEN_STORAGE_KEY = "bloom:active-weddings-year-open";
 
 type ActiveWeddingsSectionProps = {
   weddings: SearchableWedding[];
@@ -57,6 +63,13 @@ export function ActiveWeddingsSection({
     [weddings, normalizedQuery],
   );
 
+  const forceOpenYears = useMemo(() => {
+    if (!normalizedQuery) return undefined;
+    return new Set(
+      groupWeddingsByYear(filteredWeddings).map((group) => group.year),
+    );
+  }, [filteredWeddings, normalizedQuery]);
+
   const countLabel = normalizedQuery
     ? `${filteredWeddings.length} de ${weddings.length}`
     : String(weddings.length);
@@ -99,13 +112,14 @@ export function ActiveWeddingsSection({
             : "No hay bodas activas."}
         </p>
       ) : (
-        <ul className="mt-8 space-y-4">
-          {filteredWeddings.map((wedding) => (
-            <li key={wedding.id}>
-              <WeddingCard wedding={wedding} />
-            </li>
-          ))}
-        </ul>
+        <div className="mt-8">
+          <WeddingsByYearGroups
+            weddings={filteredWeddings}
+            storageKey={YEAR_OPEN_STORAGE_KEY}
+            forceOpenYears={forceOpenYears}
+            renderItem={(wedding) => <WeddingCard wedding={wedding} />}
+          />
+        </div>
       )}
     </>
   );
