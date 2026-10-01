@@ -38,6 +38,10 @@ export type ProveedorRow = {
   comision_recibida_at: string | null;
   orden: number | null;
   sin_costo: boolean;
+  /** Lo paga la pareja directo al proveedor; no entra al presupuesto de Celestia. */
+  pago_directo_cliente: boolean;
+  /** Exclusión temporal de los totales. Persiste hasta que se apague. */
+  excluido_simulacion: boolean;
   deposito_reembolsable: number | null;
   /**
    * Agrupa filas del mismo proveedor con varias categorías (valor compartido).
@@ -216,14 +220,86 @@ export function parseProveedorValorInput(value: string): number {
   return parseInputCurrency(value);
 }
 
+export function isPagoDirectoCliente(
+  provider: Pick<ProveedorRow, "pago_directo_cliente">,
+): boolean {
+  return Boolean(provider.pago_directo_cliente);
+}
+
+export function isExcluidoSimulacion(
+  provider: Pick<ProveedorRow, "excluido_simulacion">,
+): boolean {
+  return Boolean(provider.excluido_simulacion);
+}
+
+/** Si cualquiera de los tres está marcado, el valor no entra a los totales principales. */
+export function proveedorExcluidoDeTotales(
+  provider: Pick<
+    ProveedorRow,
+    "sin_costo" | "pago_directo_cliente" | "excluido_simulacion"
+  >,
+): boolean {
+  return (
+    isProveedorSinCosto(provider) ||
+    isPagoDirectoCliente(provider) ||
+    isExcluidoSimulacion(provider)
+  );
+}
+
 export function proveedorContribuyeAlPresupuesto(
-  provider: Pick<ProveedorRow, "estado" | "sin_costo" | "valor_total">,
+  provider: Pick<
+    ProveedorRow,
+    | "estado"
+    | "sin_costo"
+    | "pago_directo_cliente"
+    | "excluido_simulacion"
+    | "valor_total"
+  >,
 ): boolean {
   return (
     provider.estado === "contratado" &&
-    !isProveedorSinCosto(provider) &&
+    !proveedorExcluidoDeTotales(provider) &&
     hasProveedorValorDefinido(provider.valor_total)
   );
+}
+
+const ESTADOS_EN_EVALUACION = new Set<ProviderStatus>([
+  "pendiente",
+  "cotizacion_solicitada",
+  "en_negociacion",
+]);
+
+/**
+ * Suma el valor de proveedores con cotización conocida que aún no están
+ * contratados. Un grupo cuenta una sola vez, igual que el total contratado.
+ */
+export function sumValorProveedoresEnEvaluacion(
+  providers: ProveedorRow[],
+): number {
+  return dedupeProveedoresPorGrupo(
+    providers.filter(
+      (provider) =>
+        ESTADOS_EN_EVALUACION.has(provider.estado) &&
+        !proveedorExcluidoDeTotales(provider) &&
+        hasProveedorValorDefinido(provider.valor_total),
+    ),
+  ).reduce((sum, provider) => sum + provider.valor_total, 0);
+}
+
+/** Suma el valor visible de proveedores con una marca, sin contar sin costo ni descartados. */
+export function sumValorProveedoresConMarca(
+  providers: ProveedorRow[],
+  marca: "pago_directo_cliente" | "excluido_simulacion",
+): number {
+  return dedupeProveedoresPorGrupo(
+    providers.filter(
+      (provider) =>
+        Boolean(provider[marca]) &&
+        provider.estado !== "descartado" &&
+        !isProveedorSinCosto(provider) &&
+        hasProveedorValorDefinido(provider.valor_total),
+    ),
+  ).reduce((sum, provider) => sum + provider.valor_total, 0);
 }
 
 export const PROVIDER_STATUS_LABELS: Record<ProviderStatus, string> = {
@@ -247,18 +323,26 @@ export function getProviderSaldoPendiente(provider: ProveedorRow): number {
   return provider.valor_total - provider.anticipo;
 }
 
+/** Anticipo del proveedor más los pagos registrados a ese mismo proveedor. */
+export function getProviderTotalAbonado(
+  provider: Pick<ProveedorRow, "anticipo">,
+  pagos: { monto: number }[] = [],
+): number {
+  const pagosRegistrados = pagos.reduce(
+    (sum, pago) => sum + Number(pago.monto),
+    0,
+  );
+  return Number(provider.anticipo) + pagosRegistrados;
+}
+
 export function getProviderSaldoPendienteConPagos(
   provider: ProveedorRow,
   pagos: { monto: number }[] = [],
 ): number {
   if (isProveedorSinCosto(provider)) return 0;
-  const pagosRegistrados = pagos.reduce(
-    (sum, pago) => sum + Number(pago.monto),
-    0,
-  );
   return Math.max(
     0,
-    provider.valor_total - (provider.anticipo + pagosRegistrados),
+    provider.valor_total - getProviderTotalAbonado(provider, pagos),
   );
 }
 
@@ -286,19 +370,11 @@ export function computePaymentProjection(
   );
   const totalContratado = contratados.reduce((sum, p) => sum + p.valor_total, 0);
   const totalPagado = contratados.reduce((sum, p) => {
-    const pagos = pagosByProveedor[p.id] ?? [];
-    const pagosRegistrados = pagos.reduce((acc, pago) => acc + Number(pago.monto), 0);
-    return sum + p.anticipo + pagosRegistrados;
+    return sum + getProviderTotalAbonado(p, pagosByProveedor[p.id] ?? []);
   }, 0);
-  const saldoPendiente = contratados.reduce(
-    (sum, p) => {
-      const pagos = pagosByProveedor[p.id] ?? [];
-      const pagosRegistrados = pagos.reduce((acc, pago) => acc + Number(pago.monto), 0);
-      const pendiente = p.valor_total - (p.anticipo + pagosRegistrados);
-      return sum + Math.max(0, pendiente);
-    },
-    0,
-  );
+  const saldoPendiente = contratados.reduce((sum, p) => {
+    return sum + getProviderSaldoPendienteConPagos(p, pagosByProveedor[p.id] ?? []);
+  }, 0);
 
   return { totalContratado, totalPagado, saldoPendiente };
 }

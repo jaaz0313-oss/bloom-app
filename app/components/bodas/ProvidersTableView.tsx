@@ -2,8 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { LayoutGrid, List, Loader2, Pencil } from "lucide-react";
+import type { PagoRow } from "@/app/data/pagos";
 import {
+  getProviderSaldoPendienteConPagos,
+  getProviderTotalAbonado,
   hasProveedorValorDefinido,
+  isExcluidoSimulacion,
+  isPagoDirectoCliente,
   isProveedorSinCosto,
   parseProveedorValorInput,
   PROVIDER_STATUS_LABELS,
@@ -19,6 +24,7 @@ import {
 import { hasPermission, type UserRole } from "@/lib/auth/roles";
 import { marcarHitoCronogramaPorProveedorContratado } from "@/lib/cronograma";
 import {
+  formatCurrency,
   formatInputCurrency,
   formatInputCurrencyFromNumber,
 } from "@/lib/format";
@@ -39,6 +45,8 @@ type EditableField =
   | "notas"
   | "estado"
   | "sin_costo"
+  | "pago_directo_cliente"
+  | "excluido_simulacion"
   | "valor_total";
 
 function valorInputFromProvider(provider: ProveedorRow): string {
@@ -50,6 +58,7 @@ function valorInputFromProvider(provider: ProveedorRow): string {
 
 type ProvidersTableViewProps = {
   providers: ProveedorRow[];
+  pagosByProveedor?: Record<string, PagoRow[]>;
   bodaId: string;
   boda: CotizacionBodaContext;
   plannerName: string;
@@ -61,6 +70,7 @@ type ProvidersTableViewProps = {
 
 export function ProvidersTableView({
   providers,
+  pagosByProveedor = {},
   bodaId,
   boda,
   plannerName,
@@ -81,17 +91,53 @@ export function ProvidersTableView({
 
   return (
     <div className="overflow-x-auto rounded-2xl border border-bloom-border bg-bloom-surface shadow-sm">
-      <table className="min-w-[960px] w-full table-fixed border-collapse text-left text-sm">
+      <table className="min-w-[1360px] w-full table-fixed border-collapse text-left text-sm">
+        <colgroup>
+          <col className="w-[9%]" />
+          <col className="w-[10%]" />
+          <col />
+          <col />
+          <col className="w-[8%]" />
+          <col className="w-[5%]" />
+          <col className="w-[6%]" />
+          <col className="w-[6%]" />
+          <col className="w-[7rem]" />
+          <col className="w-[7rem]" />
+          <col className="w-[7rem]" />
+          <col className="w-[5%]" />
+        </colgroup>
         <thead>
           <tr className="border-b border-bloom-border bg-bloom-canvas/80 text-xs font-medium uppercase tracking-wide text-bloom-muted">
-            <th className="w-[12%] px-2 py-2.5">Categoría</th>
-            <th className="w-[13%] px-2 py-2.5">Nombre</th>
-            <th className="w-[21%] px-2 py-2.5">Descripción</th>
-            <th className="w-[18%] px-2 py-2.5">Notas</th>
-            <th className="w-[11%] px-2 py-2.5">Estado</th>
-            <th className="w-[8%] px-2 py-2.5 text-center">Sin costo</th>
-            <th className="w-[12%] px-2 py-2.5">Valor</th>
-            <th className="w-[5%] px-2 py-2.5 text-center"> </th>
+            <th className="px-2 py-2.5">Categoría</th>
+            <th className="px-2 py-2.5">Nombre</th>
+            <th className="px-2 py-2.5">Descripción</th>
+            <th className="px-2 py-2.5">Notas</th>
+            <th className="px-2 py-2.5">Estado</th>
+            <th className="px-1 py-2.5 text-center leading-tight">
+              Sin costo
+            </th>
+            <th
+              className="px-1 py-2.5 text-center leading-tight text-sky-800"
+              title="Pago directo del cliente"
+            >
+              Pago cliente
+            </th>
+            <th
+              className="px-1 py-2.5 text-center leading-tight text-violet-800"
+              title="Excluir de la simulación"
+            >
+              Simulación
+            </th>
+            <th className="w-[7rem] max-w-[7rem] whitespace-nowrap px-1 py-2.5 text-right">
+              Valor
+            </th>
+            <th className="w-[7rem] max-w-[7rem] whitespace-nowrap px-1 py-2.5 text-right">
+              Abonado
+            </th>
+            <th className="w-[7rem] max-w-[7rem] whitespace-nowrap px-1 py-2.5 text-right">
+              Saldo
+            </th>
+            <th className="px-2 py-2.5 text-center"> </th>
           </tr>
         </thead>
         <tbody>
@@ -99,6 +145,7 @@ export function ProvidersTableView({
             <ProvidersTableRow
               key={provider.id}
               provider={provider}
+              pagos={pagosByProveedor[provider.id] ?? []}
               bodaId={bodaId}
               boda={boda}
               plannerName={plannerName}
@@ -121,6 +168,7 @@ export function ProvidersTableView({
 
 type ProvidersTableRowProps = {
   provider: ProveedorRow;
+  pagos: PagoRow[];
   bodaId: string;
   boda: CotizacionBodaContext;
   plannerName: string;
@@ -132,6 +180,7 @@ type ProvidersTableRowProps = {
 
 function ProvidersTableRow({
   provider,
+  pagos,
   bodaId,
   boda,
   plannerName,
@@ -148,6 +197,12 @@ function ProvidersTableRow({
   const [notas, setNotas] = useState(provider.notas ?? "");
   const [estado, setEstado] = useState<ProviderStatus>(provider.estado);
   const [sinCosto, setSinCosto] = useState(isProveedorSinCosto(provider));
+  const [pagoDirectoCliente, setPagoDirectoCliente] = useState(
+    isPagoDirectoCliente(provider),
+  );
+  const [excluidoSimulacion, setExcluidoSimulacion] = useState(
+    isExcluidoSimulacion(provider),
+  );
   const [valorInput, setValorInput] = useState(valorInputFromProvider(provider));
   const [savingField, setSavingField] = useState<EditableField | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -159,6 +214,8 @@ function ProvidersTableRow({
     setNotas(provider.notas ?? "");
     setEstado(provider.estado);
     setSinCosto(isProveedorSinCosto(provider));
+    setPagoDirectoCliente(isPagoDirectoCliente(provider));
+    setExcluidoSimulacion(isExcluidoSimulacion(provider));
     setValorInput(valorInputFromProvider(provider));
   }, [provider]);
 
@@ -193,6 +250,8 @@ function ProvidersTableRow({
         setNotas(provider.notas ?? "");
         setEstado(provider.estado);
         setSinCosto(isProveedorSinCosto(provider));
+        setPagoDirectoCliente(isPagoDirectoCliente(provider));
+        setExcluidoSimulacion(isExcluidoSimulacion(provider));
         setValorInput(valorInputFromProvider(provider));
         return;
       }
@@ -300,6 +359,22 @@ function ProvidersTableRow({
     await persistPatch("sin_costo", { sin_costo: false });
   }
 
+  async function handlePagoDirectoChange(checked: boolean) {
+    if (!canManage || checked === isPagoDirectoCliente(provider)) return;
+    setPagoDirectoCliente(checked);
+    await persistPatch("pago_directo_cliente", {
+      pago_directo_cliente: checked,
+    });
+  }
+
+  async function handleExcluidoSimulacionChange(checked: boolean) {
+    if (!canManage || checked === isExcluidoSimulacion(provider)) return;
+    setExcluidoSimulacion(checked);
+    await persistPatch("excluido_simulacion", {
+      excluido_simulacion: checked,
+    });
+  }
+
   async function handleValorBlur() {
     if (sinCosto || isProveedorSinCosto(provider)) {
       setValorInput("");
@@ -363,14 +438,17 @@ function ProvidersTableRow({
   }
 
   const busy = savingField !== null;
-  const inputClass =
-    "w-full rounded-lg border border-transparent bg-transparent px-2 py-1.5 text-sm text-bloom-ink outline-none transition-colors hover:border-bloom-border focus:border-bloom-accent focus:bg-white focus:ring-2 focus:ring-bloom-accent/20 disabled:cursor-not-allowed disabled:opacity-60";
-  const selectClass =
-    "w-full rounded-lg border border-bloom-border/70 bg-white px-2 py-1.5 text-sm text-bloom-ink outline-none focus:border-bloom-accent focus:ring-2 focus:ring-bloom-accent/20 disabled:cursor-not-allowed disabled:opacity-60";
+  const textTone = excluidoSimulacion ? "text-bloom-muted" : "text-bloom-ink";
+  const inputClass = `w-full rounded-lg border border-transparent bg-transparent px-2 py-1.5 text-sm ${textTone} outline-none transition-colors hover:border-bloom-border focus:border-bloom-accent focus:bg-white focus:ring-2 focus:ring-bloom-accent/20 disabled:cursor-not-allowed disabled:opacity-60`;
+  const selectClass = `w-full rounded-lg border border-bloom-border/70 bg-white px-2 py-1.5 text-sm ${textTone} outline-none focus:border-bloom-accent focus:ring-2 focus:ring-bloom-accent/20 disabled:cursor-not-allowed disabled:opacity-60`;
 
   return (
     <>
-      <tr className="border-b border-bloom-border/60 align-top last:border-b-0">
+      <tr
+        className={`border-b border-bloom-border/60 align-top last:border-b-0 ${
+          excluidoSimulacion ? "bg-violet-50/80" : ""
+        }`}
+      >
         <td className="px-2 py-2">
           <div className="relative">
             <select
@@ -466,16 +544,42 @@ function ProvidersTableRow({
             {savingField === "sin_costo" ? <SavingDot /> : null}
           </div>
         </td>
-        <td className="px-2 py-2">
+        <td className="px-1 py-2 text-center">
+          <div className="relative inline-flex items-center justify-center">
+            <input
+              type="checkbox"
+              className="h-4 w-4 rounded border-sky-300 text-sky-600 focus:ring-sky-500/30 disabled:cursor-not-allowed disabled:opacity-60"
+              checked={pagoDirectoCliente}
+              disabled={!canManage || busy}
+              onChange={(e) => void handlePagoDirectoChange(e.target.checked)}
+              aria-label="Pago directo del cliente"
+              title="Lo paga la pareja directo al proveedor. El valor no entra al presupuesto de Celestia."
+            />
+            {savingField === "pago_directo_cliente" ? <SavingDot /> : null}
+          </div>
+        </td>
+        <td className="px-1 py-2 text-center">
+          <div className="relative inline-flex items-center justify-center">
+            <SimulationSwitch
+              checked={excluidoSimulacion}
+              disabled={!canManage || busy}
+              onChange={(checked) => void handleExcluidoSimulacionChange(checked)}
+            />
+            {savingField === "excluido_simulacion" ? <SavingDot /> : null}
+          </div>
+        </td>
+        <td className="w-[7rem] max-w-[7rem] px-1 py-2">
           <div className="relative">
             {sinCosto ? (
-              <span className="block px-2 py-1.5 text-sm text-bloom-muted">—</span>
+              <span className="block px-1 py-1.5 text-right text-sm text-bloom-muted">
+                —
+              </span>
             ) : (
               <input
                 type="text"
                 inputMode="numeric"
                 autoComplete="off"
-                className={`${inputClass} text-right tabular-nums`}
+                className={`${inputClass.replace("px-2", "px-1")} text-right tabular-nums`}
                 value={valorInput}
                 disabled={!canManage || busy}
                 placeholder="—"
@@ -488,6 +592,20 @@ function ProvidersTableRow({
             )}
             {savingField === "valor_total" ? <SavingDot /> : null}
           </div>
+        </td>
+        <td className="w-[7rem] max-w-[7rem] whitespace-nowrap px-1 py-2">
+          <MoneyReadout
+            empty={sinCosto}
+            muted={excluidoSimulacion}
+            amount={getProviderTotalAbonado(provider, pagos)}
+          />
+        </td>
+        <td className="w-[7rem] max-w-[7rem] whitespace-nowrap px-1 py-2">
+          <MoneyReadout
+            empty={sinCosto}
+            muted={excluidoSimulacion}
+            amount={getProviderSaldoPendienteConPagos(provider, pagos)}
+          />
         </td>
         <td className="px-2 py-2 text-center">
           <button
@@ -504,7 +622,7 @@ function ProvidersTableRow({
       {error ? (
         <tr>
           <td
-            colSpan={8}
+            colSpan={12}
             className="bg-red-50 px-3 py-1.5 text-xs text-red-700"
           >
             {error}
@@ -512,6 +630,65 @@ function ProvidersTableRow({
         </tr>
       ) : null}
     </>
+  );
+}
+
+function MoneyReadout({
+  amount,
+  empty,
+  muted = false,
+}: {
+  amount: number;
+  empty: boolean;
+  muted?: boolean;
+}) {
+  if (empty) {
+    return (
+      <span className="block px-1 py-1.5 text-right text-sm text-bloom-muted">
+        —
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className={`block whitespace-nowrap px-1 py-1.5 text-right text-sm tabular-nums ${
+        muted ? "text-bloom-muted" : "text-bloom-ink"
+      }`}
+    >
+      {formatCurrency(amount)}
+    </span>
+  );
+}
+
+function SimulationSwitch({
+  checked,
+  disabled,
+  onChange,
+}: {
+  checked: boolean;
+  disabled?: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label="Excluir de la simulación"
+      title="Excluye este valor de los totales hasta que lo vuelvas a incluir. Se guarda."
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className={`relative inline-flex h-5 w-9 shrink-0 rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+        checked ? "bg-violet-500" : "bg-bloom-border"
+      }`}
+    >
+      <span
+        className={`pointer-events-none inline-block h-4 w-4 translate-y-0.5 rounded-full bg-white shadow transition-transform ${
+          checked ? "translate-x-4" : "translate-x-0.5"
+        }`}
+      />
+    </button>
   );
 }
 

@@ -638,6 +638,8 @@ export function ProviderCard({
     daComision: boolean;
     porcentajeComision: string;
     depositoReembolsable: string;
+    pagoDirectoCliente: boolean;
+    excluidoSimulacion: boolean;
   };
 
   type EditDirectorioLookup = Pick<
@@ -693,6 +695,8 @@ export function ProviderCard({
       getDepositoReembolsableMonto(provider) > 0
         ? formatInputCurrencyFromNumber(getDepositoReembolsableMonto(provider))
         : "",
+    pagoDirectoCliente: Boolean(provider.pago_directo_cliente),
+    excluidoSimulacion: Boolean(provider.excluido_simulacion),
   });
 
   function buildEditFormFromProvider(row: ProveedorRow): EditFormState {
@@ -719,6 +723,8 @@ export function ProviderCard({
         getDepositoReembolsableMonto(row) > 0
           ? formatInputCurrencyFromNumber(getDepositoReembolsableMonto(row))
           : "",
+      pagoDirectoCliente: Boolean(row.pago_directo_cliente),
+      excluidoSimulacion: Boolean(row.excluido_simulacion),
     };
   }
 
@@ -966,6 +972,8 @@ export function ProviderCard({
           da_comision: daComision,
           porcentaje_comision: porcentajeComisionGuardar,
           deposito_reembolsable: depositoGuardar,
+          pago_directo_cliente: editForm.pagoDirectoCliente,
+          excluido_simulacion: editForm.excluidoSimulacion,
         })
         .eq("id", provider.id)
         .select("*")
@@ -997,6 +1005,8 @@ export function ProviderCard({
         da_comision: daComision,
         porcentaje_comision: porcentajeComisionGuardar,
         deposito_reembolsable: depositoGuardar,
+        pago_directo_cliente: editForm.pagoDirectoCliente,
+        excluido_simulacion: editForm.excluidoSimulacion,
       };
 
       console.log("[ProviderCard] edit save success", {
@@ -2092,6 +2102,69 @@ export function ProviderCard({
                     </p>
                   </div>
                 )}
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-sky-200 bg-sky-50/80 px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={editForm.pagoDirectoCliente}
+                    onChange={(e) =>
+                      setEditForm((s) => ({
+                        ...s,
+                        pagoDirectoCliente: e.target.checked,
+                      }))
+                    }
+                    disabled={editSubmitting}
+                    className="mt-0.5 h-4 w-4 rounded border-sky-300 text-sky-600 focus:ring-sky-500/30"
+                  />
+                  <span>
+                    <span className="block text-sm font-medium text-sky-950">
+                      Pago directo del cliente
+                    </span>
+                    <span className="mt-0.5 block text-xs text-sky-800">
+                      Tiene valor, pero lo paga la pareja directo al proveedor.
+                      No entra al presupuesto de Celestia.
+                    </span>
+                  </span>
+                </label>
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-violet-200 bg-violet-50/80 px-4 py-3">
+                  <span>
+                    <span className="block text-sm font-medium text-violet-950">
+                      Excluir de la simulación
+                    </span>
+                    <span className="mt-0.5 block text-xs text-violet-800">
+                      Saca el valor de los totales hasta que lo vuelvas a
+                      incluir. Se guarda.
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={editForm.excluidoSimulacion}
+                    aria-label="Excluir de la simulación"
+                    disabled={editSubmitting}
+                    onClick={() =>
+                      setEditForm((s) => ({
+                        ...s,
+                        excluidoSimulacion: !s.excluidoSimulacion,
+                      }))
+                    }
+                    className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+                      editForm.excluidoSimulacion
+                        ? "bg-violet-500"
+                        : "bg-bloom-border"
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 translate-y-0.5 rounded-full bg-white shadow transition-transform ${
+                        editForm.excluidoSimulacion
+                          ? "translate-x-5"
+                          : "translate-x-0.5"
+                      }`}
+                    />
+                  </button>
+                </div>
               </div>
 
               <Field label="Fecha de saldo">

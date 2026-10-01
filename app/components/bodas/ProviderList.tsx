@@ -27,9 +27,12 @@ import {
   type PresupuestoEstimadoCategoriaRow,
 } from "@/app/data/presupuesto-estimado";
 import {
+  computePaymentProjection,
   dedupeProveedoresPorGrupo,
   isProveedorSinCosto,
   hasProveedorValorDefinido,
+  sumValorProveedoresConMarca,
+  sumValorProveedoresEnEvaluacion,
   type ProveedorRow,
 } from "@/app/data/providers";
 import {
@@ -428,6 +431,7 @@ export function ProviderList({
         <>
           <ProvidersTableView
             providers={orderedList}
+            pagosByProveedor={pagosByProveedor}
             bodaId={bodaId}
             boda={boda}
             plannerName={plannerName}
@@ -493,8 +497,10 @@ export function ProviderList({
       )}
 
       <ProviderListSummary
-        providers={sortedFromProps}
+        providers={providers}
         estimados={estimadosUnicos}
+        pagosByProveedor={pagosByProveedor}
+        showPaymentTotals={viewMode === "table"}
       />
 
       {renderEstimadosList()}
@@ -505,10 +511,23 @@ export function ProviderList({
 function ProviderListSummary({
   providers,
   estimados,
+  pagosByProveedor = {},
+  showPaymentTotals = false,
 }: {
   providers: ProveedorRow[];
   estimados: PresupuestoEstimadoCategoriaRow[];
+  pagosByProveedor?: Record<string, PagoRow[]>;
+  showPaymentTotals?: boolean;
 }) {
+  if (showPaymentTotals) {
+    return (
+      <ProviderTableTotals
+        providers={providers}
+        pagosByProveedor={pagosByProveedor}
+      />
+    );
+  }
+
   const lineas = buildPresupuestoTotalLineas(providers, estimados);
   const totalEstimado = sumPresupuestoTotalEstimado(lineas);
 
@@ -559,6 +578,75 @@ function ProviderListSummary({
           <dt className="text-bloom-muted">Total estimado</dt>
           <dd className="mt-0.5 font-display text-lg text-bloom-ink">
             {formatCurrency(totalEstimado)}
+          </dd>
+        </div>
+      </dl>
+    </div>
+  );
+}
+
+function ProviderTableTotals({
+  providers,
+  pagosByProveedor,
+}: {
+  providers: ProveedorRow[];
+  pagosByProveedor: Record<string, PagoRow[]>;
+}) {
+  const projection = computePaymentProjection(providers, pagosByProveedor);
+  const enEvaluacion = sumValorProveedoresEnEvaluacion(providers);
+  const totalProyectado = projection.totalContratado + enEvaluacion;
+  const pagoDirectoCliente = sumValorProveedoresConMarca(
+    providers,
+    "pago_directo_cliente",
+  );
+  const excluidoSimulacion = sumValorProveedoresConMarca(
+    providers,
+    "excluido_simulacion",
+  );
+
+  return (
+    <div className="border-t border-bloom-border/70 pt-4">
+      <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+        <div>
+          <dt className="text-bloom-muted">Total contratado</dt>
+          <dd className="mt-0.5 font-medium text-bloom-ink">
+            {formatCurrency(projection.totalContratado)}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-bloom-muted">Total abonado</dt>
+          <dd className="mt-0.5 font-medium text-bloom-success">
+            {formatCurrency(projection.totalPagado)}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-bloom-muted">Saldo pendiente</dt>
+          <dd className="mt-0.5 font-medium text-bloom-ink">
+            {formatCurrency(projection.saldoPendiente)}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-bloom-muted">Total proyectado</dt>
+          <dd className="mt-0.5 font-medium text-bloom-ink">
+            {formatCurrency(totalProyectado)}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-bloom-muted">En evaluación</dt>
+          <dd className="mt-0.5 font-medium text-bloom-ink">
+            {formatCurrency(enEvaluacion)}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-sky-800">Pago directo cliente</dt>
+          <dd className="mt-0.5 font-medium text-sky-900">
+            {formatCurrency(pagoDirectoCliente)}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-violet-800">Excluido de la simulación</dt>
+          <dd className="mt-0.5 font-medium text-violet-900">
+            {formatCurrency(excluidoSimulacion)}
           </dd>
         </div>
       </dl>
