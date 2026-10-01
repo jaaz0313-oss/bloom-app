@@ -24,7 +24,7 @@ export default async function DirectorioPage() {
   return (
     <div className="min-h-full bg-bloom-canvas font-sans">
       <DashboardHeader user={user} />
-      <main className="mx-auto max-w-5xl px-6 py-10 sm:px-8">
+      <main className="mx-auto max-w-[1680px] px-6 py-10 sm:px-8">
         <Link
           href="/"
           className="inline-flex items-center gap-1 text-sm text-bloom-muted transition-colors hover:text-bloom-ink"

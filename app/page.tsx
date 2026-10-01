@@ -446,7 +446,7 @@ export default async function Home({ searchParams }: HomeProps) {
     <div className="min-h-full bg-bloom-canvas font-sans">
       <DashboardHeader user={user} />
 
-      <main className="mx-auto max-w-5xl space-y-4 px-4 py-8 sm:px-6 sm:py-10 md:px-8">
+      <main className="mx-auto max-w-[1680px] space-y-4 px-4 py-8 sm:px-6 sm:py-10 md:px-8">
         {user.rol === "admin" && (
           <div className="flex justify-end">
             <ExportarDatosButton />

@@ -84,7 +84,7 @@ export default async function CotizacionPage({ params }: PageProps) {
     <div className="min-h-full bg-bloom-canvas font-sans">
       <DashboardHeader user={user} />
 
-      <main className="mx-auto max-w-4xl px-6 py-10 sm:px-8">
+      <main className="mx-auto max-w-[1680px] px-6 py-10 sm:px-8">
         <Link
           href={`/leads/${cotRow.lead_id}`}
           className="text-sm font-medium text-bloom-muted transition-colors hover:text-bloom-ink"
