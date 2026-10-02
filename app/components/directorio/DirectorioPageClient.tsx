@@ -5,6 +5,17 @@ import { useRouter } from "next/navigation";
 import { Copy } from "lucide-react";
 import type { DirectorioProveedorRow } from "@/app/data/directorio";
 import { ProviderComisionFields } from "@/app/components/bodas/ProviderComisionFields";
+import { ProveedorMetodosPagoEditor } from "@/app/components/bodas/ProveedorMetodosPagoEditor";
+import {
+  directorioMetodosPagoApi,
+  listDirectorioMetodosPago,
+  replaceDirectorioMetodosPago,
+  type DirectorioMetodoPagoRow,
+} from "@/app/data/directorio-metodos-pago";
+import type {
+  ProveedorEspejoMetodoPago,
+  ProveedorMetodoPagoInput,
+} from "@/app/data/proveedor-metodos-pago";
 import { PROVIDER_CATEGORIES } from "@/lib/provider-categories";
 import {
   canDeactivateDirectorio,
@@ -42,14 +53,9 @@ type FormState = {
   anticipoRequerido: string;
   incluyeIva: boolean;
   condicionesPago: string;
-  banco: string;
-  tipoCuenta: string;
-  numeroCuenta: string;
   codigoSwift: string;
   cuentaUsa: string;
   paypal: string;
-  titular: string;
-  documentoNit: string;
   notas: string;
   daComision: boolean;
   porcentajeComision: string;
@@ -71,14 +77,9 @@ const emptyForm: FormState = {
   anticipoRequerido: "",
   incluyeIva: false,
   condicionesPago: "",
-  banco: "",
-  tipoCuenta: "",
-  numeroCuenta: "",
   codigoSwift: "",
   cuentaUsa: "",
   paypal: "",
-  titular: "",
-  documentoNit: "",
   notas: "",
   daComision: false,
   porcentajeComision: "10",
@@ -131,6 +132,10 @@ export function DirectorioPageClient({
   const [editing, setEditing] = useState<DirectorioProveedorRow | null>(null);
   const [viewing, setViewing] = useState<DirectorioProveedorRow | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
+  const [metodosPagoDraft, setMetodosPagoDraft] = useState<ProveedorMetodoPagoInput[]>(
+    [],
+  );
+  const [createdDirectorioId, setCreatedDirectorioId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rowUpdatingId, setRowUpdatingId] = useState<string | null>(null);
@@ -203,6 +208,8 @@ export function DirectorioPageClient({
     if (!canEdit) return;
     setEditing(null);
     setForm(emptyForm);
+    setMetodosPagoDraft([]);
+    setCreatedDirectorioId(null);
     setError(null);
     setOpen(true);
   }
@@ -235,20 +242,17 @@ export function DirectorioPageClient({
       anticipoRequerido: formatInputCurrencyFromNumber(row.anticipo_requerido),
       incluyeIva: row.incluye_iva ?? false,
       condicionesPago: row.condiciones_pago ?? "",
-      banco: row.banco ?? "",
-      tipoCuenta: row.tipo_cuenta ?? "",
-      numeroCuenta: row.numero_cuenta ?? "",
       codigoSwift: row.codigo_swift ?? "",
       cuentaUsa: row.cuenta_usa ?? "",
       paypal: row.paypal ?? "",
-      titular: row.titular ?? "",
-      documentoNit: row.documento_nit ?? "",
       notas: row.notas ?? "",
       daComision: row.da_comision ?? false,
       porcentajeComision: String(
         row.porcentaje_comision != null ? row.porcentaje_comision : 10,
       ),
     });
+    setMetodosPagoDraft([]);
+    setCreatedDirectorioId(null);
     setError(null);
     setOpen(true);
   }
@@ -290,14 +294,9 @@ export function DirectorioPageClient({
       anticipo_requerido: anticipoRequeridoValue,
       incluye_iva: form.incluyeIva,
       condiciones_pago: form.condicionesPago.trim() || null,
-      banco: form.banco.trim() || null,
-      tipo_cuenta: form.tipoCuenta.trim() || null,
-      numero_cuenta: form.numeroCuenta.trim() || null,
       codigo_swift: form.codigoSwift.trim() || null,
       cuenta_usa: form.cuentaUsa.trim() || null,
       paypal: form.paypal.trim() || null,
-      titular: form.titular.trim() || null,
-      documento_nit: form.documentoNit.trim() || null,
       notas: form.notas.trim() || null,
     };
 
@@ -346,6 +345,42 @@ export function DirectorioPageClient({
             row.id === editing.id ? (data as DirectorioProveedorRow) : row,
           ),
         );
+      } else if (createdDirectorioId) {
+        const { data, error: updateError } = await supabase
+          .from("directorio_proveedores")
+          .update({ ...payload, ...comisionPayload })
+          .eq("id", createdDirectorioId)
+          .select("*")
+          .single();
+        if (updateError) {
+          setError(updateError.message);
+          return;
+        }
+        let created = data as DirectorioProveedorRow;
+        if (metodosPagoDraft.length > 0) {
+          const { espejo, error: metodosError } = await replaceDirectorioMetodosPago(
+            supabase,
+            createdDirectorioId,
+            metodosPagoDraft,
+          );
+          if (metodosError) {
+            setError(
+              `Proveedor creado, pero no se pudieron guardar los métodos de pago: ${metodosError}`,
+            );
+            return;
+          }
+          created = {
+            ...created,
+            banco: espejo.banco,
+            tipo_cuenta: espejo.tipo_cuenta,
+            numero_cuenta: espejo.numero_cuenta,
+            titular: espejo.titular,
+            documento_nit: espejo.documento_nit,
+          };
+        }
+        setRows((prev) =>
+          prev.map((row) => (row.id === createdDirectorioId ? created : row)),
+        );
       } else {
         const { data, error: insertError } = await supabase
           .from("directorio_proveedores")
@@ -356,12 +391,38 @@ export function DirectorioPageClient({
           setError(insertError.message);
           return;
         }
-        setRows((prev) => [...prev, data as DirectorioProveedorRow]);
+        let created = data as DirectorioProveedorRow;
+        setCreatedDirectorioId(created.id);
+        if (metodosPagoDraft.length > 0) {
+          const { espejo, error: metodosError } = await replaceDirectorioMetodosPago(
+            supabase,
+            created.id,
+            metodosPagoDraft,
+          );
+          if (metodosError) {
+            setRows((prev) => [...prev, created]);
+            setError(
+              `Proveedor creado, pero no se pudieron guardar los métodos de pago: ${metodosError}`,
+            );
+            return;
+          }
+          created = {
+            ...created,
+            banco: espejo.banco,
+            tipo_cuenta: espejo.tipo_cuenta,
+            numero_cuenta: espejo.numero_cuenta,
+            titular: espejo.titular,
+            documento_nit: espejo.documento_nit,
+          };
+        }
+        setRows((prev) => [...prev, created]);
       }
 
       setOpen(false);
       setEditing(null);
       setForm(emptyForm);
+      setMetodosPagoDraft([]);
+      setCreatedDirectorioId(null);
       router.refresh();
     } finally {
       setSubmitting(false);
@@ -735,48 +796,23 @@ export function DirectorioPageClient({
                     rows={2}
                   />
                 </Field>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <Field label="Banco">
-                    <input
-                      className={inputClass}
-                      value={form.banco}
-                      onChange={(e) => setForm((s) => ({ ...s, banco: e.target.value }))}
-                    />
-                  </Field>
-                  <Field label="Tipo de cuenta">
-                    <select
-                      className={inputClass}
-                      value={form.tipoCuenta}
-                      onChange={(e) =>
-                        setForm((s) => ({ ...s, tipoCuenta: e.target.value }))
-                      }
-                    >
-                      <option value="">Seleccionar</option>
-                      <option value="Ahorros">Ahorros</option>
-                      <option value="Corriente">Corriente</option>
-                    </select>
-                  </Field>
-                </div>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <Field label="Número de cuenta">
-                    <input
-                      className={inputClass}
-                      value={form.numeroCuenta}
-                      onChange={(e) =>
-                        setForm((s) => ({ ...s, numeroCuenta: e.target.value }))
-                      }
-                    />
-                  </Field>
-                  <Field label="Titular">
-                    <input
-                      className={inputClass}
-                      value={form.titular}
-                      onChange={(e) =>
-                        setForm((s) => ({ ...s, titular: e.target.value }))
-                      }
-                    />
-                  </Field>
-                </div>
+                <ProveedorMetodosPagoEditor
+                  proveedorId={editing?.id}
+                  api={directorioMetodosPagoApi}
+                  description="Puedes registrar varias cuentas o formas de cobro. El método principal se guarda también en los datos bancarios del directorio."
+                  draftMethods={editing ? undefined : metodosPagoDraft}
+                  onDraftMethodsChange={editing ? undefined : setMetodosPagoDraft}
+                  disabled={submitting}
+                  inputClassName={inputClass}
+                  onEspejoSynced={(espejo) => {
+                    if (!editing) return;
+                    setRows((prev) =>
+                      prev.map((row) =>
+                        row.id === editing.id ? applyDirectorioEspejo(row, espejo) : row,
+                      ),
+                    );
+                  }}
+                />
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <Field label="Código SWIFT">
                     <input
@@ -804,15 +840,6 @@ export function DirectorioPageClient({
                       value={form.paypal}
                       onChange={(e) =>
                         setForm((s) => ({ ...s, paypal: e.target.value }))
-                      }
-                    />
-                  </Field>
-                  <Field label="Documento / NIT">
-                    <input
-                      className={inputClass}
-                      value={form.documentoNit}
-                      onChange={(e) =>
-                        setForm((s) => ({ ...s, documentoNit: e.target.value }))
                       }
                     />
                   </Field>
@@ -870,6 +897,20 @@ export function DirectorioPageClient({
       )}
     </section>
   );
+}
+
+function applyDirectorioEspejo(
+  row: DirectorioProveedorRow,
+  espejo: ProveedorEspejoMetodoPago,
+): DirectorioProveedorRow {
+  return {
+    ...row,
+    banco: espejo.banco,
+    tipo_cuenta: espejo.tipo_cuenta,
+    numero_cuenta: espejo.numero_cuenta,
+    titular: espejo.titular_cuenta,
+    documento_nit: espejo.documento_nit,
+  };
 }
 
 function displayValue(value: string | null | undefined): string {
@@ -980,16 +1021,12 @@ function DirectorioConsultaModal({
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <ReadField label="Anticipo requerido" value={anticipo} />
               <ReadField label="Incluye IVA" value={row.incluye_iva ? "Sí" : "No"} />
-              <ReadField label="Banco" value={row.banco} />
-              <ReadField label="Tipo de cuenta" value={row.tipo_cuenta} />
-              <ReadField label="Número de cuenta" value={row.numero_cuenta} />
-              <ReadField label="Titular" value={row.titular} />
               <ReadField label="Código SWIFT" value={row.codigo_swift} />
               <ReadField label="Cuenta USA" value={row.cuenta_usa} />
               <ReadField label="PayPal" value={row.paypal} />
-              <ReadField label="Documento / NIT" value={row.documento_nit} />
             </div>
             <ReadField label="Condiciones de pago" value={row.condiciones_pago} />
+            <DirectorioMetodosPagoReadList directorioId={row.id} />
           </FormSection>
 
           <FormSection title="Comisión">
@@ -999,6 +1036,80 @@ function DirectorioConsultaModal({
           <ReadField label="Notas" value={row.notas} />
         </div>
       </div>
+    </div>
+  );
+}
+
+function DirectorioMetodosPagoReadList({ directorioId }: { directorioId: string }) {
+  const [rows, setRows] = useState<DirectorioMetodoPagoRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!supabase) {
+      setLoading(false);
+      setError("Supabase no está configurado.");
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    void listDirectorioMetodosPago(supabase, directorioId).then((result) => {
+      if (cancelled) return;
+      setError(result.error);
+      setRows(result.data);
+      setLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [directorioId]);
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-medium uppercase tracking-wide text-bloom-muted">
+        Métodos de pago
+      </p>
+      {loading ? <p className="text-sm text-bloom-muted">Cargando métodos…</p> : null}
+      {error ? (
+        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+      ) : null}
+      {!loading && !error && rows.length === 0 ? (
+        <p className="text-sm text-bloom-ink">—</p>
+      ) : null}
+      {rows.map((metodo) => (
+        <div
+          key={metodo.id}
+          className="rounded-xl border border-bloom-border bg-bloom-canvas/50 px-3 py-2.5"
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-medium text-bloom-ink">{metodo.tipo}</p>
+            {metodo.es_principal ? (
+              <span className="rounded-full bg-bloom-accent/10 px-2 py-0.5 text-[11px] font-medium text-bloom-accent">
+                Principal
+              </span>
+            ) : null}
+          </div>
+          <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {metodo.banco?.trim() ? <ReadField label="Banco" value={metodo.banco} /> : null}
+            {metodo.tipo_cuenta?.trim() ? (
+              <ReadField label="Tipo de cuenta" value={metodo.tipo_cuenta} />
+            ) : null}
+            {metodo.numero_cuenta?.trim() ? (
+              <ReadField label="Número de cuenta" value={metodo.numero_cuenta} />
+            ) : null}
+            {metodo.titular?.trim() ? (
+              <ReadField label="Titular" value={metodo.titular} />
+            ) : null}
+            {metodo.documento_titular?.trim() ? (
+              <ReadField label="Documento / NIT" value={metodo.documento_titular} />
+            ) : null}
+            {metodo.recargo_porcentaje != null && Number(metodo.recargo_porcentaje) > 0 ? (
+              <ReadField label="Recargo" value={`${metodo.recargo_porcentaje}%`} />
+            ) : null}
+          </div>
+          {metodo.notas?.trim() ? <ReadField label="Notas" value={metodo.notas} /> : null}
+        </div>
+      ))}
     </div>
   );
 }

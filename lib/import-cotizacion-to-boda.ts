@@ -1,5 +1,6 @@
 import type { CotizacionItemRow } from "@/app/data/cotizaciones";
 import type { DirectorioProveedorRow } from "@/app/data/directorio";
+import { copyDirectorioMetodosToProveedor } from "@/app/data/directorio-metodos-pago";
 import { sortCotizacionItemsForDisplay } from "@/lib/cotizacion-lead";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -103,17 +104,40 @@ export async function importarCotizacionLeadABoda(
       tipo_cuenta: dir.tipo_cuenta,
       numero_cuenta: dir.numero_cuenta,
       titular_cuenta: dir.titular,
+      documento_nit: dir.documento_nit,
       telefono: dir.telefono,
       email: dir.email,
     };
   });
 
-  const { error: insertError } = await supabase
+  const { data: inserted, error: insertError } = await supabase
     .from("proveedores")
-    .insert(proveedoresPayload);
+    .insert(proveedoresPayload)
+    .select("id, orden");
 
   if (insertError) {
     return { ok: false, message: insertError.message };
+  }
+
+  const created = (inserted ?? []) as { id: string; orden: number | null }[];
+  for (const row of created) {
+    if (row.orden == null) continue;
+    const item = sortedItems[row.orden];
+    const directorioId = item?.proveedor_sugerido_id;
+    if (!directorioId) continue;
+    const dir = directorioMap.get(directorioId);
+    const { error: metodosError } = await copyDirectorioMetodosToProveedor(
+      supabase,
+      directorioId,
+      row.id,
+      dir,
+    );
+    if (metodosError) {
+      return {
+        ok: false,
+        message: `Proveedores importados, pero no se copiaron todos los métodos de pago: ${metodosError}`,
+      };
+    }
   }
 
   return { ok: true, imported: proveedoresPayload.length };

@@ -16,9 +16,48 @@ import {
   type ProveedorMetodoPagoRow,
 } from "@/app/data/proveedor-metodos-pago";
 import { supabase } from "@/lib/supabase";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+export type MetodosPagoApi = {
+  list: (
+    client: SupabaseClient,
+    ownerId: string,
+  ) => Promise<{ data: ProveedorMetodoPagoRow[]; error: string | null }>;
+  insert: (
+    client: SupabaseClient,
+    ownerId: string,
+    input: ProveedorMetodoPagoInput,
+  ) => Promise<{ espejo: ProveedorEspejoMetodoPago | null; error: string | null }>;
+  update: (
+    client: SupabaseClient,
+    ownerId: string,
+    metodoId: string,
+    input: ProveedorMetodoPagoInput,
+  ) => Promise<{ espejo: ProveedorEspejoMetodoPago | null; error: string | null }>;
+  remove: (
+    client: SupabaseClient,
+    ownerId: string,
+    metodoId: string,
+  ) => Promise<{ espejo: ProveedorEspejoMetodoPago | null; error: string | null }>;
+  setPrincipal: (
+    client: SupabaseClient,
+    ownerId: string,
+    metodoId: string,
+  ) => Promise<{ espejo: ProveedorEspejoMetodoPago | null; error: string | null }>;
+};
+
+const proveedorMetodosPagoApi: MetodosPagoApi = {
+  list: listProveedorMetodosPago,
+  insert: insertProveedorMetodoPago,
+  update: updateProveedorMetodoPago,
+  remove: deleteProveedorMetodoPago,
+  setPrincipal: setProveedorMetodoPagoPrincipal,
+};
 
 type Props = {
   proveedorId?: string | null;
+  api?: MetodosPagoApi;
+  description?: string;
   draftMethods?: ProveedorMetodoPagoInput[];
   onDraftMethodsChange?: (methods: ProveedorMetodoPagoInput[]) => void;
   onEspejoSynced?: (espejo: ProveedorEspejoMetodoPago) => void;
@@ -233,6 +272,8 @@ function MetodoListItem({
 
 export function ProveedorMetodosPagoEditor({
   proveedorId,
+  api = proveedorMetodosPagoApi,
+  description = "Puedes registrar varias cuentas o formas de cobro. El principal se refleja en portal, WhatsApp y alertas.",
   draftMethods,
   onDraftMethodsChange,
   onEspejoSynced,
@@ -260,7 +301,7 @@ export function ProveedorMetodosPagoEditor({
     }
     let cancelled = false;
     setLoading(true);
-    void listProveedorMetodosPago(supabase, proveedorId).then((result) => {
+    void api.list(supabase, proveedorId).then((result) => {
       if (cancelled) return;
       if (result.error) setError(result.error);
       setRows(result.data);
@@ -269,7 +310,7 @@ export function ProveedorMetodosPagoEditor({
     return () => {
       cancelled = true;
     };
-  }, [proveedorId]);
+  }, [api, proveedorId]);
 
   function startAdd() {
     const list = persisted ? rows : (draftMethods ?? []);
@@ -288,7 +329,7 @@ export function ProveedorMetodosPagoEditor({
 
   async function refreshRows() {
     if (!proveedorId) return;
-    const refreshed = await listProveedorMetodosPago(supabase, proveedorId);
+    const refreshed = await api.list(supabase, proveedorId);
     if (refreshed.error) setError(refreshed.error);
     setRows(refreshed.data);
   }
@@ -299,19 +340,14 @@ export function ProveedorMetodosPagoEditor({
     setError(null);
     try {
       if (adding) {
-        const result = await insertProveedorMetodoPago(supabase, proveedorId, form);
+        const result = await api.insert(supabase, proveedorId, form);
         if (result.error) {
           setError(result.error);
           return;
         }
         if (result.espejo) onEspejoSynced?.(result.espejo);
       } else if (editingId) {
-        const result = await updateProveedorMetodoPago(
-          supabase,
-          proveedorId,
-          editingId,
-          form,
-        );
+        const result = await api.update(supabase, proveedorId, editingId, form);
         if (result.error) {
           setError(result.error);
           return;
@@ -361,7 +397,7 @@ export function ProveedorMetodosPagoEditor({
     setBusy(true);
     setError(null);
     try {
-      const result = await deleteProveedorMetodoPago(supabase, proveedorId, metodoId);
+      const result = await api.remove(supabase, proveedorId, metodoId);
       if (result.error) {
         setError(result.error);
         return;
@@ -389,11 +425,7 @@ export function ProveedorMetodosPagoEditor({
     setBusy(true);
     setError(null);
     try {
-      const result = await setProveedorMetodoPagoPrincipal(
-        supabase,
-        proveedorId,
-        metodoId,
-      );
+      const result = await api.setPrincipal(supabase, proveedorId, metodoId);
       if (result.error) {
         setError(result.error);
         return;
@@ -414,10 +446,7 @@ export function ProveedorMetodosPagoEditor({
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-sm font-medium text-bloom-ink">Métodos de pago</p>
-          <p className="mt-0.5 text-xs text-bloom-muted">
-            Puedes registrar varias cuentas o formas de cobro. El principal se
-            refleja en portal, WhatsApp y alertas.
-          </p>
+          <p className="mt-0.5 text-xs text-bloom-muted">{description}</p>
         </div>
         {!adding && !editingId ? (
           <button

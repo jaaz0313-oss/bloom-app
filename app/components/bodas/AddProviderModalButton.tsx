@@ -18,8 +18,14 @@ import { ProviderComisionFields } from "./ProviderComisionFields";
 import { AbrirCarpetaDriveButton } from "./AbrirCarpetaDriveButton";
 import { formatInputCurrency, parseInputCurrency } from "@/lib/format";
 import {
+  asProveedorMetodoRow,
+  listDirectorioMetodosPago,
+  replaceDirectorioMetodosPago,
+} from "@/app/data/directorio-metodos-pago";
+import {
   buildEspejoFromMetodoInput,
   metodoPagoInputFromLegacyColumns,
+  metodoPagoInputFromRow,
   replaceProveedorMetodosPago,
   type ProveedorMetodoPagoInput,
 } from "@/app/data/proveedor-metodos-pago";
@@ -103,6 +109,8 @@ type PendingDirectorioSave = {
   categoria: string;
   telefono: string | null;
   email: string | null;
+  metodosPago: ProveedorMetodoPagoInput[];
+  directorioId?: string;
 } & BodaProveedorDirectorioSource;
 
 async function existsInDirectorioByNombre(nombre: string): Promise<boolean> {
@@ -334,21 +342,54 @@ export function AddProviderModalButton({
         categoria,
         telefono,
         email,
+        metodosPago,
+        directorioId: existingDirectorioId,
         ...directorioBankingSource
       } = pendingDirectorioSave;
 
-      const payload = buildDirectorioInsertFromBodaProveedor(
-        { nombre, categoria, telefono, email },
-        directorioBankingSource,
-      );
+      let directorioId = existingDirectorioId;
+      if (!directorioId) {
+        const payload = buildDirectorioInsertFromBodaProveedor(
+          { nombre, categoria, telefono, email },
+          directorioBankingSource,
+        );
 
-      const { error: insertError } = await supabase
-        .from("directorio_proveedores")
-        .insert(payload);
+        const { data: created, error: insertError } = await supabase
+          .from("directorio_proveedores")
+          .insert(payload)
+          .select("id")
+          .single();
 
-      if (insertError) {
-        setDirectorioSaveError(insertError.message);
+        if (insertError || !created?.id) {
+          setDirectorioSaveError(
+            insertError?.message ?? "No se pudo crear el proveedor en el directorio.",
+          );
+          return;
+        }
+        directorioId = created.id;
+      }
+
+      if (!directorioId) {
+        setDirectorioSaveError("No se pudo crear el proveedor en el directorio.");
         return;
+      }
+
+      if (metodosPago.length > 0) {
+        const { error: metodosError } = await replaceDirectorioMetodosPago(
+          supabase,
+          directorioId,
+          metodosPago,
+        );
+        if (metodosError) {
+          setPendingDirectorioSave({
+            ...pendingDirectorioSave,
+            directorioId,
+          });
+          setDirectorioSaveError(
+            `Proveedor creado en el directorio, pero no se pudieron guardar los métodos de pago: ${metodosError}`,
+          );
+          return;
+        }
       }
 
       setPendingDirectorioSave(null);
@@ -367,7 +408,7 @@ export function AddProviderModalButton({
     router.refresh();
   }
 
-  function applyDirectoryProvider(provider: DirectorioProveedorLookup) {
+  async function applyDirectoryProvider(provider: DirectorioProveedorLookup) {
     setSelectedDirectorioId(provider.id);
     setSelectedCategorias((current) => {
       if (!provider.categoria) return current;
@@ -391,7 +432,21 @@ export function AddProviderModalButton({
       titular: provider.titular,
       documento_nit: provider.documento_nit,
     });
-    setMetodosPagoDraft(metodoFromDir ? [metodoFromDir] : []);
+    if (!supabase) {
+      setMetodosPagoDraft(metodoFromDir ? [metodoFromDir] : []);
+    } else {
+      const { data, error: metodosError } = await listDirectorioMetodosPago(
+        supabase,
+        provider.id,
+      );
+      if (metodosError || data.length === 0) {
+        setMetodosPagoDraft(metodoFromDir ? [metodoFromDir] : []);
+      } else {
+        setMetodosPagoDraft(
+          data.map((row) => metodoPagoInputFromRow(asProveedorMetodoRow(row))),
+        );
+      }
+    }
     setDirectoryQuery(provider.nombre);
     setDirectoryResults([]);
     setDirectorySearchedQuery(provider.nombre);
@@ -647,6 +702,7 @@ export function AddProviderModalButton({
         titular_cuenta: titular || null,
         documento_nit: documentoNit || null,
         anticipo: anticipo > 0 ? anticipo : null,
+        metodosPago: metodosPagoDraft,
       });
     } finally {
       setSubmitting(false);
