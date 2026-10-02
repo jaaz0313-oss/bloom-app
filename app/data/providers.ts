@@ -263,6 +263,27 @@ export function proveedorContribuyeAlPresupuesto(
   );
 }
 
+/**
+ * Si cualquier fila del grupo tiene sin costo, pago directo o simulación,
+ * el valor compartido del grupo no entra a los totales.
+ */
+function grupoIdsExcluidosDeTotales(providers: ProveedorRow[]): Set<string> {
+  const ids = new Set<string>();
+  for (const provider of providers) {
+    if (provider.grupo_id && proveedorExcluidoDeTotales(provider)) {
+      ids.add(provider.grupo_id);
+    }
+  }
+  return ids;
+}
+
+function grupoExcluidoDeTotales(
+  provider: Pick<ProveedorRow, "grupo_id">,
+  gruposExcluidos: Set<string>,
+): boolean {
+  return Boolean(provider.grupo_id && gruposExcluidos.has(provider.grupo_id));
+}
+
 const ESTADOS_EN_EVALUACION = new Set<ProviderStatus>([
   "pendiente",
   "cotizacion_solicitada",
@@ -276,11 +297,13 @@ const ESTADOS_EN_EVALUACION = new Set<ProviderStatus>([
 export function sumValorProveedoresEnEvaluacion(
   providers: ProveedorRow[],
 ): number {
+  const gruposExcluidos = grupoIdsExcluidosDeTotales(providers);
   return dedupeProveedoresPorGrupo(
     providers.filter(
       (provider) =>
         ESTADOS_EN_EVALUACION.has(provider.estado) &&
         !proveedorExcluidoDeTotales(provider) &&
+        !grupoExcluidoDeTotales(provider, gruposExcluidos) &&
         hasProveedorValorDefinido(provider.valor_total),
     ),
   ).reduce((sum, provider) => sum + provider.valor_total, 0);
@@ -365,8 +388,13 @@ export function computePaymentProjection(
   providers: ProveedorRow[],
   pagosByProveedor: Record<string, { monto: number }[]> = {},
 ) {
+  const gruposExcluidos = grupoIdsExcluidosDeTotales(providers);
   const contratados = dedupeProveedoresPorGrupo(
-    providers.filter((p) => proveedorContribuyeAlPresupuesto(p)),
+    providers.filter(
+      (p) =>
+        proveedorContribuyeAlPresupuesto(p) &&
+        !grupoExcluidoDeTotales(p, gruposExcluidos),
+    ),
   );
   const totalContratado = contratados.reduce((sum, p) => sum + p.valor_total, 0);
   const totalPagado = contratados.reduce((sum, p) => {

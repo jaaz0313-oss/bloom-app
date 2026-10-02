@@ -497,7 +497,7 @@ export function ProviderList({
       )}
 
       <ProviderListSummary
-        providers={providers}
+        providers={viewMode === "table" ? orderedList : providers}
         estimados={estimadosUnicos}
         pagosByProveedor={pagosByProveedor}
         showPaymentTotals={viewMode === "table"}
