@@ -15,6 +15,7 @@ import { copyTextToClipboard } from "@/lib/copy-to-clipboard";
 import { buildDirectorioProveedorClipboardText } from "@/lib/directorio-proveedor-clipboard";
 import { supabase } from "@/lib/supabase";
 import {
+  formatCurrency,
   formatInputCurrency,
   formatInputCurrencyFromNumber,
   parseInputCurrency,
@@ -128,6 +129,7 @@ export function DirectorioPageClient({
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<DirectorioProveedorRow | null>(null);
+  const [viewing, setViewing] = useState<DirectorioProveedorRow | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -204,6 +206,15 @@ export function DirectorioPageClient({
     setError(null);
     setOpen(true);
   }
+
+  useEffect(() => {
+    if (!viewing) return;
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setViewing(null);
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [viewing]);
 
   function openEditModal(row: DirectorioProveedorRow) {
     if (!canEdit) return;
@@ -464,17 +475,22 @@ export function DirectorioPageClient({
                           }`}
                         >
                           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="min-w-0 space-y-1">
-                              <p className="font-medium text-bloom-ink">
+                            <button
+                              type="button"
+                              onClick={() => setViewing(row)}
+                              aria-label={`Ver información de ${row.nombre}`}
+                              className="min-w-0 flex-1 rounded-lg px-1 py-0.5 text-left transition-colors hover:bg-bloom-surface/80"
+                            >
+                              <span className="block font-medium text-bloom-ink">
                                 {row.nombre}
-                              </p>
-                              <p className="text-sm text-bloom-muted">
+                              </span>
+                              <span className="mt-1 block text-sm text-bloom-muted">
                                 {row.ciudad_base || "Sin ciudad base"}
-                              </p>
-                              <p className="text-sm text-bloom-muted">
+                              </span>
+                              <span className="block text-sm text-bloom-muted">
                                 {row.telefono || "Sin teléfono"}
-                              </p>
-                            </div>
+                              </span>
+                            </button>
                             <div className="flex shrink-0 flex-wrap items-center gap-2">
                               <button
                                 type="button"
@@ -484,15 +500,6 @@ export function DirectorioPageClient({
                                 <Copy className="h-3.5 w-3.5" aria-hidden />
                                 {copiedId === row.id ? "¡Copiado!" : "Copiar info"}
                               </button>
-                              {canEdit && (
-                                <button
-                                  type="button"
-                                  onClick={() => openEditModal(row)}
-                                  className="rounded-full border border-bloom-border bg-bloom-surface px-3 py-1.5 text-xs font-medium text-bloom-ink transition-colors hover:bg-bloom-border"
-                                >
-                                  Editar
-                                </button>
-                              )}
                               {canDeactivate && (
                                 <button
                                   type="button"
@@ -514,6 +521,19 @@ export function DirectorioPageClient({
             );
           })}
         </div>
+      )}
+
+      {viewing && (
+        <DirectorioConsultaModal
+          row={viewing}
+          canEdit={canEdit}
+          onClose={() => setViewing(null)}
+          onEdit={() => {
+            const row = viewing;
+            setViewing(null);
+            openEditModal(row);
+          }}
+        />
       )}
 
       {canEdit && open && (
@@ -849,6 +869,197 @@ export function DirectorioPageClient({
         </div>
       )}
     </section>
+  );
+}
+
+function displayValue(value: string | null | undefined): string {
+  const trimmed = value?.trim() ?? "";
+  return trimmed || "—";
+}
+
+function DirectorioConsultaModal({
+  row,
+  canEdit,
+  onClose,
+  onEdit,
+}: {
+  row: DirectorioProveedorRow;
+  canEdit: boolean;
+  onClose: () => void;
+  onEdit: () => void;
+}) {
+  const anticipo =
+    row.anticipo_requerido == null
+      ? "—"
+      : formatCurrency(row.anticipo_requerido);
+  const comision = row.da_comision
+    ? `Sí${
+        row.porcentaje_comision != null ? ` · ${row.porcentaje_comision}%` : ""
+      }`
+    : "No";
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Consulta de ${row.nombre}`}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-bloom-border bg-bloom-surface p-6 shadow-lg">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h3 className="font-display text-xl text-bloom-ink">{row.nombre}</h3>
+            <p className="mt-1 text-sm text-bloom-muted">
+              {row.categoria}
+              {" · "}
+              {row.activo ? "Activo" : "Inactivo"}
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            {canEdit && (
+              <button
+                type="button"
+                onClick={onEdit}
+                className="rounded-full bg-bloom-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-bloom-accent-hover"
+              >
+                Editar
+              </button>
+            )}
+            <button
+              type="button"
+              className="rounded-full p-2 text-bloom-muted transition-colors hover:bg-bloom-border hover:text-bloom-ink"
+              onClick={onClose}
+              aria-label="Cerrar"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-5 space-y-6">
+          <FormSection title="Información general">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <ReadField label="Nombre del proveedor / empresa" value={row.nombre} />
+              <ReadField label="Categoría" value={row.categoria} />
+              <ReadField label="Especialidad" value={row.especialidad} />
+              <ReadField label="Ciudad base" value={row.ciudad_base} />
+            </div>
+            <ReadField label="Fortalezas principales" value={row.fortalezas} />
+            <ReadField
+              label="Otras ciudades donde opera"
+              value={row.otras_ciudades}
+            />
+          </FormSection>
+
+          <FormSection title="Contacto">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <ReadField
+                label="Nombre de contacto principal"
+                value={row.nombre_contacto}
+              />
+              <ReadField label="Teléfono" value={row.telefono} href={telHref(row.telefono)} />
+              <ReadField label="Email" value={row.email} href={mailHref(row.email)} />
+              <ReadField label="Dirección" value={row.direccion} />
+              <ReadField
+                label="Instagram"
+                value={row.instagram}
+                href={instagramHref(row.instagram)}
+              />
+              <ReadField
+                label="Página web"
+                value={row.pagina_web}
+                href={webHref(row.pagina_web)}
+              />
+            </div>
+          </FormSection>
+
+          <FormSection title="Información financiera">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <ReadField label="Anticipo requerido" value={anticipo} />
+              <ReadField label="Incluye IVA" value={row.incluye_iva ? "Sí" : "No"} />
+              <ReadField label="Banco" value={row.banco} />
+              <ReadField label="Tipo de cuenta" value={row.tipo_cuenta} />
+              <ReadField label="Número de cuenta" value={row.numero_cuenta} />
+              <ReadField label="Titular" value={row.titular} />
+              <ReadField label="Código SWIFT" value={row.codigo_swift} />
+              <ReadField label="Cuenta USA" value={row.cuenta_usa} />
+              <ReadField label="PayPal" value={row.paypal} />
+              <ReadField label="Documento / NIT" value={row.documento_nit} />
+            </div>
+            <ReadField label="Condiciones de pago" value={row.condiciones_pago} />
+          </FormSection>
+
+          <FormSection title="Comisión">
+            <ReadField label="Da comisión" value={comision} />
+          </FormSection>
+
+          <ReadField label="Notas" value={row.notas} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function telHref(value: string | null): string | undefined {
+  const trimmed = value?.trim();
+  if (!trimmed) return undefined;
+  return `tel:${trimmed}`;
+}
+
+function mailHref(value: string | null): string | undefined {
+  const trimmed = value?.trim();
+  if (!trimmed) return undefined;
+  return `mailto:${trimmed}`;
+}
+
+function webHref(value: string | null): string | undefined {
+  const trimmed = value?.trim();
+  if (!trimmed) return undefined;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+}
+
+function instagramHref(value: string | null): string | undefined {
+  const trimmed = value?.trim();
+  if (!trimmed) return undefined;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  const handle = trimmed.replace(/^@/, "");
+  return `https://instagram.com/${handle}`;
+}
+
+function ReadField({
+  label,
+  value,
+  href,
+}: {
+  label: string;
+  value: string | null | undefined;
+  href?: string;
+}) {
+  const text = displayValue(value);
+  return (
+    <div className="min-w-0">
+      <p className="text-xs font-medium uppercase tracking-wide text-bloom-muted">
+        {label}
+      </p>
+      <p className="mt-1 whitespace-pre-wrap text-sm text-bloom-ink">
+        {href && text !== "—" ? (
+          <a
+            href={href}
+            className="text-bloom-accent hover:underline"
+            target={href.startsWith("http") ? "_blank" : undefined}
+            rel={href.startsWith("http") ? "noopener noreferrer" : undefined}
+          >
+            {text}
+          </a>
+        ) : (
+          text
+        )}
+      </p>
+    </div>
   );
 }
 
