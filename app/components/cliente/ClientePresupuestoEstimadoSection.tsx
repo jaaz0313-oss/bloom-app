@@ -4,32 +4,23 @@ import { useMemo } from "react";
 import { ClienteAccordionSection } from "@/app/components/cliente/ClienteAccordionSection";
 import { useClienteLocale } from "@/app/components/cliente/ClienteLocaleProvider";
 import {
-  buildPresupuestoTotalLineas,
   sumPresupuestoTotalEstimado,
-  type PresupuestoEstimadoCategoriaRow,
+  type PresupuestoTotalLinea,
 } from "@/app/data/presupuesto-estimado";
-import type { ProveedorRow } from "@/app/data/providers";
 import { getClienteCronogramaCategoriaLabel } from "@/lib/cliente-i18n";
 import { formatCurrency } from "@/lib/format";
 import { appendUsdApprox } from "@/lib/tasa-cambio";
 
 type ClientePresupuestoEstimadoSectionProps = {
-  providers: ProveedorRow[];
-  estimados: PresupuestoEstimadoCategoriaRow[];
+  lineas: PresupuestoTotalLinea[];
   copPorUsd?: number | null;
 };
 
 export function ClientePresupuestoEstimadoSection({
-  providers,
-  estimados,
+  lineas,
   copPorUsd = null,
 }: ClientePresupuestoEstimadoSectionProps) {
   const { locale, t } = useClienteLocale();
-
-  const lineas = useMemo(
-    () => buildPresupuestoTotalLineas(providers, estimados),
-    [providers, estimados],
-  );
 
   const total = useMemo(
     () => sumPresupuestoTotalEstimado(lineas),

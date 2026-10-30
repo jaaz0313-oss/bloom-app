@@ -1,3 +1,4 @@
+import type { ProviderStatus } from "@/app/data/providers";
 import type { ClienteCronogramaHitoEstado } from "@/lib/cliente-cronograma";
 import type { ClientePagoUrgency } from "@/lib/cliente-pagos";
 import { formatCurrency } from "@/lib/format";
@@ -334,6 +335,19 @@ export type ClienteUiCopy = {
   providersTitle: string;
   providersSubtitle: (count: number) => string;
   providersEmpty: string;
+  providersColCategory: string;
+  providersColName: string;
+  providersColDescription: string;
+  providersColStatus: string;
+  providersColValue: string;
+  providersColPaid: string;
+  providersColBalance: string;
+  providersPagoDirecto: string;
+  providersTableTotalAbonado: string;
+  providersStatusPendiente: string;
+  providersStatusCotizacionSolicitada: string;
+  providersStatusEnNegociacion: string;
+  providersStatusContratado: string;
   providersEvaluationTitle: string;
   providersEvaluationSubtitle: (count: number) => string;
   providersEvaluationBadge: string;
@@ -491,12 +505,23 @@ const UI_ES: ClienteUiCopy = {
   phone: "Teléfono",
   swiftCode: "Código Swift",
   email: "Email",
-  providersTitle: "Proveedores contratados",
+  providersTitle: "Proveedores",
   providersSubtitle: (count) =>
-    count === 1
-      ? "1 proveedor confirmado para su celebración"
-      : `${count} proveedores confirmados para su celebración`,
-  providersEmpty: "Aún no hay proveedores contratados para mostrar.",
+    count === 1 ? "1 proveedor" : `${count} proveedores`,
+  providersEmpty: "Aún no hay proveedores para mostrar.",
+  providersColCategory: "Categoría",
+  providersColName: "Nombre",
+  providersColDescription: "Descripción",
+  providersColStatus: "Estado",
+  providersColValue: "Valor",
+  providersColPaid: "Abonado",
+  providersColBalance: "Saldo",
+  providersPagoDirecto: "Pago directo",
+  providersTableTotalAbonado: "Total abonado",
+  providersStatusPendiente: "Pendiente",
+  providersStatusCotizacionSolicitada: "Cotización solicitada",
+  providersStatusEnNegociacion: "En negociación",
+  providersStatusContratado: "Contratado",
   providersEvaluationTitle: "En evaluación",
   providersEvaluationSubtitle: (count) =>
     count === 1
@@ -576,8 +601,8 @@ const UI_ES: ClienteUiCopy = {
     },
     {
       icon: "🤝",
-      title: "Proveedores contratados",
-      description: "Todos los proveedores con valores y saldos",
+      title: "Proveedores",
+      description: "Tabla con categoría, valor, abonado y saldo",
     },
     {
       icon: "🍽️",
@@ -690,12 +715,22 @@ const UI_EN: ClienteUiCopy = {
   phone: "Phone",
   swiftCode: "Swift code",
   email: "Email",
-  providersTitle: "Booked vendors",
-  providersSubtitle: (count) =>
-    count === 1
-      ? "1 vendor confirmed for your celebration"
-      : `${count} vendors confirmed for your celebration`,
-  providersEmpty: "No booked vendors to show yet.",
+  providersTitle: "Vendors",
+  providersSubtitle: (count) => (count === 1 ? "1 vendor" : `${count} vendors`),
+  providersEmpty: "No vendors to show yet.",
+  providersColCategory: "Category",
+  providersColName: "Name",
+  providersColDescription: "Description",
+  providersColStatus: "Status",
+  providersColValue: "Amount",
+  providersColPaid: "Paid",
+  providersColBalance: "Balance",
+  providersPagoDirecto: "Direct payment",
+  providersTableTotalAbonado: "Total paid",
+  providersStatusPendiente: "Pending",
+  providersStatusCotizacionSolicitada: "Quote requested",
+  providersStatusEnNegociacion: "In negotiation",
+  providersStatusContratado: "Booked",
   providersEvaluationTitle: "Under evaluation",
   providersEvaluationSubtitle: (count) =>
     count === 1
@@ -774,8 +809,8 @@ const UI_EN: ClienteUiCopy = {
     },
     {
       icon: "🤝",
-      title: "Contracted vendors",
-      description: "All your vendors with amounts and balances",
+      title: "Vendors",
+      description: "Table with category, amount, paid and balance",
     },
     {
       icon: "🍽️",
@@ -793,4 +828,22 @@ const UI_EN: ClienteUiCopy = {
 
 export function getClienteUiCopy(locale: ClienteLocale): ClienteUiCopy {
   return locale === "en" ? UI_EN : UI_ES;
+}
+
+export function getClienteProveedorEstadoLabel(
+  estado: ProviderStatus,
+  t: ClienteUiCopy,
+): string {
+  switch (estado) {
+    case "pendiente":
+      return t.providersStatusPendiente;
+    case "cotizacion_solicitada":
+      return t.providersStatusCotizacionSolicitada;
+    case "en_negociacion":
+      return t.providersStatusEnNegociacion;
+    case "contratado":
+      return t.providersStatusContratado;
+    case "descartado":
+      return t.providersStatusPendiente;
+  }
 }

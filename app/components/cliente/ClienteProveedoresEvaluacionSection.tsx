@@ -3,22 +3,32 @@
 import { useMemo, useState } from "react";
 import { ClienteAccordionSection } from "@/app/components/cliente/ClienteAccordionSection";
 import { useClienteLocale } from "@/app/components/cliente/ClienteLocaleProvider";
-import {
-  getProveedorGrupoPrimaryId,
-  isProveedorGrupoPrimario,
-  sortProveedoresContiguosPorGrupo,
-  type ProveedorRow,
-} from "@/app/data/providers";
+import type { ClienteProveedorEvaluacion } from "@/lib/cliente-proveedor-publico";
 import { getClienteCronogramaCategoriaLabel } from "@/lib/cliente-i18n";
 import { formatCurrency } from "@/lib/format";
 import { appendUsdApprox } from "@/lib/tasa-cambio";
 
 type ClienteProveedoresEvaluacionSectionProps = {
   bodaId: string;
-  proveedores: ProveedorRow[];
+  proveedores: ClienteProveedorEvaluacion[];
   approvedProveedorIds?: string[];
   copPorUsd?: number | null;
 };
+
+function isEvaluacionPrimario(
+  proveedores: ClienteProveedorEvaluacion[],
+  provider: ClienteProveedorEvaluacion,
+): boolean {
+  if (!provider.grupoId) return true;
+  const primary = proveedores
+    .filter((item) => item.grupoId === provider.grupoId)
+    .sort((a, b) => {
+      const byDate = a.createdAt.localeCompare(b.createdAt);
+      if (byDate !== 0) return byDate;
+      return a.id.localeCompare(b.id);
+    })[0];
+  return primary?.id === provider.id;
+}
 
 export function ClienteProveedoresEvaluacionSection({
   bodaId,
@@ -34,12 +44,31 @@ export function ClienteProveedoresEvaluacionSection({
   const [submittingId, setSubmittingId] = useState<string | null>(null);
   const [errorById, setErrorById] = useState<Record<string, string>>({});
 
-  const proveedoresOrdenados = useMemo(
-    () => sortProveedoresContiguosPorGrupo(proveedores),
-    [proveedores],
-  );
+  const proveedoresOrdenados = useMemo(() => {
+    const sorted = [...proveedores].sort((a, b) => {
+      const byDate = a.createdAt.localeCompare(b.createdAt);
+      if (byDate !== 0) return byDate;
+      return a.id.localeCompare(b.id);
+    });
+    const emitted = new Set<string>();
+    const result: ClienteProveedorEvaluacion[] = [];
+    for (const provider of sorted) {
+      if (!provider.grupoId) {
+        result.push(provider);
+        emitted.add(provider.id);
+        continue;
+      }
+      if (emitted.has(provider.id)) continue;
+      for (const member of sorted.filter((item) => item.grupoId === provider.grupoId)) {
+        if (emitted.has(member.id)) continue;
+        result.push(member);
+        emitted.add(member.id);
+      }
+    }
+    return result;
+  }, [proveedores]);
 
-  async function approveProvider(provider: ProveedorRow) {
+  async function approveProvider(provider: ClienteProveedorEvaluacion) {
     if (submittingId) return;
 
     setSubmittingId(provider.id);
@@ -92,29 +121,23 @@ export function ClienteProveedoresEvaluacionSection({
     >
       <ul className="space-y-4">
         {proveedoresOrdenados.map((provider) => {
-          const esPrimarioGrupo = isProveedorGrupoPrimario(
+          const esPrimarioGrupo = isEvaluacionPrimario(
             proveedoresOrdenados,
             provider,
           );
-          const esSecundarioGrupo =
-            !esPrimarioGrupo && Boolean(provider.grupo_id);
+          const esSecundarioGrupo = !esPrimarioGrupo && Boolean(provider.grupoId);
           const categoriaLabel = getClienteCronogramaCategoriaLabel(
             provider.categoria,
             locale,
           );
 
           if (esSecundarioGrupo) {
-            const primaryId = provider.grupo_id
-              ? getProveedorGrupoPrimaryId(
-                  proveedoresOrdenados,
-                  provider.grupo_id,
-                )
-              : provider.id;
             const primaryProvider =
-              primaryId != null
-                ? (proveedoresOrdenados.find((p) => p.id === primaryId) ??
-                  provider)
-                : provider;
+              proveedoresOrdenados.find(
+                (item) =>
+                  item.grupoId === provider.grupoId &&
+                  isEvaluacionPrimario(proveedoresOrdenados, item),
+              ) ?? provider;
             const incluidoEnLabel = t.includedInProvider(
               primaryProvider.nombre.trim().toLowerCase() ===
                 provider.nombre.trim().toLowerCase()
@@ -143,8 +166,8 @@ export function ClienteProveedoresEvaluacionSection({
             );
           }
 
-          const descripcion = provider.descripcion_servicio?.trim();
-          const montoCotizado = Number(provider.monto_cotizado ?? 0);
+          const descripcion = provider.descripcion?.trim();
+          const montoCotizado = provider.montoCotizado ?? 0;
           const isApproved = approvedIds.has(provider.id);
           const isConfirming = confirmingId === provider.id;
           const isSubmitting = submittingId === provider.id;

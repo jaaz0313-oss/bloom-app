@@ -3,18 +3,51 @@ import {
   getProviderSaldoPendienteConPagos,
   isProveedorSinCosto,
 } from "@/app/data/providers";
-import type { PagoRow } from "@/app/data/pagos";
 import { getDaysUntil } from "@/app/data/payment-alerts";
 
 export type ClientePagoUrgency = "esta_semana" | "pronto";
 
+/** Solo los datos que Próximos pagos muestra. El resto del proveedor no viaja al portal. */
+export type ClientePagoPendienteProveedor = Pick<
+  ProveedorRow,
+  | "id"
+  | "nombre"
+  | "categoria"
+  | "titular_cuenta"
+  | "documento_nit"
+  | "banco"
+  | "tipo_cuenta"
+  | "numero_cuenta"
+  | "direccion"
+  | "telefono"
+  | "email"
+>;
+
 export type ClientePagoPendiente = {
-  proveedor: ProveedorRow;
+  proveedor: ClientePagoPendienteProveedor;
   saldoPendiente: number;
   fechaLimite: string | null;
   diasRestantes: number | null;
   urgency: ClientePagoUrgency | null;
 };
+
+function toClientePagoPendienteProveedor(
+  proveedor: ProveedorRow,
+): ClientePagoPendienteProveedor {
+  return {
+    id: proveedor.id,
+    nombre: proveedor.nombre,
+    categoria: proveedor.categoria,
+    titular_cuenta: proveedor.titular_cuenta,
+    documento_nit: proveedor.documento_nit,
+    banco: proveedor.banco,
+    tipo_cuenta: proveedor.tipo_cuenta,
+    numero_cuenta: proveedor.numero_cuenta,
+    direccion: proveedor.direccion,
+    telefono: proveedor.telefono,
+    email: proveedor.email,
+  };
+}
 
 export const CLIENTE_PAGO_URGENCY_LABELS: Record<ClientePagoUrgency, string> = {
   esta_semana: "🔴 Vence en 7 días o menos",
@@ -52,7 +85,7 @@ export function countClientePagosUrgentes(
 
 export function buildClientePagosPendientes(
   proveedores: ProveedorRow[],
-  pagosByProveedor: Record<string, PagoRow[]>,
+  pagosByProveedor: Record<string, { monto: number }[]>,
   fromDate = new Date(),
 ): ClientePagoPendiente[] {
   const items: ClientePagoPendiente[] = [];
@@ -70,7 +103,7 @@ export function buildClientePagosPendientes(
       diasRestantes !== null ? getClientePagoUrgency(diasRestantes) : null;
 
     items.push({
-      proveedor,
+      proveedor: toClientePagoPendienteProveedor(proveedor),
       saldoPendiente,
       fechaLimite,
       diasRestantes,

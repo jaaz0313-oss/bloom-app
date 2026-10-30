@@ -19,7 +19,11 @@ import { ClienteSeatingPlanSection } from "@/app/components/cliente/ClienteSeati
 import type { AprobacionClienteRow } from "@/app/data/aprobaciones-cliente";
 import type { CronogramaItemRow } from "@/app/data/cronograma";
 import type { DetallesCelebracionRow } from "@/app/data/detalles-celebracion";
-import type { PresupuestoEstimadoCategoriaRow } from "@/app/data/presupuesto-estimado";
+import {
+  buildPresupuestoTotalLineas,
+  type PresupuestoEstimadoCategoriaRow,
+  type PresupuestoTotalLinea,
+} from "@/app/data/presupuesto-estimado";
 import { fetchProveedoresSugeridosForBoda } from "@/app/data/proveedores-sugeridos";
 import { sortTastingsBySchedule, type TastingRow } from "@/app/data/tastings";
 import type { BodaRow } from "@/app/data/weddings";
@@ -27,7 +31,12 @@ import {
   computePaymentProjection,
   type ProveedorRow,
 } from "@/app/data/providers";
-import { groupPagosByProveedor, type PagoRow } from "@/app/data/pagos";
+import {
+  CLIENTE_PROVEEDOR_SELECT,
+  sortPortalProveedores,
+  toClienteProveedorEvaluacion,
+  toClienteProveedorTablaFila,
+} from "@/lib/cliente-proveedor-publico";
 import { buildClientePagosPendientes } from "@/lib/cliente-pagos";
 import { buildClienteBodaEstadoResumen, computeClienteProveedoresResumen } from "@/lib/cliente-boda-estado";
 import {
@@ -87,9 +96,9 @@ export default async function ClienteBodaPage({ params }: PageProps) {
 
   const { data: proveedoresData } = await supabase
     .from("proveedores")
-    .select("*")
+    .select(CLIENTE_PROVEEDOR_SELECT)
     .eq("boda_id", id)
-    .in("estado", ["contratado", "en_negociacion"])
+    .neq("estado", "descartado")
     .order("categoria", { ascending: true });
 
   const { data: proveedoresCronogramaData } = await supabase
@@ -115,7 +124,9 @@ export default async function ClienteBodaPage({ params }: PageProps) {
     .eq("boda_id", id)
     .maybeSingle();
 
-  const proveedoresVisibles = (proveedoresData ?? []) as ProveedorRow[];
+  const proveedoresVisibles = sortPortalProveedores(
+    (proveedoresData ?? []) as ProveedorRow[],
+  );
   const contratados = proveedoresVisibles.filter(
     (provider) => provider.estado === "contratado",
   );
@@ -151,24 +162,31 @@ export default async function ClienteBodaPage({ params }: PageProps) {
     supabase,
     id,
   );
-  const providerIds = contratados.map((provider) => provider.id);
-  let pagosByProveedor: Record<string, PagoRow[]> = {};
+  const providerIds = proveedoresVisibles.map((provider) => provider.id);
+  const pagosByProveedor: Record<string, { monto: number }[]> = {};
 
   if (providerIds.length > 0) {
     const { data: pagosData } = await supabase
       .from("pagos")
-      .select("*")
-      .in("proveedor_id", providerIds)
-      .order("fecha_pago", { ascending: false });
+      .select("proveedor_id, monto")
+      .in("proveedor_id", providerIds);
 
-    if (pagosData) {
-      pagosByProveedor = groupPagosByProveedor(pagosData as PagoRow[]);
+    for (const pago of pagosData ?? []) {
+      const list = pagosByProveedor[pago.proveedor_id] ?? [];
+      list.push({ monto: Number(pago.monto) });
+      pagosByProveedor[pago.proveedor_id] = list;
     }
   }
 
   const { totalContratado, totalPagado, saldoPendiente } = computePaymentProjection(
-    contratados,
+    proveedoresVisibles,
     pagosByProveedor,
+  );
+  const filasTabla = proveedoresVisibles.map((provider) =>
+    toClienteProveedorTablaFila(
+      provider,
+      pagosByProveedor[provider.id] ?? [],
+    ),
   );
   const pagosPendientes = buildClientePagosPendientes(
     contratados,
@@ -200,14 +218,23 @@ export default async function ClienteBodaPage({ params }: PageProps) {
     bodaRow.mostrar_presupuesto_estimado_cliente,
   );
 
-  let presupuestoEstimados: PresupuestoEstimadoCategoriaRow[] = [];
+  let presupuestoLineas: PresupuestoTotalLinea[] = [];
   if (mostrarPresupuestoEstimado) {
     const { data: estimadosData } = await supabase
       .from("presupuesto_estimado_categorias")
-      .select("*")
+      .select(
+        "id, boda_id, categoria, valor_estimado, notas, mostrar_nota_cliente, incluido_en_proveedor_id, orden, created_at, updated_at",
+      )
       .eq("boda_id", id);
-    presupuestoEstimados = (estimadosData ??
+    const presupuestoEstimados = (estimadosData ??
       []) as PresupuestoEstimadoCategoriaRow[];
+    presupuestoLineas = buildPresupuestoTotalLineas(
+      proveedoresVisibles,
+      presupuestoEstimados,
+    ).map((line) => ({
+      ...line,
+      notas: line.mostrarNotaCliente ? line.notas : null,
+    }));
   }
 
   const showDownloadBar =
@@ -253,13 +280,15 @@ export default async function ClienteBodaPage({ params }: PageProps) {
         <ClienteCronograma resumen={cronogramaResumen} />
         <ClienteProximosPagos pagosPendientes={pagosPendientes} />
         <ClienteProveedoresSection
-          contratados={contratados}
-          pagosByProveedor={pagosByProveedor}
+          filas={filasTabla}
+          totalContratado={totalContratado}
+          totalAbonado={totalPagado}
+          saldoPendiente={saldoPendiente}
           copPorUsd={copPorUsd}
         />
         <ClienteProveedoresEvaluacionSection
           bodaId={id}
-          proveedores={enEvaluacion}
+          proveedores={enEvaluacion.map(toClienteProveedorEvaluacion)}
           approvedProveedorIds={approvedProveedorIds}
           copPorUsd={copPorUsd}
         />
@@ -271,8 +300,7 @@ export default async function ClienteBodaPage({ params }: PageProps) {
         />
         {mostrarPresupuestoEstimado && (
           <ClientePresupuestoEstimadoSection
-            providers={proveedoresVisibles}
-            estimados={presupuestoEstimados}
+            lineas={presupuestoLineas}
             copPorUsd={copPorUsd}
           />
         )}
