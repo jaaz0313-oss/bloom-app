@@ -128,7 +128,7 @@ export function ClienteProveedoresSugeridosSection({
       >
         <div className="min-h-0 overflow-hidden">
           <div className="space-y-8 border-t border-bloom-border/80 px-5 py-6 sm:px-8 sm:py-8">
-            <p className="text-sm leading-relaxed text-bloom-muted">
+            <p className="max-w-3xl text-sm leading-relaxed text-bloom-muted">
               {t.proveedoresSugeridosIntro}
             </p>
 
@@ -137,7 +137,7 @@ export function ClienteProveedoresSugeridosSection({
                 <h3 className="font-display text-xl text-bloom-accent">
                   {categoriaGroup.categoria}
                 </h3>
-                <ul className="mt-4 space-y-3">
+                <ul className="mt-4 space-y-3 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0 xl:grid-cols-3">
                   {categoriaGroup.proveedores.map((proveedor) => {
                     const instagramUrl = buildInstagramUrl(proveedor.instagram);
                     const isSaving = savingIds.has(proveedor.id);

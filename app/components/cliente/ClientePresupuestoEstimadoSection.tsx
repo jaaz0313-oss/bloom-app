@@ -46,8 +46,8 @@ export function ClientePresupuestoEstimadoSection({
           <thead className="bg-bloom-canvas/70 text-xs uppercase tracking-wide text-bloom-muted">
             <tr>
               <th className="px-4 py-3 font-medium">{t.budgetCategory}</th>
-              <th className="px-4 py-3 font-medium">{t.budgetStatus}</th>
-              <th className="px-4 py-3 font-medium text-right">
+              <th className="px-4 py-3 font-medium lg:w-44">{t.budgetStatus}</th>
+              <th className="px-4 py-3 font-medium text-right lg:w-56">
                 {t.budgetValue}
               </th>
             </tr>
@@ -67,7 +67,7 @@ export function ClientePresupuestoEstimadoSection({
                   {line.estado === "estimado" &&
                   line.mostrarNotaCliente &&
                   line.notas?.trim() ? (
-                    <p className="mt-0.5 text-xs text-bloom-muted">
+                    <p className="mt-0.5 max-w-3xl text-xs text-bloom-muted">
                       {line.notas.trim()}
                     </p>
                   ) : null}

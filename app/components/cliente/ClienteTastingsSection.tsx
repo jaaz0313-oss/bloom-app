@@ -145,11 +145,11 @@ export function ClienteTastingsSection({
                   {formatShortDateStable(dia.fecha)}
                 </p>
 
-                <ol className="relative mt-5 space-y-0 border-l border-bloom-accent/20 pl-6">
+                <ol className="relative mt-5 space-y-0 border-l border-bloom-accent/20 pl-6 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0 lg:border-0 lg:pl-0 xl:grid-cols-3">
                   {dia.tastings.map((tasting, index) => (
-                    <li key={tasting.id} className="relative pb-6 last:pb-0">
+                    <li key={tasting.id} className="relative pb-6 last:pb-0 lg:pb-0">
                       <span
-                        className="absolute -left-[1.84rem] top-1 flex h-3 w-3 items-center justify-center rounded-full border-2 border-bloom-accent bg-bloom-surface"
+                        className="absolute -left-[1.84rem] top-1 flex h-3 w-3 items-center justify-center rounded-full border-2 border-bloom-accent bg-bloom-surface lg:hidden"
                         aria-hidden
                       />
                       <div className="rounded-xl border border-bloom-border/80 bg-bloom-canvas/40 px-4 py-4 sm:px-5">
@@ -224,7 +224,7 @@ export function ClienteTastingsSection({
                                 <dt className="text-bloom-muted">
                                   {t.tastingsNotes}
                                 </dt>
-                                <dd className="whitespace-pre-wrap text-bloom-ink">
+                                <dd className="max-w-3xl whitespace-pre-wrap text-bloom-ink">
                                   {tasting.notas.trim()}
                                 </dd>
                               </div>

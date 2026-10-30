@@ -41,7 +41,7 @@ export function ClienteBodaEstado({ estado }: ClienteBodaEstadoProps) {
           <h2 className="font-display text-2xl text-bloom-ink sm:text-3xl">
             {t.estadoBodaTitle}
           </h2>
-          <p className="mt-3 text-base leading-relaxed text-bloom-ink/90 sm:text-lg">
+          <p className="mt-3 max-w-3xl text-base leading-relaxed text-bloom-ink/90 sm:text-lg">
             {mensajeMotivacional}
           </p>
         </div>

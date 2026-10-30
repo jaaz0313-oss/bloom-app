@@ -17,6 +17,8 @@ type ClienteProveedoresSectionProps = {
   totalContratado: number;
   totalAbonado: number;
   saldoPendiente: number;
+  totalProyectado: number;
+  totalEnEvaluacion: number;
   copPorUsd?: number | null;
 };
 
@@ -25,6 +27,8 @@ export function ClienteProveedoresSection({
   totalContratado,
   totalAbonado,
   saldoPendiente,
+  totalProyectado,
+  totalEnEvaluacion,
   copPorUsd = null,
 }: ClienteProveedoresSectionProps) {
   const { t } = useClienteLocale();
@@ -83,7 +87,7 @@ export function ClienteProveedoresSection({
             </table>
           </div>
 
-          <dl className="mt-4 grid grid-cols-1 gap-3 border-t border-bloom-border/70 pt-4 text-sm sm:grid-cols-3 sm:gap-3">
+          <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-5 border-t border-bloom-border/70 pt-4 md:grid-cols-3 lg:grid-cols-5">
             <SummaryItem
               label={t.totalContracted}
               value={totalContratado}
@@ -98,6 +102,16 @@ export function ClienteProveedoresSection({
             <SummaryItem
               label={t.pendingBalance}
               value={saldoPendiente}
+              copPorUsd={copPorUsd}
+            />
+            <SummaryItem
+              label={t.providersTableTotalProyectado}
+              value={totalProyectado}
+              copPorUsd={copPorUsd}
+            />
+            <SummaryItem
+              label={t.providersEvaluationTitle}
+              value={totalEnEvaluacion}
               copPorUsd={copPorUsd}
             />
           </dl>
@@ -288,12 +302,12 @@ function SummaryItem({
 
   return (
     <div className="min-w-0">
-      <dt className="text-xs text-bloom-muted sm:text-sm">{label}</dt>
+      <dt className="text-xs text-bloom-muted">{label}</dt>
       <dd
         className={
           emphasized
-            ? "mt-0.5 text-sm font-medium leading-snug text-bloom-success sm:text-base"
-            : "mt-0.5 text-sm font-medium leading-snug text-bloom-ink sm:text-base"
+            ? "mt-1 text-base font-medium leading-tight text-bloom-success md:text-lg lg:text-xl"
+            : "mt-1 text-base font-medium leading-tight text-bloom-ink md:text-lg lg:text-xl"
         }
       >
         <span className="block tabular-nums">{formatCurrency(value)}</span>

@@ -347,6 +347,7 @@ export type ClienteUiCopy = {
   providersVerMenos: string;
   providersVerDetalle: string;
   providersTableTotalAbonado: string;
+  providersTableTotalProyectado: string;
   providersStatusPendiente: string;
   providersStatusCotizacionSolicitada: string;
   providersStatusEnNegociacion: string;
@@ -524,6 +525,7 @@ const UI_ES: ClienteUiCopy = {
   providersVerMenos: "Ver menos",
   providersVerDetalle: "Ver detalle",
   providersTableTotalAbonado: "Total abonado",
+  providersTableTotalProyectado: "Total proyectado",
   providersStatusPendiente: "Pendiente",
   providersStatusCotizacionSolicitada: "Cotización solicitada",
   providersStatusEnNegociacion: "En negociación",
@@ -736,6 +738,7 @@ const UI_EN: ClienteUiCopy = {
   providersVerMenos: "See less",
   providersVerDetalle: "See details",
   providersTableTotalAbonado: "Total paid",
+  providersTableTotalProyectado: "Projected total",
   providersStatusPendiente: "Pending",
   providersStatusCotizacionSolicitada: "Quote requested",
   providersStatusEnNegociacion: "In negotiation",

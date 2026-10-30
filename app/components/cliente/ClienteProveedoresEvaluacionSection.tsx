@@ -119,7 +119,7 @@ export function ClienteProveedoresEvaluacionSection({
       summary={t.providersEvaluationSubtitle(proveedoresOrdenados.length)}
       defaultOpen
     >
-      <ul className="space-y-4">
+      <ul className="space-y-4 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
         {proveedoresOrdenados.map((provider) => {
           const esPrimarioGrupo = isEvaluacionPrimario(
             proveedoresOrdenados,
@@ -211,7 +211,7 @@ export function ClienteProveedoresEvaluacionSection({
                   <p className="text-xs font-medium uppercase tracking-[0.08em] text-bloom-muted">
                     {t.serviceDescription}
                   </p>
-                  <p className="mt-1 whitespace-pre-wrap text-sm text-bloom-ink">
+                  <p className="mt-1 max-w-3xl whitespace-pre-wrap text-sm text-bloom-ink">
                     {descripcion}
                   </p>
                 </div>

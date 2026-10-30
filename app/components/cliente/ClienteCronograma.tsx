@@ -32,7 +32,7 @@ export function ClienteCronograma({ resumen }: ClienteCronogramaProps) {
           <h2 className="font-display text-2xl text-bloom-ink sm:text-3xl">
             {t.cronogramaTitle}
           </h2>
-          <p className="mt-3 text-sm text-bloom-muted sm:text-base">
+          <p className="mx-auto mt-3 max-w-3xl text-sm text-bloom-muted sm:text-base">
             {t.cronogramaEmpty}
           </p>
         </div>
@@ -101,7 +101,7 @@ export function ClienteCronograma({ resumen }: ClienteCronogramaProps) {
       >
         <div className="min-h-0 overflow-hidden">
           <div className="border-t border-bloom-border/80 px-5 py-6 sm:px-8 sm:py-8">
-            <p className="text-sm leading-relaxed text-bloom-ink/90 sm:text-base">
+            <p className="max-w-3xl text-sm leading-relaxed text-bloom-ink/90 sm:text-base">
               {mensajeAliento}
             </p>
 
@@ -188,7 +188,7 @@ function HitoGroup({
         </span>
       </div>
 
-      <ul className="mt-4 space-y-3">
+      <ul className="mt-4 space-y-3 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0 xl:grid-cols-3">
         {hitos.map((hito) => (
           <li key={hito.id}>
             <HitoCard hito={hito} tone={tone} />

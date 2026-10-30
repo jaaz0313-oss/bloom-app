@@ -12,17 +12,17 @@ export function ClienteSeatingPlanSection({
   const { t } = useClienteLocale();
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-bloom-border bg-bloom-surface shadow-sm">
-      <div className="border-b border-bloom-border/70 bg-gradient-to-br from-bloom-canvas/80 to-bloom-surface px-5 py-7 sm:px-8 sm:py-8">
+    <section className="overflow-hidden rounded-2xl border border-bloom-border bg-bloom-surface shadow-sm lg:flex lg:items-center lg:justify-between lg:gap-6 lg:bg-gradient-to-br lg:from-bloom-canvas/80 lg:to-bloom-surface lg:px-8 lg:py-8">
+      <div className="border-b border-bloom-border/70 bg-gradient-to-br from-bloom-canvas/80 to-bloom-surface px-5 py-7 sm:px-8 sm:py-8 lg:min-w-0 lg:border-0 lg:bg-none lg:p-0">
         <h2 className="font-display text-2xl text-bloom-ink sm:text-3xl">
           {t.seatingTitle}
         </h2>
-        <p className="mt-2 text-sm text-bloom-muted sm:text-base">
+        <p className="mt-2 max-w-3xl text-sm text-bloom-muted sm:text-base">
           {t.seatingSubtitle}
         </p>
       </div>
 
-      <div className="flex justify-center px-5 py-8 sm:px-8 sm:py-10">
+      <div className="flex justify-center px-5 py-8 sm:px-8 sm:py-10 lg:shrink-0 lg:p-0">
         <a
           href={link}
           target="_blank"

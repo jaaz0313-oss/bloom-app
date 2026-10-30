@@ -49,7 +49,7 @@ export function ClienteProximosPagos({
         </div>
       )}
 
-      <ul className="space-y-4">
+      <ul className="space-y-4 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
         {pagosPendientes.map((item) => (
           <ProximoPagoAccordionItem key={item.proveedor.id} item={item} />
         ))}

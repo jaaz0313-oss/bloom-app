@@ -29,6 +29,7 @@ import { sortTastingsBySchedule, type TastingRow } from "@/app/data/tastings";
 import type { BodaRow } from "@/app/data/weddings";
 import {
   computePaymentProjection,
+  sumValorProveedoresEnEvaluacion,
   type ProveedorRow,
 } from "@/app/data/providers";
 import {
@@ -182,6 +183,8 @@ export default async function ClienteBodaPage({ params }: PageProps) {
     proveedoresVisibles,
     pagosByProveedor,
   );
+  const totalEnEvaluacion = sumValorProveedoresEnEvaluacion(proveedoresVisibles);
+  const totalProyectado = totalContratado + totalEnEvaluacion;
   const filasTabla = proveedoresVisibles.map((provider) =>
     toClienteProveedorTablaFila(
       provider,
@@ -266,55 +269,53 @@ export default async function ClienteBodaPage({ params }: PageProps) {
       )}
 
       <main className="mx-auto w-full max-w-[1400px] flex-1 space-y-12 px-5 py-12 sm:space-y-14 sm:px-8 sm:py-16">
-        <div className="mx-auto w-full max-w-3xl space-y-12 sm:space-y-14">
-          <ClienteBodaEstado estado={estadoBoda} />
-          <ClienteDetallesCelebracionSection
-            bodaId={id}
-            initialDetalles={detallesCelebracion}
-            telefonoNovia={bodaRow.telefono_novia}
-          />
-          <ClienteTastingsSection
-            tastings={tastings}
-            nombrePareja={bodaRow.nombre_pareja}
-            fechaBoda={bodaRow.fecha_boda}
-          />
-          <ClienteCronograma resumen={cronogramaResumen} />
-          <ClienteProximosPagos pagosPendientes={pagosPendientes} />
-        </div>
+        <ClienteBodaEstado estado={estadoBoda} />
+        <ClienteDetallesCelebracionSection
+          bodaId={id}
+          initialDetalles={detallesCelebracion}
+          telefonoNovia={bodaRow.telefono_novia}
+        />
+        <ClienteTastingsSection
+          tastings={tastings}
+          nombrePareja={bodaRow.nombre_pareja}
+          fechaBoda={bodaRow.fecha_boda}
+        />
+        <ClienteCronograma resumen={cronogramaResumen} />
+        <ClienteProximosPagos pagosPendientes={pagosPendientes} />
         <ClienteProveedoresSection
           filas={filasTabla}
           totalContratado={totalContratado}
           totalAbonado={totalPagado}
           saldoPendiente={saldoPendiente}
+          totalProyectado={totalProyectado}
+          totalEnEvaluacion={totalEnEvaluacion}
           copPorUsd={copPorUsd}
         />
-        <div className="mx-auto w-full max-w-3xl space-y-12 sm:space-y-14">
-          <ClienteProveedoresEvaluacionSection
-            bodaId={id}
-            proveedores={enEvaluacion.map(toClienteProveedorEvaluacion)}
-            approvedProveedorIds={approvedProveedorIds}
+        <ClienteProveedoresEvaluacionSection
+          bodaId={id}
+          proveedores={enEvaluacion.map(toClienteProveedorEvaluacion)}
+          approvedProveedorIds={approvedProveedorIds}
+          copPorUsd={copPorUsd}
+        />
+        <ClientePaymentOverview
+          totalContratado={totalContratado}
+          totalPagado={totalPagado}
+          saldoPendiente={saldoPendiente}
+          copPorUsd={copPorUsd}
+        />
+        {mostrarPresupuestoEstimado && (
+          <ClientePresupuestoEstimadoSection
+            lineas={presupuestoLineas}
             copPorUsd={copPorUsd}
           />
-          <ClientePaymentOverview
-            totalContratado={totalContratado}
-            totalPagado={totalPagado}
-            saldoPendiente={saldoPendiente}
-            copPorUsd={copPorUsd}
-          />
-          {mostrarPresupuestoEstimado && (
-            <ClientePresupuestoEstimadoSection
-              lineas={presupuestoLineas}
-              copPorUsd={copPorUsd}
-            />
-          )}
-          <ClienteProveedoresSugeridosSection
-            bodaId={id}
-            initialProveedores={proveedoresSugeridos}
-          />
-          {mostrarSeatingPlan && (
-            <ClienteSeatingPlanSection link={seatingPlanLink} />
-          )}
-        </div>
+        )}
+        <ClienteProveedoresSugeridosSection
+          bodaId={id}
+          initialProveedores={proveedoresSugeridos}
+        />
+        {mostrarSeatingPlan && (
+          <ClienteSeatingPlanSection link={seatingPlanLink} />
+        )}
       </main>
 
       <ClientePageFooter />

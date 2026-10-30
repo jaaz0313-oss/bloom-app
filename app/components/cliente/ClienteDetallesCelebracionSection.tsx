@@ -187,7 +187,7 @@ export function ClienteDetallesCelebracionSection({
         >
           <div className="min-h-0 overflow-hidden">
             <div className="space-y-6 border-t border-bloom-border/80 px-5 py-6 sm:px-8 sm:py-8">
-              <p className="text-sm leading-relaxed text-bloom-muted">
+              <p className="max-w-3xl text-sm leading-relaxed text-bloom-muted">
                 {t.detallesCelebracionIntro}
               </p>
 
@@ -197,7 +197,7 @@ export function ClienteDetallesCelebracionSection({
                 </p>
               )}
 
-              <div className="space-y-5">
+              <div className="space-y-5 lg:grid lg:grid-cols-2 lg:gap-x-6 lg:gap-y-5 lg:space-y-0">
                 {DETALLES_CELEBRACION_FIELDS.map((field) => (
                   <FieldControl
                     key={field.key}

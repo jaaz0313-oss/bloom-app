@@ -30,7 +30,7 @@ export function ClientePaymentOverview({
         <h2 className="font-display text-2xl text-bloom-ink sm:text-3xl">
           {t.paymentOverviewTitle}
         </h2>
-        <p className="mt-1 text-sm text-bloom-muted sm:text-base">
+        <p className="mt-1 max-w-3xl text-sm text-bloom-muted sm:text-base">
           {t.paymentOverviewSubtitle}
         </p>
 
