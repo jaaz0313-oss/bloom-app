@@ -343,6 +343,9 @@ export type ClienteUiCopy = {
   providersColPaid: string;
   providersColBalance: string;
   providersPagoDirecto: string;
+  providersVerMas: string;
+  providersVerMenos: string;
+  providersVerDetalle: string;
   providersTableTotalAbonado: string;
   providersStatusPendiente: string;
   providersStatusCotizacionSolicitada: string;
@@ -517,6 +520,9 @@ const UI_ES: ClienteUiCopy = {
   providersColPaid: "Abonado",
   providersColBalance: "Saldo",
   providersPagoDirecto: "Pago directo",
+  providersVerMas: "Ver más",
+  providersVerMenos: "Ver menos",
+  providersVerDetalle: "Ver detalle",
   providersTableTotalAbonado: "Total abonado",
   providersStatusPendiente: "Pendiente",
   providersStatusCotizacionSolicitada: "Cotización solicitada",
@@ -726,6 +732,9 @@ const UI_EN: ClienteUiCopy = {
   providersColPaid: "Paid",
   providersColBalance: "Balance",
   providersPagoDirecto: "Direct payment",
+  providersVerMas: "See more",
+  providersVerMenos: "See less",
+  providersVerDetalle: "See details",
   providersTableTotalAbonado: "Total paid",
   providersStatusPendiente: "Pending",
   providersStatusCotizacionSolicitada: "Quote requested",

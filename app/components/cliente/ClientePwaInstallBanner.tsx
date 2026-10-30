@@ -56,8 +56,8 @@ export function ClientePwaInstallBanner({ bodaId }: ClientePwaInstallBannerProps
 
   return (
     <div className="border-b border-bloom-border/80 bg-gradient-to-br from-[#faf9f7] via-bloom-canvas to-[#f3ebe3] px-5 py-4 sm:px-8">
-      <div className="mx-auto flex max-w-3xl flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex min-w-0 items-start gap-3">
+      <div className="mx-auto flex max-w-[1400px] flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 max-w-3xl items-start gap-3">
           <span
             className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-bloom-accent/20 bg-bloom-surface text-base shadow-sm"
             aria-hidden

@@ -7,7 +7,7 @@ const CELESTIA_PHONE_HREF = "tel:+573195538654";
 export function ClientePageFooter() {
   return (
     <footer className="mt-auto border-t border-bloom-border/60 bg-gradient-to-b from-[#efe8df] to-[#e8e0d6]">
-      <div className="mx-auto max-w-3xl px-5 py-12 text-center sm:px-8 sm:py-14">
+      <div className="mx-auto max-w-[1400px] px-5 py-12 text-center sm:px-8 sm:py-14">
         <div className="flex justify-center">
           <CelestiaLogo variant="footer" />
         </div>

@@ -34,7 +34,7 @@ export function ClientePageHeader({
         </div>
       )}
 
-      <div className="relative mx-auto flex max-w-3xl flex-col items-center gap-2 px-5 py-6 text-center sm:px-8">
+      <div className="relative mx-auto flex max-w-[1400px] flex-col items-center gap-2 px-5 py-6 text-center sm:px-8">
         <CelestiaLogo variant="header" />
 
         <p className="text-xs tracking-[0.2em] text-bloom-muted uppercase sm:text-sm">

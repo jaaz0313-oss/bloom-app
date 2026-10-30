@@ -29,7 +29,7 @@ export function ClienteCotizacionBar({
 
   return (
     <div className="-mt-2 border-b border-bloom-border/40 bg-gradient-to-b from-[#efe8df] to-bloom-canvas px-5 sm:px-8">
-      <div className="mx-auto max-w-3xl py-4">
+      <div className="mx-auto max-w-[1400px] py-4">
         <div className="relative flex flex-col items-center gap-4 sm:block sm:min-h-[44px]">
           <div className="flex flex-wrap items-center justify-center gap-3">
             {cotizacionDisponible && (
