@@ -28,7 +28,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Cita no encontrada" }, { status: 404 });
     }
 
-    const { cita, bodaNombre } = loaded;
+    const { cita, bodaNombre, invitados } = loaded;
 
     if (cita.google_event_id) {
       return NextResponse.json({
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
       });
     }
 
-    const event = await createCalendarEvent(cita, bodaNombre);
+    const event = await createCalendarEvent(cita, bodaNombre, invitados);
     const meetLink = event.meetLink ?? cita.google_meet_link ?? null;
 
     const supabase = await createServerSupabaseClient();

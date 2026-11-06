@@ -28,7 +28,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Cita no encontrada" }, { status: 404 });
     }
 
-    const { cita, bodaNombre } = loaded;
+    const { cita, bodaNombre, invitados } = loaded;
 
     if (!cita.google_event_id) {
       return NextResponse.json(
@@ -41,6 +41,7 @@ export async function POST(request: Request) {
       cita.google_event_id,
       cita,
       bodaNombre,
+      invitados,
     );
 
     const meetLink = updated.meetLink ?? cita.google_meet_link ?? null;

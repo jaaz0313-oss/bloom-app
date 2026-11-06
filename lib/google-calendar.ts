@@ -43,6 +43,36 @@ export function getCalendarClient() {
   return google.calendar({ version: "v3", auth });
 }
 
+const CITA_OAUTH_SCOPE = "https://www.googleapis.com/auth/calendar.events";
+
+type CalendarClient = ReturnType<typeof getCalendarClient>;
+
+/**
+ * Citas: si hay refresh token, el evento se crea como celestiaandevents@gmail.com.
+ * Sin token, se sigue usando la cuenta de servicio.
+ */
+function resolveCitaCalendar(): { calendar: CalendarClient; oauth: boolean } {
+  const refreshToken = process.env.GOOGLE_CALENDAR_REFRESH_TOKEN?.trim();
+  if (!refreshToken) {
+    return { calendar: getCalendarClient(), oauth: false };
+  }
+
+  const clientId = process.env.GOOGLE_CALENDAR_OAUTH_CLIENT_ID?.trim();
+  const clientSecret = process.env.GOOGLE_CALENDAR_OAUTH_CLIENT_SECRET?.trim();
+  if (!clientId || !clientSecret) {
+    throw new Error(
+      "Hay GOOGLE_CALENDAR_REFRESH_TOKEN, pero faltan GOOGLE_CALENDAR_OAUTH_CLIENT_ID o GOOGLE_CALENDAR_OAUTH_CLIENT_SECRET.",
+    );
+  }
+
+  const auth = new google.auth.OAuth2(clientId, clientSecret);
+  auth.setCredentials({ refresh_token: refreshToken, scope: CITA_OAUTH_SCOPE });
+  return {
+    calendar: google.calendar({ version: "v3", auth }),
+    oauth: true,
+  };
+}
+
 /** Cliente con Domain-Wide Delegation — solo attendees. */
 export function getCalendarClientWithDelegation() {
   const auth = createGoogleJwtAuthWithDelegation([CALENDAR_SCOPE]);
@@ -148,10 +178,6 @@ function collectUniqueEmails(
   return result;
 }
 
-function getCitaAttendeeEmails(cita: CitaForCalendar): string[] {
-  return collectUniqueEmails(cita.emails_involucrados ?? []);
-}
-
 function getTastingAttendeeEmails(tasting: TastingForCalendar): string[] {
   return collectUniqueEmails([
     tasting.email_invitado,
@@ -188,6 +214,44 @@ function buildEventResource(
     start: { dateTime: startDateTime, timeZone },
     end: { dateTime: endDateTime, timeZone },
   };
+}
+
+function clockKey(dateTime: string | null | undefined): string | null {
+  if (!dateTime) return null;
+  const match = dateTime.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/);
+  return match ? `${match[1]}T${match[2]}` : null;
+}
+
+function attendeeEmailsFromEvent(event: calendar_v3.Schema$Event): string[] {
+  const emails: string[] = [];
+  const seen = new Set<string>();
+  for (const attendee of event.attendees ?? []) {
+    if (attendee.self || attendee.resource) continue;
+    const email = attendee.email?.trim().toLowerCase();
+    if (!email || seen.has(email)) continue;
+    seen.add(email);
+    emails.push(email);
+  }
+  return emails;
+}
+
+function sameEmailList(left: string[], right: string[]): boolean {
+  if (left.length !== right.length) return false;
+  const seen = new Set(left);
+  return right.every((email) => seen.has(email));
+}
+
+function citaScheduleOrPlaceChanged(
+  existing: calendar_v3.Schema$Event,
+  cita: CitaForCalendar,
+): boolean {
+  const next = buildEventTimes(cita);
+  const timeChanged =
+    clockKey(existing.start?.dateTime) !== clockKey(next.startDateTime) ||
+    clockKey(existing.end?.dateTime) !== clockKey(next.endDateTime);
+  const placeChanged =
+    (existing.location ?? "").trim() !== (cita.lugar ?? "").trim();
+  return timeChanged || placeChanged;
 }
 
 function mapEventResult(event: calendar_v3.Schema$Event): CalendarEventResult {
@@ -234,22 +298,26 @@ async function patchEventAttendees(
 export async function createCalendarEvent(
   cita: CitaForCalendar,
   bodaNombre: string | null,
+  invitados: string[] = [],
 ): Promise<CalendarEventResult> {
   try {
-    const calendar = getCalendarClient();
+    const { calendar, oauth } = resolveCitaCalendar();
     const calendarId = getCalendarId();
     const eventResource = buildEventResource(cita, bodaNombre);
+    const guests = oauth ? invitados : [];
 
     const response = await calendar.events.insert({
       calendarId,
-      sendUpdates: "none",
-      requestBody: eventResource,
+      sendUpdates: guests.length > 0 ? "all" : "none",
+      requestBody: {
+        ...eventResource,
+        ...(guests.length > 0
+          ? { attendees: guests.map((email) => ({ email })) }
+          : {}),
+      },
     });
 
-    const result = mapEventResult(response.data);
-    await patchEventAttendees(result.eventId, getCitaAttendeeEmails(cita));
-
-    return result;
+    return mapEventResult(response.data);
   } catch (error) {
     logGoogleApiError("calendar.createCalendarEvent", error);
     throw error;
@@ -260,37 +328,69 @@ export async function updateCalendarEvent(
   googleEventId: string,
   cita: CitaForCalendar,
   bodaNombre: string | null,
+  invitados: string[] = [],
 ): Promise<CalendarEventResult> {
   try {
-    const calendar = getCalendarClient();
+    const { calendar, oauth } = resolveCitaCalendar();
     const calendarId = getCalendarId();
+    const eventResource = buildEventResource(cita, bodaNombre);
+
+    if (!oauth) {
+      const response = await calendar.events.patch({
+        calendarId,
+        eventId: googleEventId,
+        sendUpdates: "none",
+        requestBody: eventResource,
+      });
+      return mapEventResult(response.data);
+    }
+
+    const existing = await calendar.events.get({
+      calendarId,
+      eventId: googleEventId,
+    });
+    const previousGuests = attendeeEmailsFromEvent(existing.data);
+    const attendeesChanged = !sameEmailList(previousGuests, invitados);
+    const scheduleChanged = citaScheduleOrPlaceChanged(existing.data, cita);
+    const someoneToNotify =
+      previousGuests.length > 0 || invitados.length > 0;
+    const sendUpdates =
+      someoneToNotify && (attendeesChanged || scheduleChanged) ? "all" : "none";
 
     const response = await calendar.events.patch({
       calendarId,
       eventId: googleEventId,
-      sendUpdates: "none",
-      requestBody: buildEventResource(cita, bodaNombre),
+      sendUpdates,
+      requestBody: {
+        ...eventResource,
+        ...(attendeesChanged
+          ? { attendees: invitados.map((email) => ({ email })) }
+          : {}),
+      },
     });
 
-    const result = mapEventResult(response.data);
-    await patchEventAttendees(result.eventId, getCitaAttendeeEmails(cita));
-
-    return result;
+    return mapEventResult(response.data);
   } catch (error) {
     logGoogleApiError("calendar.updateCalendarEvent", error);
     throw error;
   }
 }
 
-export async function deleteCalendarEvent(googleEventId: string): Promise<void> {
+export async function deleteCalendarEvent(
+  googleEventId: string,
+  options?: { notifyAttendees?: boolean },
+): Promise<void> {
   try {
-    const calendar = getCalendarClient();
+    const notify = Boolean(options?.notifyAttendees);
+    const { calendar, oauth } = notify
+      ? resolveCitaCalendar()
+      : { calendar: getCalendarClient(), oauth: false };
     const calendarId = getCalendarId();
 
     await calendar.events.delete({
       calendarId,
       eventId: googleEventId,
-      sendUpdates: "none",
+      sendUpdates: notify && oauth ? "all" : "none",
     });
   } catch (error) {
     logGoogleApiError("calendar.deleteCalendarEvent", error);
