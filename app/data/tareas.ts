@@ -11,6 +11,10 @@ export type TareaRow = {
   creado_por: string;
   prioridad: TareaPrioridad;
   fecha_limite: string | null;
+  /** Proveedor de la boda, cuando la tarea nació de una nota interna. */
+  proveedor_id: string | null;
+  /** Creada al mencionar a alguien en las notas internas de un proveedor. */
+  desde_mencion_notas: boolean;
   completada: boolean;
   completada_por: string | null;
   completada_at: string | null;
@@ -61,6 +65,8 @@ export function normalizeTareaRow(tarea: TareaRow): TareaRow {
   return {
     ...tarea,
     prioridad: normalizeTareaPrioridad(tarea.prioridad),
+    proveedor_id: tarea.proveedor_id ?? null,
+    desde_mencion_notas: Boolean(tarea.desde_mencion_notas),
     completada_por: tarea.completada_por ?? null,
     completada_at: tarea.completada_at ?? null,
   };
@@ -76,6 +82,13 @@ export function getTareaUrgency(
   if (days < 0) return "vencida";
   if (days <= 3) return "pronto";
   return null;
+}
+
+export function tareaProveedorHref(
+  tarea: Pick<TareaRow, "boda_id" | "proveedor_id">,
+): string | null {
+  if (!tarea.boda_id || !tarea.proveedor_id) return null;
+  return `/bodas/${tarea.boda_id}?proveedor=${tarea.proveedor_id}`;
 }
 
 export function isTareaVisibleForUser(

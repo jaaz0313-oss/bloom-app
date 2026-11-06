@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { NotaMarkdownToolbar } from "@/app/components/bodas/NotaMarkdownToolbar";
 import type { EquipoUsuarioMencion } from "@/lib/notas-menciones";
 import { filterEquipoForMentionQuery } from "@/lib/notas-menciones";
@@ -14,11 +15,21 @@ type MentionTextareaProps = {
   rows?: number;
   disabled?: boolean;
   className?: string;
+  ariaLabel?: string;
+  autoFocus?: boolean;
+  showToolbar?: boolean;
+  onBlur?: (value: string) => void;
 };
 
 type MentionState = {
   start: number;
   query: string;
+};
+
+type MenuBox = {
+  top: number;
+  left: number;
+  width: number;
 };
 
 export function MentionTextarea({
@@ -30,8 +41,13 @@ export function MentionTextarea({
   rows = 3,
   disabled = false,
   className,
+  ariaLabel,
+  autoFocus = false,
+  showToolbar = true,
+  onBlur,
 }: MentionTextareaProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const selectingRef = useRef(false);
   const [mention, setMention] = useState<MentionState | null>(null);
   const [highlightIndex, setHighlightIndex] = useState(0);
 
@@ -75,11 +91,13 @@ export function MentionTextarea({
     const textarea = textareaRef.current;
     if (!mention || !textarea) return;
 
+    selectingRef.current = true;
     const cursor = textarea.selectionStart ?? value.length;
     const before = value.slice(0, mention.start);
     const after = value.slice(cursor);
     const insertion = `@${user.nombre} `;
     const next = before + insertion + after;
+    textarea.value = next;
     onChange(next);
     setMention(null);
 
@@ -87,6 +105,7 @@ export function MentionTextarea({
     requestAnimationFrame(() => {
       textarea.focus();
       textarea.setSelectionRange(newCursor, newCursor);
+      selectingRef.current = false;
     });
   }
 
@@ -107,14 +126,18 @@ export function MentionTextarea({
     }
   }
 
+  const menuOpen = Boolean(mention);
+
   return (
     <div className="relative">
-      <NotaMarkdownToolbar
-        textareaRef={textareaRef}
-        value={value}
-        onChange={onChange}
-        disabled={disabled}
-      />
+      {showToolbar ? (
+        <NotaMarkdownToolbar
+          textareaRef={textareaRef}
+          value={value}
+          onChange={onChange}
+          disabled={disabled}
+        />
+      ) : null}
       <textarea
         ref={textareaRef}
         id={id}
@@ -129,43 +152,123 @@ export function MentionTextarea({
             e.currentTarget.selectionStart ?? 0,
           )
         }
+        onBlur={(e) => {
+          if (selectingRef.current) return;
+          const currentValue = e.currentTarget.value;
+          setMention(null);
+          onBlur?.(currentValue);
+        }}
         placeholder={placeholder}
         disabled={disabled}
+        autoFocus={autoFocus}
         autoComplete="off"
+        aria-label={ariaLabel}
       />
 
-      {mention && suggestions.length > 0 && (
-        <ul
-          className="absolute z-20 mt-1 max-h-48 w-full overflow-y-auto rounded-xl border border-bloom-border bg-bloom-surface py-1 shadow-lg"
-          role="listbox"
-        >
-          {suggestions.map((user, index) => (
-            <li key={user.id} role="option" aria-selected={index === highlightIndex}>
-              <button
-                type="button"
-                className={`flex w-full flex-col px-3 py-2 text-left text-sm transition-colors ${
-                  index === highlightIndex
-                    ? "bg-bloom-accent/10 text-bloom-ink"
-                    : "text-bloom-ink hover:bg-bloom-canvas"
-                }`}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  handleSelect(user);
-                }}
-              >
-                <span className="font-medium">{user.nombre}</span>
-                <span className="text-xs text-bloom-muted">@{user.username}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {mention && suggestions.length === 0 && mention.query.length > 0 && (
-        <p className="absolute z-20 mt-1 w-full rounded-xl border border-bloom-border bg-bloom-surface px-3 py-2 text-xs text-bloom-muted shadow-lg">
-          Sin coincidencias
-        </p>
-      )}
+      {menuOpen && textareaRef.current ? (
+        <MentionMenu
+          anchor={textareaRef.current}
+          suggestions={suggestions}
+          highlightIndex={highlightIndex}
+          query={mention?.query ?? ""}
+          onSelect={handleSelect}
+        />
+      ) : null}
     </div>
   );
+}
+
+function MentionMenu({
+  anchor,
+  suggestions,
+  highlightIndex,
+  query,
+  onSelect,
+}: {
+  anchor: HTMLTextAreaElement;
+  suggestions: EquipoUsuarioMencion[];
+  highlightIndex: number;
+  query: string;
+  onSelect: (user: EquipoUsuarioMencion) => void;
+}) {
+  const [box, setBox] = useState<MenuBox | null>(null);
+
+  useEffect(() => {
+    function update() {
+      const rect = anchor.getBoundingClientRect();
+      const width = Math.min(Math.max(rect.width, 240), window.innerWidth - 16);
+      const left = Math.min(
+        Math.max(8, rect.left),
+        Math.max(8, window.innerWidth - width - 8),
+      );
+      const estimatedHeight = suggestions.length > 0 ? 220 : 44;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const openAbove = spaceBelow < estimatedHeight && rect.top > spaceBelow;
+      const top = openAbove
+        ? Math.max(8, rect.top - estimatedHeight - 4)
+        : rect.bottom + 4;
+      setBox({ top, left, width });
+    }
+
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+    };
+  }, [anchor, query, suggestions.length]);
+
+  if (!box || typeof document === "undefined") return null;
+
+  const menu =
+    suggestions.length > 0 ? (
+      <ul
+        className="max-h-48 overflow-y-auto rounded-xl border border-bloom-border bg-bloom-surface py-1 shadow-lg"
+        style={{
+          position: "fixed",
+          top: box.top,
+          left: box.left,
+          width: box.width,
+          zIndex: 80,
+        }}
+        role="listbox"
+      >
+        {suggestions.map((user, index) => (
+          <li key={user.id} role="option" aria-selected={index === highlightIndex}>
+            <button
+              type="button"
+              className={`flex w-full flex-col px-3 py-2 text-left text-sm transition-colors ${
+                index === highlightIndex
+                  ? "bg-bloom-accent/10 text-bloom-ink"
+                  : "text-bloom-ink hover:bg-bloom-canvas"
+              }`}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                onSelect(user);
+              }}
+            >
+              <span className="font-medium">{user.nombre}</span>
+              <span className="text-xs text-bloom-muted">@{user.username}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    ) : query.length > 0 ? (
+      <p
+        className="rounded-xl border border-bloom-border bg-bloom-surface px-3 py-2 text-xs text-bloom-muted shadow-lg"
+        style={{
+          position: "fixed",
+          top: box.top,
+          left: box.left,
+          width: box.width,
+          zIndex: 80,
+        }}
+      >
+        Sin coincidencias
+      </p>
+    ) : null;
+
+  if (!menu) return null;
+  return createPortal(menu, document.body);
 }

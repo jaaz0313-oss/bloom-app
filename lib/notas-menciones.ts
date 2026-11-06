@@ -74,12 +74,29 @@ export function buildMencionNotaWhatsAppUrls(
   return urls;
 }
 
-/** Abre una pestaña de WhatsApp por mencionado (evita bloqueo total del popup). */
-export function openMencionNotaWhatsAppTabs(urls: string[]): void {
-  urls.forEach((url, index) => {
-    window.setTimeout(() => {
-      window.open(url, "_blank", "noopener,noreferrer");
-    }, index * 400);
+function openWhatsAppTab(url: string): boolean {
+  const opened = window.open(url, "_blank", "noopener,noreferrer");
+  return Boolean(opened);
+}
+
+/**
+ * Abre una pestaña de WhatsApp por mencionado (evita bloqueo total del popup).
+ * Devuelve las URLs que el navegador bloqueó.
+ */
+export function openMencionNotaWhatsAppTabs(urls: string[]): Promise<string[]> {
+  if (urls.length === 0) return Promise.resolve([]);
+
+  return new Promise((resolve) => {
+    const blocked: string[] = [];
+    let remaining = urls.length;
+
+    urls.forEach((url, index) => {
+      window.setTimeout(() => {
+        if (!openWhatsAppTab(url)) blocked.push(url);
+        remaining -= 1;
+        if (remaining === 0) resolve(blocked);
+      }, index * 400);
+    });
   });
 }
 

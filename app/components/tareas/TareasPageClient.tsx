@@ -15,6 +15,7 @@ import {
   getTareaUrgency,
   isTareaVisibleForUser,
   normalizeTareaRow,
+  tareaProveedorHref,
   TAREA_PRIORIDAD_LABELS,
   TAREA_PRIORIDAD_STYLES,
   TAREA_URGENCY_LABELS,
@@ -242,7 +243,14 @@ export function TareasPageClient({
         .single();
 
       if (updateError) {
-        setError(updateError.message);
+        const duplicada =
+          updateError.code === "23505" ||
+          /duplicate key|unique/i.test(updateError.message);
+        setError(
+          duplicada
+            ? "Esa persona ya tiene una tarea abierta creada desde las notas de este proveedor."
+            : updateError.message,
+        );
         return;
       }
 
@@ -334,6 +342,7 @@ export function TareasPageClient({
             const bodaNombre = tarea.boda_id
               ? bodaNombreById.get(tarea.boda_id)
               : null;
+            const proveedorHref = tareaProveedorHref(tarea);
 
             return (
               <li
@@ -398,6 +407,14 @@ export function TareasPageClient({
                           className="font-medium text-bloom-accent hover:text-bloom-accent-hover"
                         >
                           {bodaNombre}
+                        </Link>
+                      ) : null}
+                      {proveedorHref ? (
+                        <Link
+                          href={proveedorHref}
+                          className="font-medium text-bloom-accent hover:text-bloom-accent-hover"
+                        >
+                          Abrir proveedor
                         </Link>
                       ) : null}
                       {tarea.fecha_limite ? (

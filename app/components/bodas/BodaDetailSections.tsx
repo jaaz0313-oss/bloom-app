@@ -16,6 +16,7 @@ import { PaymentProjection } from "@/app/components/bodas/PaymentProjection";
 import { ProveedoresSugeridosSection } from "@/app/components/bodas/ProveedoresSugeridosSection";
 import { TastingsSection } from "@/app/components/bodas/TastingsSection";
 import { ProviderList } from "@/app/components/bodas/ProviderList";
+import { NotaProveedorMencionProvider } from "@/app/components/bodas/NotaProveedorMenciones";
 import { AddEstimadoItemModalButton } from "@/app/components/bodas/AddEstimadoItemModalButton";
 import { CronogramaContratacion } from "@/app/components/CronogramaContratacion";
 import { CitasSection } from "@/app/components/citas/CitasSection";
@@ -666,6 +667,11 @@ export function BodaDetailSections({
               ) : null}
             </div>
           </div>
+          <NotaProveedorMencionProvider
+            equipo={equipo}
+            bodaId={bodaId}
+            autorUserId={currentUserId}
+          >
           <ProviderList
             providers={liveProviders}
             estimados={liveEstimados}
@@ -704,6 +710,7 @@ export function BodaDetailSections({
               });
             }}
           />
+          </NotaProveedorMencionProvider>
         </div>
       </BodaAccordionSection>
 

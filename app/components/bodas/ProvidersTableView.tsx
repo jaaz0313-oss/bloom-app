@@ -33,6 +33,8 @@ import type { CotizacionBodaContext } from "@/lib/proveedor-cotizacion";
 import { supabase } from "@/lib/supabase";
 import { syncBodaProveedoresContratados } from "@/lib/sync-boda";
 import { syncTastingNotasReunionToProveedor } from "@/lib/tasting-notas-reunion";
+import { MentionTextarea } from "./MentionTextarea";
+import { useNotaProveedorMenciones } from "./NotaProveedorMenciones";
 
 const STATUS_OPTIONS = Object.keys(
   PROVIDER_STATUS_LABELS,
@@ -206,6 +208,8 @@ function ProvidersTableRow({
   const [valorInput, setValorInput] = useState(valorInputFromProvider(provider));
   const [savingField, setSavingField] = useState<EditableField | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { equipo, procesar } = useNotaProveedorMenciones();
+  const savingNotasRef = useRef(false);
 
   useEffect(() => {
     setCategoria(provider.categoria);
@@ -231,8 +235,8 @@ function ProvidersTableRow({
     field: EditableField,
     patch: Partial<ProveedorRow>,
     extras?: Record<string, unknown>,
-  ) {
-    if (!canManage) return;
+  ): Promise<boolean> {
+    if (!canManage) return false;
     setSavingField(field);
     setError(null);
     try {
@@ -253,7 +257,7 @@ function ProvidersTableRow({
         setPagoDirectoCliente(isPagoDirectoCliente(provider));
         setExcluidoSimulacion(isExcluidoSimulacion(provider));
         setValorInput(valorInputFromProvider(provider));
-        return;
+        return false;
       }
 
       const updated: ProveedorRow = {
@@ -295,6 +299,7 @@ function ProvidersTableRow({
           ),
         });
       }
+      return true;
     } finally {
       setSavingField(null);
     }
@@ -327,11 +332,29 @@ function ProvidersTableRow({
     });
   }
 
-  async function handleNotasBlur() {
-    const next = notas.trim();
+  async function handleNotasBlur(valueFromField?: string) {
+    if (savingNotasRef.current) return;
+    const raw = valueFromField ?? notas;
+    if (valueFromField != null && valueFromField !== notas) {
+      setNotas(valueFromField);
+    }
+    const next = raw.trim();
     const current = provider.notas?.trim() ?? "";
     if (next === current) return;
-    await persistPatch("notas", { notas: next || null });
+
+    savingNotasRef.current = true;
+    try {
+      const saved = await persistPatch("notas", { notas: next || null });
+      if (!saved || !next) return;
+      await procesar({
+        proveedorId: provider.id,
+        categoria: categoria.trim() || provider.categoria,
+        nombreProveedor: nombre.trim() || provider.nombre,
+        nota: next,
+      });
+    } finally {
+      savingNotasRef.current = false;
+    }
   }
 
   async function handleEstadoChange(next: ProviderStatus) {
@@ -497,14 +520,17 @@ function ProvidersTableRow({
         </td>
         <td className="px-2 py-2">
           <div className="relative">
-            <AutoGrowTextarea
-              className={inputClass}
+            <MentionTextarea
               value={notas}
-              disabled={!canManage || busy}
               onChange={setNotas}
-              onBlur={() => void handleNotasBlur()}
+              equipo={equipo}
+              rows={2}
+              showToolbar={false}
+              disabled={!canManage || busy}
+              className={inputClass}
               ariaLabel="Notas internas"
-              placeholder="Notas internas"
+              placeholder="Notas internas. Usa @ para mencionar"
+              onBlur={(value) => void handleNotasBlur(value)}
             />
             {savingField === "notas" ? <SavingDot /> : null}
           </div>

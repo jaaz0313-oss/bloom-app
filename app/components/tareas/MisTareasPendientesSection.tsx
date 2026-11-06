@@ -5,6 +5,7 @@ import {
   filterTareasCompletadasRecientes,
   formatTareaRelativeTime,
   getTareaUrgency,
+  tareaProveedorHref,
   TAREA_PRIORIDAD_LABELS,
   TAREA_PRIORIDAD_STYLES,
   TAREA_URGENCY_LABELS,
@@ -69,6 +70,7 @@ export function MisTareasPendientesSection({
             const bodaNombre = tarea.boda_id
               ? bodaNombresById[tarea.boda_id]
               : null;
+            const proveedorHref = tareaProveedorHref(tarea);
 
             return (
               <li
@@ -96,6 +98,14 @@ export function MisTareasPendientesSection({
                 </div>
                 <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-bloom-muted">
                   {bodaNombre ? <span>{bodaNombre}</span> : null}
+                  {proveedorHref ? (
+                    <Link
+                      href={proveedorHref}
+                      className="font-medium text-bloom-accent hover:text-bloom-accent-hover"
+                    >
+                      Abrir proveedor
+                    </Link>
+                  ) : null}
                   {tarea.fecha_limite ? (
                     <span>
                       Límite: {formatShortDateStable(tarea.fecha_limite)}

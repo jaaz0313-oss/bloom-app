@@ -46,6 +46,8 @@ import { ProviderPayments } from "./ProviderPayments";
 import { SubirCotizacionDriveButton } from "./SubirCotizacionDriveButton";
 import { AbrirCarpetaDriveButton } from "./AbrirCarpetaDriveButton";
 import { ProviderComisionFields } from "./ProviderComisionFields";
+import { MentionTextarea } from "./MentionTextarea";
+import { useNotaProveedorMenciones } from "./NotaProveedorMenciones";
 import {
   AUDITORIA_ACCIONES,
   buildProveedorEstadoAuditoriaDetalle,
@@ -155,6 +157,7 @@ export function ProviderCard({
 }: ProviderCardProps) {
   const router = useRouter();
   const panelId = useId();
+  const { equipo, procesar: procesarMencionesNota } = useNotaProveedorMenciones();
   /**
    * Copia local del proveedor para el encabezado/UI.
    * Tras editar, se actualiza de inmediato; se ignora un prop stale
@@ -435,6 +438,8 @@ export function ProviderCard({
       }
 
       const trimmed = inlineDraft.trim();
+      const notaAnterior = provider.notas?.trim() ?? "";
+      const notaCambio = field === "notas" && trimmed !== notaAnterior;
       const { error: updateError } = await supabase
         .from("proveedores")
         .update({ [field]: trimmed || null })
@@ -449,8 +454,20 @@ export function ProviderCard({
         setDescripcionServicioLocal(trimmed);
       } else {
         setNotasLocal(trimmed);
+        onProviderUpdated?.({
+          ...provider,
+          notas: trimmed || null,
+        });
       }
       setEditingInlineField(null);
+      if (notaCambio && trimmed) {
+        await procesarMencionesNota({
+          proveedorId: provider.id,
+          categoria: provider.categoria,
+          nombreProveedor: provider.nombre,
+          nota: trimmed,
+        });
+      }
       router.refresh();
     } finally {
       setInlineSaving(false);
@@ -1021,6 +1038,15 @@ export function ProviderCard({
       onProviderUpdated?.(updatedProvider);
       setDescripcionServicioLocal(descripcionServicio);
       setNotasLocal(notas);
+      const notaAnterior = provider.notas?.trim() ?? "";
+      if (notas !== notaAnterior && notas) {
+        await procesarMencionesNota({
+          proveedorId: provider.id,
+          categoria,
+          nombreProveedor: nombre,
+          nota: notas,
+        });
+      }
       closeEditModal();
       router.refresh();
     } finally {
@@ -1464,6 +1490,20 @@ export function ProviderCard({
                 onDraftChange={setInlineDraft}
                 onCancel={cancelInlineEdit}
                 onSave={() => handleSaveInlineField("notas")}
+                editor={
+                  <MentionTextarea
+                    value={inlineDraft}
+                    onChange={setInlineDraft}
+                    equipo={equipo}
+                    rows={3}
+                    showToolbar={false}
+                    autoFocus
+                    disabled={inlineSaving}
+                    className={textareaClass}
+                    placeholder="Usa @ para mencionar a alguien del equipo"
+                    aria-label="Notas internas"
+                  />
+                }
               />
               {!sinCosto && !esSecundarioGrupo ? (
                 <ProviderInlineCurrencyField
@@ -2301,18 +2341,21 @@ export function ProviderCard({
               />
 
               <Field label="Notas">
-                <textarea
-                  className={textareaClass}
+                <MentionTextarea
                   value={editForm.notas}
-                  onChange={(e) =>
+                  onChange={(value) =>
                     setEditForm((s) => ({
                       ...s,
-                      notas: e.target.value,
+                      notas: value,
                     }))
                   }
-                  placeholder="Ajustes, comentarios importantes..."
+                  equipo={equipo}
                   rows={3}
+                  showToolbar={false}
                   disabled={editSubmitting}
+                  className={textareaClass}
+                  placeholder="Ajustes, comentarios importantes… Usa @ para mencionar al equipo"
+                  aria-label="Notas internas"
                 />
               </Field>
 
@@ -2507,6 +2550,7 @@ function ProviderInlineTextField({
   onDraftChange,
   onCancel,
   onSave,
+  editor,
 }: {
   label: string;
   icon: React.ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
@@ -2521,6 +2565,7 @@ function ProviderInlineTextField({
   onDraftChange: (value: string) => void;
   onCancel: () => void;
   onSave: () => void;
+  editor?: React.ReactNode;
 }) {
   return (
     <div className="space-y-1.5">
@@ -2531,15 +2576,17 @@ function ProviderInlineTextField({
 
       {editing ? (
         <div className="space-y-2">
-          <textarea
-            className={textareaClass}
-            value={draft}
-            onChange={(e) => onDraftChange(e.target.value)}
-            rows={3}
-            autoFocus
-            disabled={saving}
-            aria-label={label}
-          />
+          {editor ?? (
+            <textarea
+              className={textareaClass}
+              value={draft}
+              onChange={(e) => onDraftChange(e.target.value)}
+              rows={3}
+              autoFocus
+              disabled={saving}
+              aria-label={label}
+            />
+          )}
           {error ? (
             <p className="text-xs text-red-700" role="alert">
               {error}

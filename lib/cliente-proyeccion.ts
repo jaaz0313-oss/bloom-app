@@ -36,7 +36,9 @@ export async function getClienteProyeccionContext(
 
   const { data: proveedoresData } = await client
     .from("proveedores")
-    .select("*")
+    .select(
+      "id, nombre, categoria, estado, valor_total, anticipo, fecha_saldo, sin_costo, pago_directo_cliente, excluido_simulacion, grupo_id, orden, created_at, deposito_reembolsable",
+    )
     .eq("boda_id", bodaId)
     .eq("estado", "contratado")
     .order("categoria", { ascending: true });
