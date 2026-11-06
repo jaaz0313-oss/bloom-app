@@ -12,6 +12,23 @@ import {
   logGoogleApiError,
 } from "@/lib/google-service-account";
 
+export type CitaCalendarEventResult = {
+  eventId: string;
+  htmlLink: string | null;
+  meetLink: string | null;
+  organizerEmail: string | null;
+  invitadosConfirmados: string[];
+  accesoConfigurado: boolean;
+  avisoSolicitado: boolean;
+};
+
+export type CitaCalendarDeleteResult = {
+  accesoConfigurado: boolean;
+  eventoEliminado: boolean;
+  alreadyGone: boolean;
+  invitadosAvisados: string[];
+};
+
 export type CalendarEventResult = {
   eventId: string;
   htmlLink: string | null;
@@ -254,6 +271,45 @@ function citaScheduleOrPlaceChanged(
   return timeChanged || placeChanged;
 }
 
+function confirmedInvitees(
+  event: calendar_v3.Schema$Event,
+  expected: string[],
+): string[] {
+  const present = new Set<string>();
+  for (const attendee of event.attendees ?? []) {
+    const email = attendee.email?.trim().toLowerCase();
+    if (email) present.add(email);
+  }
+  return expected.filter((email) => present.has(email));
+}
+
+function readCitaEvent(
+  event: calendar_v3.Schema$Event,
+  expected: string[],
+  accesoConfigurado: boolean,
+  avisoSolicitado: boolean,
+): CitaCalendarEventResult {
+  const eventId = event.id?.trim();
+  if (!eventId) {
+    throw new Error("Google Calendar no devolvió el ID del evento.");
+  }
+
+  return {
+    eventId,
+    htmlLink: event.htmlLink?.trim() || null,
+    meetLink: extractMeetLink(event),
+    organizerEmail: event.organizer?.email?.trim().toLowerCase() || null,
+    invitadosConfirmados: confirmedInvitees(event, expected),
+    accesoConfigurado,
+    avisoSolicitado,
+  };
+}
+
+function isGoogleNotFound(error: unknown): boolean {
+  const err = error as { code?: number | string; response?: { status?: number } };
+  return err.response?.status === 404 || err.code === 404;
+}
+
 function mapEventResult(event: calendar_v3.Schema$Event): CalendarEventResult {
   const eventId = event.id;
   if (!eventId) {
@@ -299,7 +355,7 @@ export async function createCalendarEvent(
   cita: CitaForCalendar,
   bodaNombre: string | null,
   invitados: string[] = [],
-): Promise<CalendarEventResult> {
+): Promise<CitaCalendarEventResult> {
   try {
     const { calendar, oauth } = resolveCitaCalendar();
     const calendarId = getCalendarId();
@@ -317,7 +373,7 @@ export async function createCalendarEvent(
       },
     });
 
-    return mapEventResult(response.data);
+    return readCitaEvent(response.data, guests, oauth, guests.length > 0);
   } catch (error) {
     logGoogleApiError("calendar.createCalendarEvent", error);
     throw error;
@@ -329,7 +385,7 @@ export async function updateCalendarEvent(
   cita: CitaForCalendar,
   bodaNombre: string | null,
   invitados: string[] = [],
-): Promise<CalendarEventResult> {
+): Promise<CitaCalendarEventResult> {
   try {
     const { calendar, oauth } = resolveCitaCalendar();
     const calendarId = getCalendarId();
@@ -342,7 +398,7 @@ export async function updateCalendarEvent(
         sendUpdates: "none",
         requestBody: eventResource,
       });
-      return mapEventResult(response.data);
+      return readCitaEvent(response.data, [], false, false);
     }
 
     const existing = await calendar.events.get({
@@ -354,13 +410,13 @@ export async function updateCalendarEvent(
     const scheduleChanged = citaScheduleOrPlaceChanged(existing.data, cita);
     const someoneToNotify =
       previousGuests.length > 0 || invitados.length > 0;
-    const sendUpdates =
-      someoneToNotify && (attendeesChanged || scheduleChanged) ? "all" : "none";
+    const avisoSolicitado =
+      someoneToNotify && (attendeesChanged || scheduleChanged);
 
     const response = await calendar.events.patch({
       calendarId,
       eventId: googleEventId,
-      sendUpdates,
+      sendUpdates: avisoSolicitado ? "all" : "none",
       requestBody: {
         ...eventResource,
         ...(attendeesChanged
@@ -369,9 +425,63 @@ export async function updateCalendarEvent(
       },
     });
 
-    return mapEventResult(response.data);
+    return readCitaEvent(response.data, invitados, true, avisoSolicitado);
   } catch (error) {
     logGoogleApiError("calendar.updateCalendarEvent", error);
+    throw error;
+  }
+}
+
+export async function deleteCitaCalendarEvent(
+  googleEventId: string,
+): Promise<CitaCalendarDeleteResult> {
+  const { calendar, oauth } = resolveCitaCalendar();
+  const calendarId = getCalendarId();
+  let invitadosAvisados: string[] = [];
+
+  if (oauth) {
+    try {
+      const existing = await calendar.events.get({
+        calendarId,
+        eventId: googleEventId,
+      });
+      invitadosAvisados = attendeeEmailsFromEvent(existing.data);
+    } catch (error) {
+      if (isGoogleNotFound(error)) {
+        return {
+          accesoConfigurado: true,
+          eventoEliminado: true,
+          alreadyGone: true,
+          invitadosAvisados: [],
+        };
+      }
+      logGoogleApiError("calendar.deleteCitaCalendarEvent.get", error);
+      throw error;
+    }
+  }
+
+  try {
+    await calendar.events.delete({
+      calendarId,
+      eventId: googleEventId,
+      sendUpdates: oauth && invitadosAvisados.length > 0 ? "all" : "none",
+    });
+    return {
+      accesoConfigurado: oauth,
+      eventoEliminado: true,
+      alreadyGone: false,
+      invitadosAvisados: oauth ? invitadosAvisados : [],
+    };
+  } catch (error) {
+    if (isGoogleNotFound(error)) {
+      return {
+        accesoConfigurado: oauth,
+        eventoEliminado: true,
+        alreadyGone: true,
+        invitadosAvisados: [],
+      };
+    }
+    logGoogleApiError("calendar.deleteCitaCalendarEvent", error);
     throw error;
   }
 }

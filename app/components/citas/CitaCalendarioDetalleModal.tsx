@@ -56,6 +56,7 @@ export function CitaCalendarioDetalleModal({
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [doneMessage, setDoneMessage] = useState<string | null>(null);
 
   const bodasById = useMemo(
     () => Object.fromEntries(bodas.map((b) => [b.id, b])),
@@ -79,7 +80,11 @@ export function CitaCalendarioDetalleModal({
     setBusy(true);
     setError(null);
     try {
-      await eliminarEventoCalendarSiVinculado(cita);
+      const calendar = await eliminarEventoCalendarSiVinculado(cita);
+      if (calendar?.error) {
+        setError(calendar.mensaje);
+        return;
+      }
 
       const { data, error: updateError } = await supabase
         .from("citas")
@@ -100,8 +105,14 @@ export function CitaCalendarioDetalleModal({
       });
       setCancelConfirmOpen(false);
       onChange(updated);
-      onClose();
-      router.refresh();
+      if (calendar?.mensaje) setError(null);
+      setDoneMessage(calendar?.mensaje || null);
+      if (!calendar?.mensaje) {
+        onClose();
+        router.refresh();
+      } else {
+        router.refresh();
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo cancelar la cita.");
     } finally {
@@ -157,6 +168,18 @@ export function CitaCalendarioDetalleModal({
               {formatShortDateStable(cita.fecha)} · {formatCitaHorario(cita)}
             </DetailRow>
             <DetailRow label="Lugar">{cita.lugar || "—"}</DetailRow>
+            {cita.google_event_link?.trim() && (
+              <DetailRow label="Calendario">
+                <a
+                  href={cita.google_event_link.trim()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex rounded-full border border-bloom-border px-3 py-1.5 text-sm font-medium text-bloom-ink hover:bg-bloom-canvas"
+                >
+                  Abrir en Google Calendar
+                </a>
+              </DetailRow>
+            )}
             <DetailRow label="Link de Meet">
               {meetUrl ? (
                 <a
@@ -195,6 +218,30 @@ export function CitaCalendarioDetalleModal({
           leads={leads}
           equipo={equipo}
         />
+      )}
+
+      {doneMessage && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50"
+          role="alertdialog"
+          aria-modal="true"
+        >
+          <div className="mx-4 w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <h4 className="font-display text-lg text-bloom-ink">{doneMessage}</h4>
+            <div className="mt-5 flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setDoneMessage(null);
+                  onClose();
+                }}
+                className="rounded-full bg-bloom-accent px-4 py-2 text-sm font-medium text-white hover:bg-bloom-accent-hover"
+              >
+                Listo
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {cita && cancelConfirmOpen && (

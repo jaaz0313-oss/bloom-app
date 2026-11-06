@@ -9,7 +9,10 @@ import {
   citaTimeToDb,
   getCitaEndTimeSlotOptions,
 } from "@/lib/cita-time-slots";
-import { crearEventoCalendar } from "@/lib/cita-google-calendar";
+import {
+  crearEventoCalendar,
+  type CitaCalendarSyncResult,
+} from "@/lib/cita-google-calendar";
 import { canCreateCitaTipo, normalizeCitaRow } from "@/lib/citas";
 import {
   AUDITORIA_ACCIONES,
@@ -57,6 +60,10 @@ export function LeadAgendarReunionModal({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [successMeetLink, setSuccessMeetLink] = useState<string | null>(null);
+  const [calendarResult, setCalendarResult] =
+    useState<CitaCalendarSyncResult | null>(null);
+  const [savedCitaId, setSavedCitaId] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
 
   const endOptions = useMemo(
     () => getCitaEndTimeSlotOptions(horaInicio),
@@ -73,6 +80,9 @@ export function LeadAgendarReunionModal({
     setError(null);
     setSuccess(false);
     setSuccessMeetLink(null);
+    setCalendarResult(null);
+    setSavedCitaId(null);
+    setRetrying(false);
     setSubmitting(false);
   }, [open, lead.id]);
 
@@ -139,8 +149,10 @@ export function LeadAgendarReunionModal({
 
       const cita = normalizeCitaRow(data as CitaRow);
 
-      const calendarResult = await crearEventoCalendar(cita.id);
-      const meetLink = calendarResult.meetLink?.trim() || null;
+      const synced = await crearEventoCalendar(cita.id);
+      setSavedCitaId(cita.id);
+      setCalendarResult(synced);
+      const meetLink = synced.meetLink?.trim() || null;
       if (meetLink) {
         setSuccessMeetLink(meetLink);
       }
@@ -171,7 +183,11 @@ export function LeadAgendarReunionModal({
       onClose={() => {
         if (!submitting) onClose();
       }}
-      title={success ? "Reunión agendada" : "Agendar reunión"}
+      title={
+        success
+          ? calendarResult?.mensaje || "Reunión agendada"
+          : "Agendar reunión"
+      }
       subtitle={
         success
           ? undefined
@@ -212,10 +228,36 @@ export function LeadAgendarReunionModal({
     >
       {success ? (
         <div className="space-y-3">
-          <p className="text-sm text-bloom-ink">
-            Reunión agendada correctamente
-          </p>
-          {successMeetLink && (
+          {calendarResult?.htmlLink && (
+            <a
+              href={calendarResult.htmlLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex rounded-full border border-bloom-accent bg-bloom-accent/10 px-4 py-2 text-sm font-medium text-bloom-accent hover:bg-bloom-accent/20"
+            >
+              Abrir en Google Calendar
+            </a>
+          )}
+          {calendarResult?.puedeReintentar && savedCitaId && (
+            <button
+              type="button"
+              onClick={() => {
+                setRetrying(true);
+                void crearEventoCalendar(savedCitaId)
+                  .then((next) => {
+                    setCalendarResult(next);
+                    const meetLink = next.meetLink?.trim() || null;
+                    if (meetLink) setSuccessMeetLink(meetLink);
+                  })
+                  .finally(() => setRetrying(false));
+              }}
+              disabled={retrying}
+              className="rounded-full border border-bloom-border px-4 py-2 text-sm font-medium text-bloom-ink hover:bg-bloom-canvas disabled:opacity-60"
+            >
+              {retrying ? "Reintentando…" : "Reintentar"}
+            </button>
+          )}
+          {!calendarResult?.error && successMeetLink && (
             <a
               href={successMeetLink}
               target="_blank"

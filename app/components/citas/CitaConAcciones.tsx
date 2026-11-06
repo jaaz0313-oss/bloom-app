@@ -62,6 +62,8 @@ export function CitaConAcciones({
   const [cancelledCita, setCancelledCita] = useState<CitaRow | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [calendarNotice, setCalendarNotice] = useState<string | null>(null);
+  const [deleteNotice, setDeleteNotice] = useState<string | null>(null);
   const [notaOpen, setNotaOpen] = useState(false);
   const [notaDraft, setNotaDraft] = useState("");
   const [notaSaving, setNotaSaving] = useState(false);
@@ -209,7 +211,11 @@ export function CitaConAcciones({
     setBusy(true);
     setError(null);
     try {
-      await eliminarEventoCalendarSiVinculado(cita);
+      const calendar = await eliminarEventoCalendarSiVinculado(cita);
+      if (calendar?.error) {
+        setError(calendar.mensaje);
+        return;
+      }
 
       const { data, error: updateError } = await supabase
         .from("citas")
@@ -228,6 +234,7 @@ export function CitaConAcciones({
         bodaNombre: resolveCitaBodaNombre(updated, bodasById, leadsById),
         detalle: buildCitaAuditoriaDetalle(updated),
       });
+      setCalendarNotice(calendar?.mensaje || null);
       setCancelConfirmOpen(false);
       setCancelledCita(updated);
       onChange(updated);
@@ -244,7 +251,11 @@ export function CitaConAcciones({
     setBusy(true);
     setError(null);
     try {
-      await eliminarEventoCalendarSiVinculado(cita);
+      const calendar = await eliminarEventoCalendarSiVinculado(cita);
+      if (calendar?.error) {
+        setError(calendar.mensaje);
+        return;
+      }
 
       const { error: deleteError } = await supabase
         .from("citas")
@@ -252,6 +263,11 @@ export function CitaConAcciones({
         .eq("id", cita.id);
 
       if (deleteError) throw new Error(deleteError.message);
+
+      if (calendar?.mensaje) {
+        setDeleteNotice(calendar.mensaje);
+        return;
+      }
 
       setDeleteConfirmOpen(false);
       onChange(null);
@@ -274,7 +290,9 @@ export function CitaConAcciones({
           compact={compact}
         />
         <div className="rounded-2xl border border-bloom-border bg-bloom-surface p-4 shadow-sm">
-          <h4 className="font-display text-lg text-bloom-ink">Cita cancelada</h4>
+          <h4 className="font-display text-lg text-bloom-ink">
+            {calendarNotice || "Cita cancelada"}
+          </h4>
           {cancelWhatsappMessage ? (
             <>
               <pre className="mt-3 whitespace-pre-wrap rounded-xl border border-bloom-border bg-bloom-canvas/80 p-3 text-sm text-bloom-ink">
@@ -334,6 +352,16 @@ export function CitaConAcciones({
           compact={compact}
         />
         <div className="flex flex-wrap gap-2 pl-1">
+          {cita.google_event_link?.trim() && (
+            <a
+              href={cita.google_event_link.trim()}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-full border border-bloom-border px-3 py-1 text-xs font-medium text-bloom-ink hover:bg-bloom-canvas"
+            >
+              Abrir en Google Calendar
+            </a>
+          )}
           {meetUrl && (
             <a
               href={meetUrl}
@@ -481,14 +509,40 @@ export function CitaConAcciones({
 
       {deleteConfirmOpen && (
         <ConfirmDialog
-          title="¿Eliminar esta cita?"
-          description="Esta acción no se puede deshacer. La cita se eliminará permanentemente."
-          confirmLabel={busy ? "Eliminando…" : "Eliminar"}
-          confirmClass="bg-red-600 hover:bg-red-700 text-white"
-          busy={busy}
-          error={error}
-          onCancel={() => setDeleteConfirmOpen(false)}
-          onConfirm={handleDeleteConfirm}
+          title={deleteNotice ?? "¿Eliminar esta cita?"}
+          description={
+            deleteNotice
+              ? "El evento ya se quitó del calendario."
+              : "Esta acción no se puede deshacer. La cita se eliminará permanentemente."
+          }
+          confirmLabel={
+            deleteNotice ? "Listo" : busy ? "Eliminando…" : "Eliminar"
+          }
+          confirmClass={
+            deleteNotice
+              ? "bg-bloom-accent hover:bg-bloom-accent-hover text-white"
+              : "bg-red-600 hover:bg-red-700 text-white"
+          }
+          busy={busy && !deleteNotice}
+          error={deleteNotice ? null : error}
+          onCancel={() => {
+            if (deleteNotice) {
+              setDeleteNotice(null);
+              onChange(null);
+              router.refresh();
+            }
+            setDeleteConfirmOpen(false);
+          }}
+          onConfirm={() => {
+            if (deleteNotice) {
+              setDeleteNotice(null);
+              setDeleteConfirmOpen(false);
+              onChange(null);
+              router.refresh();
+              return;
+            }
+            void handleDeleteConfirm();
+          }}
         />
       )}
     </>

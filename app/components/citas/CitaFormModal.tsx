@@ -45,7 +45,9 @@ import {
 import type { UserRole } from "@/lib/auth/roles";
 import {
   actualizarEventoCalendar,
+  aplicarResultadoCalendarACita,
   crearEventoCalendar,
+  type CitaCalendarSyncResult,
 } from "@/lib/cita-google-calendar";
 import { supabase } from "@/lib/supabase";
 import {
@@ -134,6 +136,10 @@ export function CitaFormModal({
   const [createdProveedorTelefono, setCreatedProveedorTelefono] = useState<
     string | null
   >(null);
+  const [calendarResult, setCalendarResult] =
+    useState<CitaCalendarSyncResult | null>(null);
+  const [calendarRetrying, setCalendarRetrying] = useState(false);
+  const calendarModeRef = useRef<"create" | "update">("create");
 
   const bodasById = useMemo(
     () => Object.fromEntries(bodas.map((b) => [b.id, b])),
@@ -202,6 +208,8 @@ export function CitaFormModal({
     setCreatedCita(null);
     setInvolvedEmails([]);
     setCreatedProveedorTelefono(null);
+    setCalendarResult(null);
+    setCalendarRetrying(false);
     setConfirmacionTipo("created");
 
     if (editingCita) {
@@ -291,28 +299,29 @@ export function CitaFormModal({
     hadGoogleEvent: boolean,
   ): Promise<CitaRow> {
     if (mode === "update" && !hadGoogleEvent) {
+      setCalendarResult(null);
       return cita;
     }
 
+    calendarModeRef.current = mode;
     const result =
       mode === "create"
         ? await crearEventoCalendar(cita.id)
         : await actualizarEventoCalendar(cita.id);
+    setCalendarResult(result);
+    return aplicarResultadoCalendarACita(cita, result);
+  }
 
-    if (result.warning) {
-      // Calendar falló; la cita en Bloom ya quedó guardada.
-      return cita;
-    }
-
-    if (!result.eventId) {
-      return cita;
-    }
-
-    return {
-      ...cita,
-      google_event_id: result.eventId,
-      google_meet_link: result.meetLink ?? cita.google_meet_link ?? null,
-    };
+  async function retryCalendar() {
+    if (!createdCita) return;
+    setCalendarRetrying(true);
+    const result =
+      calendarModeRef.current === "create"
+        ? await crearEventoCalendar(createdCita.id)
+        : await actualizarEventoCalendar(createdCita.id);
+    setCalendarResult(result);
+    setCreatedCita(aplicarResultadoCalendarACita(createdCita, result));
+    setCalendarRetrying(false);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -473,8 +482,9 @@ export function CitaFormModal({
     }
   }
 
-  const confirmacionHeading =
-    confirmacionTipo === "created"
+  const confirmacionHeading = calendarResult?.mensaje
+    ? calendarResult.mensaje
+    : confirmacionTipo === "created"
       ? "Cita creada"
       : confirmacionTipo === "modified"
         ? "Cita actualizada"
@@ -500,7 +510,7 @@ export function CitaFormModal({
     >
       <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-bloom-border bg-bloom-surface p-6 shadow-lg">
         <div className="flex items-start justify-between gap-4">
-          <h3 className="font-display text-xl text-bloom-ink">
+          <h3 className="font-display text-xl text-bloom-ink break-words">
             {createdCita
               ? confirmacionHeading
               : isEditing
@@ -517,15 +527,50 @@ export function CitaFormModal({
         </div>
 
         {createdCita ? (
-          <CitaCreadaConfirmacion
-            cita={createdCita}
-            involvedEmails={involvedEmails}
-            bodasById={bodasById}
-            leadsById={leadsById}
-            onClose={handleConfirmacionClose}
-            variant={confirmacionTipo}
-            proveedorTelefono={createdProveedorTelefono}
-          />
+          <div className="mt-5 space-y-4">
+            {calendarResult?.htmlLink && (
+              <a
+                href={calendarResult.htmlLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex rounded-full border border-bloom-accent bg-bloom-accent/10 px-4 py-2 text-sm font-medium text-bloom-accent hover:bg-bloom-accent/20"
+              >
+                Abrir en Google Calendar
+              </a>
+            )}
+            {calendarResult?.puedeReintentar && (
+              <button
+                type="button"
+                onClick={() => void retryCalendar()}
+                disabled={calendarRetrying}
+                className="rounded-full border border-bloom-border px-4 py-2 text-sm font-medium text-bloom-ink hover:bg-bloom-canvas disabled:opacity-60"
+              >
+                {calendarRetrying ? "Reintentando…" : "Reintentar"}
+              </button>
+            )}
+            {!calendarResult?.error && (
+              <CitaCreadaConfirmacion
+                cita={createdCita}
+                involvedEmails={involvedEmails}
+                bodasById={bodasById}
+                leadsById={leadsById}
+                onClose={handleConfirmacionClose}
+                variant={confirmacionTipo}
+                proveedorTelefono={createdProveedorTelefono}
+              />
+            )}
+            {calendarResult?.error && (
+              <div className="flex justify-end border-t border-bloom-border pt-4">
+                <button
+                  type="button"
+                  onClick={handleConfirmacionClose}
+                  className="rounded-full bg-bloom-accent px-5 py-2 text-sm font-medium text-white hover:bg-bloom-accent-hover"
+                >
+                  Listo
+                </button>
+              </div>
+            )}
+          </div>
         ) : (
           <form className="mt-5 space-y-4" onSubmit={handleSubmit}>
             {/* 1. Tipo de cita */}

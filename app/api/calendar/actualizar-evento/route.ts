@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
 import { getCurrentAuthUser } from "@/lib/auth/user-profiles";
 import { loadCitaForCalendar } from "@/lib/calendar-cita-loader";
+import { mensajeActualizarCita } from "@/lib/cita-calendar-mensajes";
+import { guardarEventoDeCita } from "@/lib/cita-calendar-store";
 import { updateCalendarEvent } from "@/lib/google-calendar";
-import { createServerSupabaseClient } from "@/lib/supabase-server";
+import {
+  logGoogleApiError,
+  readableGoogleCalendarError,
+} from "@/lib/google-service-account";
 
 export async function POST(request: Request) {
   const user = await getCurrentAuthUser();
@@ -31,51 +36,74 @@ export async function POST(request: Request) {
     const { cita, bodaNombre, invitados } = loaded;
 
     if (!cita.google_event_id) {
+      const motivo = "La cita no tiene un evento de Google Calendar vinculado.";
       return NextResponse.json(
-        { error: "La cita no tiene un evento de Google Calendar vinculado." },
+        mensajeActualizarCita({
+          googleError: motivo,
+          accesoConfigurado: false,
+          eventId: null,
+          htmlLink: null,
+          meetLink: null,
+          organizerEmail: null,
+          esperados: [],
+          confirmados: [],
+          avisoSolicitado: false,
+        }),
         { status: 400 },
       );
     }
 
-    const updated = await updateCalendarEvent(
+    const written = await updateCalendarEvent(
       cita.google_event_id,
       cita,
       bodaNombre,
       invitados,
     );
-
-    const meetLink = updated.meetLink ?? cita.google_meet_link ?? null;
-
-    if (updated.meetLink && updated.meetLink !== cita.google_meet_link) {
-      const supabase = await createServerSupabaseClient();
-      const { error: updateError } = await supabase
-        .from("citas")
-        .update({ google_meet_link: updated.meetLink })
-        .eq("id", citaId);
-
-      if (updateError) {
-        throw new Error(updateError.message);
-      }
-    }
-
-    return NextResponse.json({
-      eventId: updated.eventId,
-      meetLink,
+    const result = mensajeActualizarCita({
+      googleError: null,
+      accesoConfigurado: written.accesoConfigurado,
+      eventId: written.eventId,
+      htmlLink: written.htmlLink,
+      meetLink: written.meetLink ?? cita.google_meet_link,
+      organizerEmail: written.organizerEmail,
+      esperados: written.accesoConfigurado ? invitados : [],
+      confirmados: written.invitadosConfirmados,
+      avisoSolicitado: written.avisoSolicitado,
     });
-  } catch (error) {
-    console.error("[api/calendar/actualizar-evento] error exacto:", error);
-    if (error instanceof Error) {
-      console.error("[api/calendar/actualizar-evento] message:", error.message);
-      console.error("[api/calendar/actualizar-evento] stack:", error.stack);
+
+    const stored = await guardarEventoDeCita(citaId, {
+      google_event_id: written.eventId,
+      google_meet_link: result.meetLink,
+      google_event_link: written.htmlLink,
+    });
+
+    if (stored.columnMissing) {
+      const mensaje =
+        "La cita se guardó y el evento se actualizó, pero falta aplicar la migración add_cita_google_event_link.sql para guardar el enlace.";
+      return NextResponse.json({
+        ...result,
+        error: mensaje,
+        mensaje,
+        puedeReintentar: false,
+      });
     }
+
+    return NextResponse.json(result);
+  } catch (error) {
+    logGoogleApiError("calendar.actualizar-evento", error);
+    const motivo = readableGoogleCalendarError(error);
     return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "No se pudo actualizar el evento en Google Calendar.",
-      },
-      { status: 500 },
+      mensajeActualizarCita({
+        googleError: motivo,
+        accesoConfigurado: false,
+        eventId: null,
+        htmlLink: null,
+        meetLink: null,
+        organizerEmail: null,
+        esperados: [],
+        confirmados: [],
+        avisoSolicitado: false,
+      }),
     );
   }
 }

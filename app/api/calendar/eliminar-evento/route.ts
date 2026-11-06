@@ -1,8 +1,16 @@
 import { NextResponse } from "next/server";
 import { getCurrentAuthUser } from "@/lib/auth/user-profiles";
 import { loadCitaForCalendar } from "@/lib/calendar-cita-loader";
-import { deleteCalendarEvent } from "@/lib/google-calendar";
-import { createServerSupabaseClient } from "@/lib/supabase-server";
+import {
+  mensajeEliminarCita,
+  mensajeEliminarSinEvento,
+} from "@/lib/cita-calendar-mensajes";
+import { limpiarEventoDeCita } from "@/lib/cita-calendar-store";
+import { deleteCitaCalendarEvent } from "@/lib/google-calendar";
+import {
+  logGoogleApiError,
+  readableGoogleCalendarError,
+} from "@/lib/google-service-account";
 
 export async function POST(request: Request) {
   const user = await getCurrentAuthUser();
@@ -29,44 +37,37 @@ export async function POST(request: Request) {
     }
 
     const { cita } = loaded;
-
-    if (cita.google_event_id) {
-      try {
-        await deleteCalendarEvent(cita.google_event_id, {
-          notifyAttendees: true,
-        });
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        if (!message.includes("404") && !message.toLowerCase().includes("not found")) {
-          throw err;
-        }
-      }
+    if (!cita.google_event_id) {
+      return NextResponse.json(mensajeEliminarSinEvento());
     }
 
-    const supabase = await createServerSupabaseClient();
-    const { error: updateError } = await supabase
-      .from("citas")
-      .update({
-        google_event_id: null,
-        google_meet_link: null,
-      })
-      .eq("id", citaId);
+    const deleted = await deleteCitaCalendarEvent(cita.google_event_id);
+    const result = mensajeEliminarCita({
+      googleError: null,
+      accesoConfigurado: deleted.accesoConfigurado,
+      eventoEliminado: deleted.eventoEliminado,
+      alreadyGone: deleted.alreadyGone,
+      invitadosAvisados: deleted.invitadosAvisados,
+      eventId: cita.google_event_id,
+    });
 
-    if (updateError) {
-      throw new Error(updateError.message);
+    if (result.eventoEliminado) {
+      await limpiarEventoDeCita(citaId);
     }
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json(result);
   } catch (error) {
-    console.error(error);
+    logGoogleApiError("calendar.eliminar-evento", error);
+    const motivo = readableGoogleCalendarError(error);
     return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "No se pudo eliminar el evento en Google Calendar.",
-      },
-      { status: 500 },
+      mensajeEliminarCita({
+        googleError: motivo,
+        accesoConfigurado: false,
+        eventoEliminado: false,
+        alreadyGone: false,
+        invitadosAvisados: [],
+        eventId: null,
+      }),
     );
   }
 }
