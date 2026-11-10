@@ -12,6 +12,7 @@ export type LeadInsertPayload = {
   ciudad_residencia_actual: string | null;
   concepto_boda: string | null;
   prioridades: string | null;
+  como_nos_conocieron?: string | null;
   estado_seguimiento: LeadSeguimientoStatus;
   notas: string | null;
   telefono: string | null;
