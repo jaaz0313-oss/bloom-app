@@ -65,34 +65,13 @@ type FormBind = {
   submitting: boolean;
 };
 
-type MoreField =
-  | "ciudad"
-  | "presupuesto"
-  | "invitados"
-  | "tipoCeremonia"
-  | "estado"
-  | "pais"
-  | "ciudadResidencia"
-  | "concepto"
-  | "prioridades"
-  | "comoNosConocieron"
-  | "notas"
-  | "acuerdos";
-
-const MORE_FIELDS: MoreField[] = [
-  "ciudad",
-  "presupuesto",
-  "invitados",
-  "tipoCeremonia",
-  "estado",
-  "pais",
-  "ciudadResidencia",
-  "concepto",
-  "prioridades",
-  "comoNosConocieron",
-  "notas",
+const LEAD_FORM_SECTIONS = [
+  "basica",
+  "detalles",
+  "masInformacion",
+  "seguimiento",
   "acuerdos",
-];
+] as const;
 
 function Field({
   label,
@@ -413,12 +392,6 @@ function LeadFechaField({
 
 type MasInformacionProps = FormBind & {
   defaultOpen: boolean;
-  omit?: MoreField[];
-  fechaConflicto?: string[];
-  canManageAcuerdos: boolean;
-  anticipoTouched: boolean;
-  onAnticipoTouched: () => void;
-  onHonorariosChange: (value: string) => void;
 };
 
 export function LeadMasInformacionSection({
@@ -426,27 +399,9 @@ export function LeadMasInformacionSection({
   setForm,
   submitting,
   defaultOpen,
-  omit = [],
-  canManageAcuerdos,
-  anticipoTouched,
-  onAnticipoTouched,
-  onHonorariosChange,
 }: MasInformacionProps) {
   const [open, setOpen] = useState(defaultOpen);
-  const hidden = new Set(omit);
-  const show = (field: MoreField) => !hidden.has(field);
-  const visible = MORE_FIELDS.some(
-    (field) => show(field) && (field !== "acuerdos" || canManageAcuerdos),
-  );
-  if (!visible) return null;
-
   const bind = { form, setForm, submitting };
-  const row = (items: Array<ReactNode | false>) => {
-    const shown = items.filter(Boolean);
-    if (shown.length === 0) return null;
-    if (shown.length === 1) return shown[0];
-    return <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">{shown}</div>;
-  };
 
   return (
     <div className="overflow-hidden rounded-xl border border-bloom-border">
@@ -476,52 +431,18 @@ export function LeadMasInformacionSection({
 
       {open && (
         <div className="space-y-4 border-t border-bloom-border px-4 py-4">
-          {show("ciudad") && (
-            <LeadCiudadField {...bind} label="Ciudad de la boda" />
-          )}
-          {row([
-            show("presupuesto") && <LeadPresupuestoField {...bind} />,
-            show("invitados") && (
-              <LeadInvitadosField {...bind} label="Cantidad de invitados" />
-            ),
-          ])}
-          {row([
-            show("tipoCeremonia") && <LeadTipoCeremoniaField {...bind} />,
-            show("estado") && <LeadEstadoField {...bind} />,
-          ])}
-          {row([
-            show("pais") && <LeadPaisOrigenField {...bind} />,
-            show("ciudadResidencia") && <LeadCiudadResidenciaField {...bind} />,
-          ])}
-          {show("concepto") && <LeadConceptoField {...bind} />}
-          {show("prioridades") && <LeadPrioridadesField {...bind} />}
-          {show("comoNosConocieron") && (
-            <LeadComoNosConocieronField {...bind} />
-          )}
-          {show("notas") && <LeadNotasField {...bind} />}
-          {show("acuerdos") && canManageAcuerdos && (
-            <LeadAcuerdosFields
-              {...bind}
-              anticipoTouched={anticipoTouched}
-              onAnticipoTouched={onAnticipoTouched}
-              onHonorariosChange={onHonorariosChange}
-            />
-          )}
+          <LeadTipoCeremoniaField {...bind} />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <LeadPaisOrigenField {...bind} />
+            <LeadCiudadResidenciaField {...bind} />
+          </div>
+          <LeadConceptoField {...bind} />
+          <LeadPrioridadesField {...bind} />
         </div>
       )}
     </div>
   );
 }
-
-const EDIT_ALREADY_VISIBLE: MoreField[] = [
-  "ciudad",
-  "presupuesto",
-  "invitados",
-  "estado",
-  "comoNosConocieron",
-  "notas",
-  "acuerdos",
-];
 
 type FormBodyProps = FormBind & {
   fechaConflicto?: string[];
@@ -529,9 +450,10 @@ type FormBodyProps = FormBind & {
   anticipoTouched: boolean;
   onAnticipoTouched: () => void;
   onHonorariosChange: (value: string) => void;
+  variant: "edit" | "create";
 };
 
-export function LeadEditFields({
+function LeadFormSections({
   form,
   setForm,
   submitting,
@@ -540,11 +462,13 @@ export function LeadEditFields({
   anticipoTouched,
   onAnticipoTouched,
   onHonorariosChange,
+  variant,
 }: FormBodyProps) {
   const bind = { form, setForm, submitting };
+  const emailRequired = variant === "create";
 
-  return (
-    <div className="space-y-4">
+  const sections = {
+    basica: (
       <fieldset className="space-y-4 rounded-xl border border-bloom-border bg-bloom-canvas/50 p-4">
         <legend className="px-1 text-sm font-medium text-bloom-ink">
           Información básica
@@ -583,13 +507,15 @@ export function LeadEditFields({
               onChange={(e) =>
                 setForm((s) => ({ ...s, email: e.target.value }))
               }
+              required={emailRequired}
               disabled={submitting}
               placeholder="correo@ejemplo.com"
             />
           </Field>
         </div>
       </fieldset>
-
+    ),
+    detalles: (
       <fieldset className="space-y-4 rounded-xl border border-bloom-border bg-bloom-canvas/50 p-4">
         <legend className="px-1 text-sm font-medium text-bloom-ink">
           Detalles de la boda
@@ -608,7 +534,14 @@ export function LeadEditFields({
         </div>
         <LeadComoNosConocieronField {...bind} />
       </fieldset>
-
+    ),
+    masInformacion: (
+      <LeadMasInformacionSection
+        {...bind}
+        defaultOpen={variant === "edit"}
+      />
+    ),
+    seguimiento: (
       <fieldset className="space-y-4 rounded-xl border border-bloom-border bg-bloom-canvas/50 p-4">
         <legend className="px-1 text-sm font-medium text-bloom-ink">
           Seguimiento
@@ -616,97 +549,31 @@ export function LeadEditFields({
         <LeadEstadoField {...bind} />
         <LeadNotasField {...bind} />
       </fieldset>
-
-      {canManageAcuerdos && (
-        <LeadAcuerdosFields
-          {...bind}
-          anticipoTouched={anticipoTouched}
-          onAnticipoTouched={onAnticipoTouched}
-          onHonorariosChange={onHonorariosChange}
-        />
-      )}
-
-      <LeadMasInformacionSection
+    ),
+    acuerdos: canManageAcuerdos ? (
+      <LeadAcuerdosFields
         {...bind}
-        defaultOpen
-        omit={EDIT_ALREADY_VISIBLE}
-        canManageAcuerdos={canManageAcuerdos}
         anticipoTouched={anticipoTouched}
         onAnticipoTouched={onAnticipoTouched}
         onHonorariosChange={onHonorariosChange}
       />
+    ) : null,
+  };
+
+  return (
+    <div className="space-y-4">
+      {LEAD_FORM_SECTIONS.map((section) => {
+        const content = sections[section];
+        return content ? <div key={section}>{content}</div> : null;
+      })}
     </div>
   );
 }
 
-export function LeadCreateFields({
-  form,
-  setForm,
-  submitting,
-  fechaConflicto = [],
-  canManageAcuerdos,
-  anticipoTouched,
-  onAnticipoTouched,
-  onHonorariosChange,
-}: FormBodyProps) {
-  const bind = { form, setForm, submitting };
+export function LeadEditFields(props: Omit<FormBodyProps, "variant">) {
+  return <LeadFormSections {...props} variant="edit" />;
+}
 
-  return (
-    <>
-      <Field label="Nombre de la pareja">
-        <input
-          className={inputClass}
-          value={form.nombrePareja}
-          onChange={(e) =>
-            setForm((s) => ({ ...s, nombrePareja: e.target.value }))
-          }
-          required
-          disabled={submitting}
-          placeholder="Ej. Valentina y Andrés"
-          autoFocus
-        />
-      </Field>
-
-      <Field label="Email">
-        <input
-          type="email"
-          className={inputClass}
-          value={form.email}
-          onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))}
-          required
-          disabled={submitting}
-          placeholder="correo@ejemplo.com"
-        />
-      </Field>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Teléfono">
-          <input
-            type="tel"
-            className={inputClass}
-            value={form.telefono}
-            onChange={(e) =>
-              setForm((s) => ({ ...s, telefono: e.target.value }))
-            }
-            placeholder="Ej. 3001234567"
-            disabled={submitting}
-          />
-        </Field>
-        <LeadFechaField
-          {...bind}
-          label="Fecha tentativa"
-          fechaConflicto={fechaConflicto}
-        />
-      </div>
-
-      <LeadMasInformacionSection
-        {...bind}
-        defaultOpen={false}
-        canManageAcuerdos={canManageAcuerdos}
-        anticipoTouched={anticipoTouched}
-        onAnticipoTouched={onAnticipoTouched}
-        onHonorariosChange={onHonorariosChange}
-      />
-    </>
-  );
+export function LeadCreateFields(props: Omit<FormBodyProps, "variant">) {
+  return <LeadFormSections {...props} variant="create" />;
 }
